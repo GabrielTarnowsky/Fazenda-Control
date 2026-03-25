@@ -231,7 +231,7 @@ export default function AddAnimal() {
             <Input type="number" value={form.peso_entrada} onChange={e => setForm(f => ({ ...f, peso_entrada: e.target.value }))} placeholder="200" className="border-primary/30" />
           </div>
           <div className="space-y-2">
-            <Label>Preço Arroba <span className="text-[10px] text-muted-foreground">(R$)</span></Label>
+            <Label>Preço do Kg/V <span className="text-[10px] text-muted-foreground">(R$)</span></Label>
             <Input type="number" value={form.preco_arroba} onChange={e => setForm(f => ({ ...f, preco_arroba: e.target.value }))} placeholder="300" />
           </div>
         </div>
