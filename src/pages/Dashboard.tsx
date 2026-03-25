@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { store, Animal, Financial, parseDateSafe } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
-import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight } from "lucide-react";
+import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight, Cloud } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -182,6 +182,27 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in sm:px-2 pb-10">
+      {/* Cloud Migration Alert Banner */}
+      {animals.length > 0 && !lastSync && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-500 shadow-lg shadow-amber-500/5">
+          <div className="flex items-center gap-3 text-amber-900">
+            <div className="h-10 w-10 bg-amber-500/20 rounded-xl flex items-center justify-center shrink-0">
+               <Cloud className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-black text-sm">Dados apenas locais detectados!</p>
+              <p className="text-[11px] font-medium opacity-80 leading-tight">Você tem {animals.length} animais salvos neste PC. Deseja enviá-los para a nuvem para acessar no celular?</p>
+            </div>
+          </div>
+          <Button 
+            onClick={() => navigate("/settings")}
+            className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 font-black italic uppercase text-xs tracking-widest h-10 px-6 rounded-xl shadow-lg shadow-amber-600/20"
+          >
+            Configurar Nuvem Agora
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
