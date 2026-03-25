@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trophy, AlertTriangle, TrendingUp, TrendingDown, Users, Weight } from "lucide-react";
+import { Trophy, AlertTriangle, TrendingUp, TrendingDown, Users, Weight, BarChart3 } from "lucide-react";
 import { Animal, AnimalEvent, store } from "@/lib/store";
 
 interface AnimalPerformance {
@@ -157,5 +157,3 @@ export default function WeighingReport({ isOpen, onClose, loteId, weightedAnimal
     </Dialog>
   );
 }
-
-import { BarChart3 } from "lucide-react";
