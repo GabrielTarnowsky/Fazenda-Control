@@ -26,7 +26,7 @@ export default function Login() {
     try {
       // Small delay to simulate server
       await new Promise(resolve => setTimeout(resolve, 800));
-      store.auth.login(email, password);
+      await store.auth.login(email, password);
       toast.success("Bem-vindo de volta!");
       navigate("/");
     } catch (error: any) {

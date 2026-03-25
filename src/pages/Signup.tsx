@@ -27,10 +27,10 @@ export default function Signup() {
     try {
       // Small delay to simulate server
       await new Promise(resolve => setTimeout(resolve, 1000));
-      store.auth.signup(name, email, password);
+      await store.auth.signup(name, email, password);
       toast.success("Conta criada! Boas-vindas ao FazendaControl.");
       // Automatically log in
-      store.auth.login(email, password);
+      await store.auth.login(email, password);
       navigate("/");
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar conta");

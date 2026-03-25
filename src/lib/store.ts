@@ -377,7 +377,10 @@ export const store = {
       const userId = localStorage.getItem("bovi_session");
       if (!userId) return null;
       const users = load<User>("bovi_users");
-      return users.find(u => u.id === userId) || null;
+      const user = users.find(u => u.id === userId);
+      // Return the cached user if found, otherwise return a minimal object with just the ID
+      // This prevents immediate redirects before sync completes on page reload
+      return user || { id: userId, name: "Usuário", email: "", password_hash: "", createdAt: "" };
     }
   },
 
