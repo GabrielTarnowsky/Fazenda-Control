@@ -11,17 +11,16 @@ import {
   User, 
   Mail, 
   Shield, 
-  RefreshCw, 
+  RotateCcw, 
   Cloud, 
-  CloudOff,
   ChevronRight,
   AlertTriangle,
   Beef,
-  Smartphone,
+  Activity,
   CheckCircle
 } from "lucide-react";
 
-export default function Settings() {
+export default function SettingsPage() {
   const navigate = useNavigate();
   const user = store.auth.getCurrentUser();
   const [syncing, setSyncing] = useState(false);
@@ -97,7 +96,7 @@ export default function Settings() {
       <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
         <CardHeader className="pb-3 bg-muted/30 border-b">
           <CardTitle className="text-sm font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Smartphone className="h-4 w-4" /> Dados Neste Dispositivo
+            <Activity className="h-4 w-4" /> Dados Neste Dispositivo
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4">
@@ -128,7 +127,7 @@ export default function Settings() {
           >
             <div className="h-11 w-11 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
               {syncing ? (
-                <RefreshCw className="h-5 w-5 text-blue-600 animate-spin" />
+                <RotateCcw className="h-5 w-5 text-blue-600 animate-spin" />
               ) : (
                 <Cloud className="h-5 w-5 text-blue-600" />
               )}
