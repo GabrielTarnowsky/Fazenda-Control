@@ -528,5 +528,52 @@ export const store = {
       console.error("Erro fatal na sincronização", e);
       return false;
     }
+  },
+  // --- MIGRATION: UPLOAD LOCAL TO CLOUD ---
+  pushToCloud: async () => {
+    if (!supabase) {
+      toast.error("Supabase não configurado. Impossível enviar dados.");
+      return false;
+    }
+    try {
+      const tables = [
+        { key: 'bovi_animals', table: 'animals' },
+        { key: 'bovi_events', table: 'events' },
+        { key: 'bovi_financial', table: 'financial' },
+        { key: 'bovi_users', table: 'users' },
+        { key: 'bovi_ingredients', table: 'ingredients' },
+        { key: 'bovi_rations', table: 'rations' },
+        { key: 'bovi_purchases', table: 'purchases' },
+        { key: 'bovi_health', table: 'health' },
+        { key: 'bovi_inseminations', table: 'inseminations' }
+      ];
+
+      toast.info("Iniciando upload para nuvem...");
+      
+      for (const t of tables) {
+        const localData = load<any>(t.key);
+        if (localData.length === 0) continue;
+
+        console.log(`Puxando ${t.table}...`);
+        // We use upsert to avoid duplicates if some data was already there
+        const { error } = await supabase.from(t.table).upsert(localData);
+        
+        if (error) {
+          console.warn(`Erro no upload da tabela ${t.table}:`, error.message);
+          if (error.code === '42P01') {
+             toast.error(`Tabela '${t.table}' não existe no banco de dados. Execute o script SQL.`);
+          }
+        } else {
+          console.log(`Tabela '${t.table}' enviada com sucesso!`);
+        }
+      }
+      
+      toast.success("Todos os dados locais foram enviados para a nuvem! 🚀");
+      return true;
+    } catch (e: any) {
+      console.error("Erro no Push-to-Cloud", e);
+      toast.error("Falha ao enviar dados para a nuvem.");
+      return false;
+    }
   }
 };
