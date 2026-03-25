@@ -78,7 +78,7 @@ export default function Login() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center ml-1">
                   <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sua Senha</label>
-                  <button type="button" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter" onClick={() => toast.info("Funcionalidade em desenvolvimento")}>Esqueci a senha</button>
+                  <Link to="/forgot-password" title="Redefinir Senha" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter">Esqueci a senha</Link>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />

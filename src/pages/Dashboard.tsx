@@ -25,6 +25,9 @@ export default function Dashboard() {
     setIngredients(store.getIngredients());
   }, []);
 
+  const user = store.auth.getCurrentUser();
+  const lastSync = localStorage.getItem("bovi_last_sync");
+
   const activeAnimals = useMemo(() => animals.filter(a => a.status === "ativo"), [animals]);
   const totalAnimals = activeAnimals.length;
   
@@ -174,8 +177,16 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold tracking-tight">Dashboard Overview</h1>
-          <p className="text-muted-foreground mt-1">Visão geral da sua fazenda</p>
+          <h1 className="text-3xl font-display font-bold tracking-tight">Olá, {user?.name || "Produtor"}!</h1>
+          <p className="text-muted-foreground mt-1 flex items-center gap-2">
+            Visão geral da sua fazenda
+            {lastSync && (
+              <Badge variant="outline" className="text-[10px] font-bold text-slate-400 bg-slate-100/50 border-none">
+                <Activity className="h-3 w-3 mr-1 text-emerald-500" /> 
+                Sincronizado {new Date(lastSync).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
+              </Badge>
+            )}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => setShowPurchase(!showPurchase)} className="font-bold shadow-lg">

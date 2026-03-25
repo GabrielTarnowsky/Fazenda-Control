@@ -22,6 +22,7 @@ import Insemination from "./pages/Insemination";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
 import { store } from "./lib/store";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => {
             {/* Rotas Públicas */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
 
             {/* Rotas Protegidas */}
             <Route element={<SidebarLayout />}>

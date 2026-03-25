@@ -348,7 +348,7 @@ export const store = {
       const { data, error } = await supabase.from('users').insert([{
         name,
         email,
-        password_hash: btoa(pass)
+        password_hash: btoa(unescape(encodeURIComponent(pass)))
       }]).select().single();
 
       if (error) throw error;
@@ -361,14 +361,23 @@ export const store = {
     login: async (email: string, pass: string) => {
       const { data, error } = await supabase.from('users')
         .select('*')
-        .eq('email', email)
-        .eq('password_hash', btoa(pass))
+        .ilike('email', email)
+        .eq('password_hash', btoa(unescape(encodeURIComponent(pass))))
         .single();
         
       if (error || !data) throw new Error("Email ou senha inválidos");
       
       localStorage.setItem("bovi_session", data.id);
       return data;
+    },
+    resetPassword: async (email: string, newPass: string) => {
+      const { data, error } = await supabase.from('users')
+        .update({ password_hash: btoa(unescape(encodeURIComponent(newPass))) })
+        .eq('email', email)
+        .select();
+
+      if (error || !data || data.length === 0) throw new Error("E-mail não encontrado");
+      return true;
     },
     logout: () => {
       localStorage.removeItem("bovi_session");
@@ -390,7 +399,10 @@ export const store = {
       const tables = ['animals', 'events', 'financial', 'inseminations', 'users'];
       for (const table of tables) {
         const { data } = await supabase.from(table).select('*');
-        if (data) save(`bovi_${table}`, data);
+        if (data) {
+          save(`bovi_${table}`, data);
+          localStorage.setItem("bovi_last_sync", new Date().toISOString());
+        }
       }
       return true;
     } catch (e) {
