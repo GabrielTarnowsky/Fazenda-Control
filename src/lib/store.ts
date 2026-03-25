@@ -448,6 +448,14 @@ export const store = {
       }
       
       localStorage.setItem("bovi_session", user.id);
+      
+      // Cache user locally to avoid "Usuário" fallback
+      const users = load<User>("bovi_users");
+      if (!users.find(u => u.id === user.id)) {
+        users.push(user);
+        save("bovi_users", users);
+      }
+      
       return user;
     },
     resetPassword: async (email: string, newPass: string) => {
