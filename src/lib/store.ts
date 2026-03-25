@@ -556,7 +556,7 @@ export const store = {
             save(`bovi_${table}`, data);
             console.log(`Tabela '${table}' sincronizada: ${data.length} registros`);
           } else {
-            console.log(`Tabela '${table}' está vazia no servidor.`);
+            console.log(`Tabela '${table}' está vazia no servidor. Mantendo dados locais.`);
           }
         } catch (e: any) {
           console.warn(`Exceção na tabela '${table}':`, e.message);

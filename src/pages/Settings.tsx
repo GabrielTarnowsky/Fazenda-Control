@@ -179,7 +179,7 @@ export default function SettingsPage() {
             </div>
             <div className="flex-1 text-left">
               <p className="font-bold text-sm">FazendaControl</p>
-              <p className="text-[11px] text-muted-foreground">Versão 1.0.0 — Gestão Pecuária</p>
+              <p className="text-[11px] text-muted-foreground">Versão 1.2.0 — Gestão Pecuária</p>
             </div>
             <Badge variant="outline" className="text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
               <CheckCircle className="h-3 w-3 mr-1" /> Atualizado
