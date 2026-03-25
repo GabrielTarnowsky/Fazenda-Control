@@ -182,84 +182,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in sm:px-2 pb-10">
-      {/* Sync Hub - Novo Painel Centralizado */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="border-none shadow-lg rounded-2xl overflow-hidden bg-white/40 backdrop-blur-sm border border-white/20">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${lastSync ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
-                  <Cloud className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm uppercase tracking-tight">Status da Nuvem</h3>
-                  <p className="text-[11px] text-muted-foreground">
-                    {lastSync ? `Sincronizado em: ${new Date(lastSync).toLocaleString()}` : "Aguardando primeira sincronização"}
-                  </p>
-                </div>
-              </div>
-              <Badge variant={lastSync ? "default" : "outline"} className={lastSync ? "bg-emerald-500 hover:bg-emerald-500" : "animate-pulse"}>
-                {lastSync ? "Ativo" : "Pendente"}
-              </Badge>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                onClick={async () => {
-                  const success = await store.sync();
-                  if (success) {
-                    setAnimals(store.getAnimals());
-                    setFinancials(store.getFinancials());
-                  }
-                }}
-                className="flex-1 bg-primary hover:bg-primary/90 h-10 rounded-xl text-xs font-black uppercase italic tracking-wider transition-all active:scale-95"
-              >
-                <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                Puxar da Nuvem
-              </Button>
-              <Button 
-                onClick={async () => {
-                  if (confirm("Deseja enviar seus dados locais para o servidor?")) {
-                    await store.pushToCloud();
-                  }
-                }}
-                variant="outline"
-                className="flex-1 h-10 rounded-xl text-xs font-black uppercase italic tracking-wider border-2"
-              >
-                <Upload className="h-3.5 w-3.5 mr-2" />
-                Enviar para Nuvem
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-lg rounded-2xl overflow-hidden bg-primary/5 border border-primary/10">
-          <CardContent className="p-4 flex items-center justify-between h-full">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                <Database className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-black text-sm uppercase tracking-tight">Base Local</h3>
-                <p className="text-2xl font-black italic">{animals.length} <span className="text-[10px] uppercase not-italic text-muted-foreground">Animais</span></p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest mb-1">Último Acesso</p>
-              <p className="text-xs font-bold text-slate-700">{new Date().toLocaleDateString()}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold tracking-tight">Olá, {user?.name || "Produtor"}!</h1>
-          <p className="text-muted-foreground mt-1 flex items-center gap-2">
-            Visão geral da sua fazenda
+          <h1 className="text-3xl font-black italic tracking-tighter text-slate-900 leading-none uppercase">FAZENDA CONTROL</h1>
+          <p className="text-muted-foreground text-sm mt-1 flex items-center gap-2">
+            Bem-vindo, <span className="text-primary font-bold">{user?.name || "Produtor"}</span>
             {lastSync && (
-              <Badge variant="outline" className="text-[10px] font-bold text-slate-400 bg-slate-100/50 border-none">
+              <Badge variant="outline" className="text-[10px] font-bold text-slate-400 bg-slate-100/50 border-none ml-2">
                 <Activity className="h-3 w-3 mr-1 text-emerald-500" /> 
                 Sincronizado {new Date(lastSync).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
               </Badge>

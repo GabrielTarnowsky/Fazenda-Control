@@ -130,7 +130,6 @@ function save<T>(key: string, data: T[]) {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
-// Fire-and-forget Supabase helper — triggers toast on error
 const cloud = (table: string, method: 'insert' | 'update' | 'delete' | 'upsert', data: any, filter?: { col: string, val: any }) => {
   if (!supabase) return;
   const user = store.auth.getCurrentUser();
@@ -541,7 +540,14 @@ export const store = {
            break;
         }
         try {
-          const { data, error } = await supabase.from(table).select('*');
+          const user = store.auth.getCurrentUser();
+          if (!user) continue;
+
+          console.log(`Puxando ${table} para usuário ${user.id}...`);
+          const { data, error } = await supabase
+            .from(table)
+            .select('*')
+            .eq('user_id', user.id);
           if (error) {
             console.warn(`Erro na tabela ${table}:`, error.message);
             continue;
