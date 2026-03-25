@@ -19,6 +19,7 @@ export interface Animal {
   peso_entrada?: number;
   peso_saida?: number;
   matriz_id?: string;
+  user_id?: string;
 }
 
 export interface User {
@@ -37,6 +38,7 @@ export interface AnimalEvent {
   description: string;
   value: number;
   weight: number;
+  user_id?: string;
 }
 
 export interface Financial {
@@ -48,6 +50,7 @@ export interface Financial {
   animal_id?: string;
   category?: string;
   payment_method?: string;
+  user_id?: string;
 }
 
 export interface Insemination {
@@ -59,6 +62,7 @@ export interface Insemination {
   technician?: string;
   observation?: string;
   estimated_birth?: string;
+  user_id?: string;
 }
 
 export interface Health {
@@ -67,6 +71,7 @@ export interface Health {
   type: string;
   date: string;
   next_date: string;
+  user_id?: string;
 }
 
 export interface IngredientPurchase {
@@ -86,6 +91,7 @@ export interface Ingredient {
   cost_per_kg: number;
   unit: string;
   stock?: number;
+  user_id?: string;
 }
 
 export interface RationProduct {
@@ -98,6 +104,7 @@ export interface Ration {
   name: string;
   products: RationProduct[];
   cost_per_kg: number;
+  user_id?: string;
 }
 
 export interface FeedingLog {
@@ -124,17 +131,38 @@ function save<T>(key: string, data: T[]) {
 }
 
 // Fire-and-forget Supabase helper — triggers toast on error
-const cloud = (promise: Promise<any> | null) => {
-  if (!promise) return;
-  promise.then(({ error }: any) => {
-    if (error) {
-      console.warn("Supabase Error:", error.message);
-      toast.error(`Erro de Sincronização: ${error.message}. Seus dados estão salvos apenas neste dispositivo.`);
-    }
-  }).catch((e: any) => {
-    console.warn("Supabase offline:", e);
-    toast.error("Sem conexão com o servidor. Dados salvos apenas localmente.");
-  });
+const cloud = (table: string, method: 'insert' | 'update' | 'delete' | 'upsert', data: any, filter?: { col: string, val: any }) => {
+  if (!supabase) return;
+  const user = store.auth.getCurrentUser();
+  if (!user) return;
+
+  // Most operations need the data to be scoped to the user
+  let query = supabase.from(table);
+  
+  if (method === 'insert' || method === 'upsert') {
+    const dataWithUser = Array.isArray(data) 
+      ? data.map(d => ({ ...d, user_id: user.id }))
+      : { ...data, user_id: user.id };
+    
+    query[method](dataWithUser).then(({ error }: any) => {
+      if (error) {
+        console.warn(`Supabase ${method} Error (${table}):`, error.message);
+        toast.error(`Erro de Sincronização: ${error.message}`);
+      }
+    });
+  } else if (method === 'update') {
+    query.update(data).eq(filter!.col, filter!.val).eq('user_id', user.id).then(({ error }: any) => {
+      if (error) {
+        console.warn("Supabase update Error:", error.message);
+      }
+    });
+  } else if (method === 'delete') {
+    query.delete().eq(filter!.col, filter!.val).eq('user_id', user.id).then(({ error }: any) => {
+      if (error) {
+        console.warn("Supabase delete Error:", error.message);
+      }
+    });
+  }
 };
 
 // Helper to format YYYY-MM-DD to DD/MM/YYYY without timezone shifts
@@ -170,18 +198,18 @@ export const store = {
     const item = { ...a, id: v4() };
     list.push(item);
     save("bovi_animals", list);
-    cloud(supabase?.from('animals').insert([item]));
+    cloud('animals', 'insert', item);
     return item;
   },
   updateAnimal: (id: string, data: Partial<Animal>) => {
     const list = load<Animal>("bovi_animals").map(a => a.id === id ? { ...a, ...data } : a);
     save("bovi_animals", list);
-    cloud(supabase?.from('animals').update(data).eq('id', id));
+    cloud('animals', 'update', data, { col: 'id', val: id });
   },
   deleteAnimal: (id: string) => {
     const animals = load<Animal>("bovi_animals").filter(a => a.id !== id);
     save("bovi_animals", animals);
-    cloud(supabase?.from('animals').delete().eq('id', id));
+    cloud('animals', 'delete', null, { col: 'id', val: id });
     const events = load<AnimalEvent>("bovi_events").filter(e => e.animal_id !== id);
     save("bovi_events", events);
     const health = load<Health>("bovi_health").filter(h => h.animal_id !== id);
@@ -208,7 +236,7 @@ export const store = {
         store.updateAnimal(event.animal_id, { status: "morto", peso_saida: data.weight });
       }
     }
-    cloud(supabase?.from('events').update(data).eq('id', id));
+    cloud('events', 'update', data, { col: 'id', val: id });
   },
   addEvent: (e: Omit<AnimalEvent, "id">) => {
     const list = load<AnimalEvent>("bovi_events");
@@ -224,7 +252,7 @@ export const store = {
     if (e.type === "morte") {
       store.updateAnimal(e.animal_id, { status: "morto", peso_saida: e.weight });
     }
-    cloud(supabase?.from('events').insert([item]));
+    cloud('events', 'insert', item);
     return item;
   },
 
@@ -258,18 +286,18 @@ export const store = {
 
     list.push(...items);
     save("bovi_financial", list);
-    cloud(supabase?.from('financial').insert(items));
+    cloud('financial', 'insert', items);
     return items[0];
   },
   updateFinancial: (id: string, data: Partial<Financial>) => {
     const list = load<Financial>("bovi_financial").map(f => f.id === id ? { ...f, ...data } : f);
     save("bovi_financial", list);
-    cloud(supabase?.from('financial').update(data).eq('id', id));
+    cloud('financial', 'update', data, { col: 'id', val: id });
   },
   deleteFinancial: (id: string) => {
     const list = load<Financial>("bovi_financial").filter(f => f.id !== id);
     save("bovi_financial", list);
-    cloud(supabase?.from('financial').delete().eq('id', id));
+    cloud('financial', 'delete', null, { col: 'id', val: id });
   },
 
   // Health
@@ -279,18 +307,18 @@ export const store = {
     const item = { ...h, id: v4() };
     list.push(item);
     save("bovi_health", list);
-    cloud(supabase?.from('health').insert([item]));
+    cloud('health', 'insert', item);
     return item;
   },
   updateHealth: (id: string, data: Partial<Health>) => {
     const list = load<Health>("bovi_health").map(h => h.id === id ? { ...h, ...data } : h);
     save("bovi_health", list);
-    cloud(supabase?.from('health').update(data).eq('id', id));
+    cloud('health', 'update', data, { col: 'id', val: id });
   },
   deleteHealth: (id: string) => {
     const list = load<Health>("bovi_health").filter(h => h.id !== id);
     save("bovi_health", list);
-    cloud(supabase?.from('health').delete().eq('id', id));
+    cloud('health', 'delete', null, { col: 'id', val: id });
   },
   getUpcomingAlerts: () => {
     const today = new Date().toISOString().split("T")[0];
@@ -307,18 +335,18 @@ export const store = {
     const item = { ...i, id: v4() };
     list.push(item);
     save("bovi_ingredients", list);
-    cloud(supabase?.from('ingredients').insert([item]));
+    cloud('ingredients', 'insert', item);
     return item;
   },
   updateIngredient: (id: string, data: Partial<Ingredient>) => {
     const list = load<Ingredient>("bovi_ingredients").map(i => i.id === id ? { ...i, ...data } : i);
     save("bovi_ingredients", list);
-    cloud(supabase?.from('ingredients').update(data).eq('id', id));
+    cloud('ingredients', 'update', data, { col: 'id', val: id });
   },
   deleteIngredient: (id: string) => {
     const list = load<Ingredient>("bovi_ingredients").filter(i => i.id !== id);
     save("bovi_ingredients", list);
-    cloud(supabase?.from('ingredients').delete().eq('id', id));
+    cloud('ingredients', 'delete', null, { col: 'id', val: id });
   },
 
   // Rations
@@ -329,18 +357,18 @@ export const store = {
     const item = { ...r, id: v4() };
     list.push(item);
     save("bovi_rations", list);
-    cloud(supabase?.from('rations').insert([item]));
+    cloud('rations', 'insert', item);
     return item;
   },
   updateRation: (id: string, data: Partial<Ration>) => {
     const list = load<Ration>("bovi_rations").map(r => r.id === id ? { ...r, ...data } : r);
     save("bovi_rations", list);
-    cloud(supabase?.from('rations').update(data).eq('id', id));
+    cloud('rations', 'update', data, { col: 'id', val: id });
   },
   deleteRation: (id: string) => {
     const list = load<Ration>("bovi_rations").filter(r => r.id !== id);
     save("bovi_rations", list);
-    cloud(supabase?.from('rations').delete().eq('id', id));
+    cloud('rations', 'delete', null, { col: 'id', val: id });
   },
 
   // Feeding Logs
@@ -357,7 +385,7 @@ export const store = {
       value: l.total_cost,
       date: l.date
     });
-    cloud(supabase?.from('feeding_logs').insert([item]));
+    cloud('feeding_logs', 'insert', item);
     return item;
   },
 
@@ -378,7 +406,7 @@ export const store = {
       value: p.total_value,
       date: p.date
     });
-    cloud(supabase?.from('purchases').insert([item]));
+    cloud('purchases', 'insert', item);
     return item;
   },
   updateIngredientPurchase: (id: string, data: Partial<IngredientPurchase>) => {
@@ -394,12 +422,12 @@ export const store = {
       return p;
     });
     save("bovi_purchases", list);
-    cloud(supabase?.from('purchases').update(data).eq('id', id));
+    cloud('purchases', 'update', data, { col: 'id', val: id });
   },
   deleteIngredientPurchase: (id: string) => {
     const list = load<IngredientPurchase>("bovi_purchases").filter(p => p.id !== id);
     save("bovi_purchases", list);
-    cloud(supabase?.from('purchases').delete().eq('id', id));
+    cloud('purchases', 'delete', null, { col: 'id', val: id });
   },
 
   // Insemination
@@ -409,13 +437,13 @@ export const store = {
     const item = { ...ins, id: v4() };
     list.push(item);
     save("bovi_inseminations", list);
-    cloud(supabase?.from('inseminations').insert([item]));
+    cloud('inseminations', 'insert', item);
     return item;
   },
   updateInsemination: (id: string, data: Partial<Insemination>) => {
     const list = load<Insemination>("bovi_inseminations").map(ins => ins.id === id ? { ...ins, ...data } : ins);
     save("bovi_inseminations", list);
-    cloud(supabase?.from('inseminations').update(data).eq('id', id));
+    cloud('inseminations', 'update', data, { col: 'id', val: id });
   },
   getInseminationsByAnimal: (animalId: string) => load<Insemination>("bovi_inseminations").filter(ins => ins.animal_id === animalId),
 
@@ -561,9 +589,17 @@ export const store = {
         const localData = load<any>(t.key);
         if (localData.length === 0) continue;
 
-        console.log(`Puxando ${t.table}...`);
-        // We use upsert to avoid duplicates if some data was already there
-        const { error } = await supabase.from(t.table).upsert(localData);
+        // Inject user_id into every item being pushed
+        const user = store.auth.getCurrentUser();
+        if (!user) continue;
+
+        const dataToPush = localData.map(item => ({
+          ...item,
+          user_id: user.id
+        }));
+
+        console.log(`Subindo ${t.table}...`);
+        const { error } = await supabase.from(t.table).upsert(dataToPush);
         
         if (error) {
           console.warn(`Erro no upload da tabela ${t.table}:`, error.message);
