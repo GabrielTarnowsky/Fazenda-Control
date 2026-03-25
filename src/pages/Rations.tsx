@@ -51,13 +51,15 @@ export default function Rations() {
   }, [filteredLogs, filteredPurchases]);
 
   const ingredientTotals = useMemo(() => {
-    const totals: Record<string, number> = {};
+    const totals: Record<string, { qty: number, value: number }> = {};
     purchases.forEach(p => {
       const ing = ingredients.find(i => i.id === p.ingredient_id);
       const name = ing?.name || "Desconhecido";
-      totals[name] = (totals[name] || 0) + p.total_qty_kg;
+      if (!totals[name]) totals[name] = { qty: 0, value: 0 };
+      totals[name].qty += p.total_qty_kg;
+      totals[name].value += p.total_value;
     });
-    return Object.entries(totals).sort((a, b) => b[1] - a[1]);
+    return Object.entries(totals).sort((a, b) => b[1].value - a[1].value);
   }, [purchases, ingredients]);
 
   const handleDeletePurchase = (id: string) => {
@@ -162,15 +164,20 @@ export default function Rations() {
           {ingredientTotals.length === 0 ? (
             <p className="col-span-full text-xs text-muted-foreground font-bold uppercase italic py-4">Nenhum insumo registrado no histórico.</p>
           ) : (
-            ingredientTotals.map(([name, total]) => (
+            ingredientTotals.map(([name, data]) => (
               <div key={name} className="bg-slate-900 text-white rounded-2xl p-4 shadow-xl border border-white/10 relative overflow-hidden group">
                 <div className="absolute -right-2 -top-2 opacity-5 group-hover:scale-110 transition-transform">
                   <Wheat className="h-16 w-16" />
                 </div>
                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{name}</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-black italic">{total.toLocaleString("pt-BR")}</span>
-                  <span className="text-[10px] font-bold text-slate-400">kg</span>
+                <div className="flex flex-col">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black italic">{data.qty.toLocaleString("pt-BR")}</span>
+                    <span className="text-[10px] font-bold text-slate-400">kg</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <span className="text-xs font-black text-emerald-400 italic">R$ {data.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
               </div>
             ))
