@@ -46,6 +46,13 @@ export default function Animals() {
     }
   };
 
+  const getDisplayWeight = (animal: Animal) => {
+    if (animal.status === "vendido") {
+      return (animal.peso_saida || animal.weight) * 2;
+    }
+    return animal.weight;
+  };
+
   const renderAnimalCard = (animal: Animal) => (
     <Card 
       key={animal.id}
@@ -74,7 +81,7 @@ export default function Animals() {
             </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Weight className="h-3.5 w-3.5" /> {animal.weight}kg
+                <Weight className="h-3.5 w-3.5" /> {getDisplayWeight(animal)}kg {animal.status === "vendido" && "(Vivo)"}
               </span>
               <span className="flex items-center gap-1">
                 <Info className="h-3.5 w-3.5" /> {animal.breed}
