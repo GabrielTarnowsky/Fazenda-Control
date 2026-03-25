@@ -22,7 +22,7 @@ export default function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps)
     if (list.length > 0) setForm(p => ({ ...p, ingredient_id: list[0].id }));
   }, []);
 
-  const handleRegisterPurchase = (e: React.FormEvent) => {
+  const handleRegisterPurchase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.ingredient_id || form.total_value <= 0 || form.total_qty_kg <= 0) {
       toast.error("Preencha todos os campos da compra");
@@ -31,7 +31,7 @@ export default function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps)
 
     const new_cost_per_kg = form.total_value / form.total_qty_kg;
     
-    store.addIngredientPurchase({
+    await store.addIngredientPurchase({
       ingredient_id: form.ingredient_id,
       total_value: form.total_value,
       total_qty_kg: form.total_qty_kg,

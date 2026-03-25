@@ -116,13 +116,13 @@ export default function FinancialPage() {
     return data;
   }, [filteredRecords, selectedDate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.description || !form.value) {
       toast.error("Preencha descrição e valor");
       return;
     }
-    store.addFinancial(form);
+    await store.addFinancial(form);
     toast.success("Registro adicionado!");
     setRecords(store.getFinancials());
     setShowForm(false);
