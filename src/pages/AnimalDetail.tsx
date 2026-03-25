@@ -59,7 +59,7 @@ export default function AnimalDetail() {
       </div>
     );
   };
-  const saleEvent = events.find(e => e.type === "venda");
+  const saleEvent = events.find(e => e.type === "venda");
   const saleValue = saleEvent?.value || 0;
   const saleWeight = saleEvent?.weight || animal.peso_saida || 0;
   const profit = saleValue > 0 ? saleValue - (animal.valor_compra || 0) : 0;
@@ -150,8 +150,7 @@ export default function AnimalDetail() {
                <Calendar className="h-4 w-4 text-muted-foreground" />
                <div className="text-xs leading-none">
                  <p className="font-black text-muted-foreground uppercase text-[10px] mb-0.5">Data da Compra</p>
-                 <p className="font-bold">                  <p className="font-bold">{formatDateDisplay(animal.data_compra || "")}</p>
-</p>
+                 <p className="font-bold">{formatDateDisplay(animal.data_compra || "")}</p>
                </div>
              </div>
              <div className="text-right">
