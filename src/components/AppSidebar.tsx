@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, DollarSign, Beef, Target, FileText, Settings, Wheat, Baby } from "lucide-react";
+import { Home, DollarSign, Beef, Target, FileText, Settings, Wheat, Baby, RefreshCw } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +20,7 @@ const navItems = [
   { title: "Reprodução", url: "/insemination", icon: Baby },
   { title: "Relatórios", url: "/reports", icon: FileText },
   { title: "Configurações", url: "/settings", icon: Settings },
+  { title: "Teste DB", url: "/test-financial", icon: RefreshCw },
 ];
 
 export function AppSidebar() {

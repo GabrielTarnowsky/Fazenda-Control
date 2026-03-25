@@ -24,6 +24,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import SettingsPage from "./pages/Settings";
+import SupabaseTest from "./pages/SupabaseTest";
 import { store } from "./lib/store";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,7 @@ const App = () => {
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/insemination" element={<ProtectedRoute><Insemination /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/test-financial" element={<ProtectedRoute><SupabaseTest /></ProtectedRoute>} />
               <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
             </Route>
           </Routes>
