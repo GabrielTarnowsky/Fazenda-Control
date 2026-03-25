@@ -24,10 +24,13 @@ export default function Login() {
     setLoading(true);
     
     try {
-      // Small delay to simulate server
-      await new Promise(resolve => setTimeout(resolve, 800));
       await store.auth.login(email, password);
-      toast.success("Bem-vindo de volta!");
+      toast.success("Bem-vindo! Sincronizando seus dados...");
+      
+      // CRITICAL: Sync data from Supabase AFTER login on new device
+      await store.sync();
+      
+      toast.success("Dados sincronizados com sucesso!");
       navigate("/");
     } catch (error: any) {
       toast.error(error.message || "Email ou senha inválidos");
@@ -98,7 +101,7 @@ export default function Login() {
                 className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-black italic text-lg rounded-xl shadow-lg shadow-primary/20 group transition-all"
                 disabled={loading}
               >
-                {loading ? "PROCESSANDO..." : "ENTRAR NO SISTEMA"} 
+                {loading ? "SINCRONIZANDO..." : "ENTRAR NO SISTEMA"} 
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button>
             </form>
