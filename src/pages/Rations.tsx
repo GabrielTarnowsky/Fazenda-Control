@@ -52,7 +52,7 @@ export default function Rations() {
 
   const ingredientTotals = useMemo(() => {
     const totals: Record<string, { qty: number, value: number }> = {};
-    purchases.forEach(p => {
+    filteredPurchases.forEach(p => {
       const ing = ingredients.find(i => i.id === p.ingredient_id);
       const name = ing?.name || "Desconhecido";
       if (!totals[name]) totals[name] = { qty: 0, value: 0 };
@@ -60,7 +60,7 @@ export default function Rations() {
       totals[name].value += p.total_value;
     });
     return Object.entries(totals).sort((a, b) => b[1].value - a[1].value);
-  }, [purchases, ingredients]);
+  }, [filteredPurchases, ingredients]);
 
   const handleDeletePurchase = (id: string) => {
     if (confirm("Tem certeza que deseja excluir esta compra?")) {
