@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { store, Financial } from "@/lib/store";
+import { store, Financial, formatDateDisplay } from "@/lib/store";
 import {
   Plus,
   TrendingUp,
@@ -53,6 +53,8 @@ const PAYMENT_METHODS = [
   "Pix", "Dinheiro", "Boleto", "Cartão", "Transferência"
 ];
 
+
+
 export default function FinancialPage() {
   const [records, setRecords] = useState<Financial[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -75,11 +77,12 @@ export default function FinancialPage() {
   }, []);
 
   const filteredRecords = useMemo(() => {
-    return records.filter(r => {
-      const date = new Date(r.date);
-      return date.getMonth() === selectedDate.getMonth() &&
-             date.getFullYear() === selectedDate.getFullYear();
-    }).sort((a, b) => b.date.localeCompare(a.date));
+    const targetYear = selectedDate.getFullYear().toString();
+    const targetMonth = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+    const monthPrefix = `${targetYear}-${targetMonth}`;
+
+    return records.filter(r => r.date.startsWith(monthPrefix))
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [records, selectedDate]);
 
   const totalRevenue = useMemo(() => 
@@ -364,7 +367,7 @@ export default function FinancialPage() {
                 /* ===== NORMAL ROW ===== */
                 <TableRow key={r.id} className="hover:bg-muted/30 transition-colors border-b border-border/40 group">
                   <TableCell className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                    {new Date(r.date).toLocaleDateString("pt-BR")}
+                    {formatDateDisplay(r.date)}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">

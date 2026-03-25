@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { store, Animal, Financial } from "@/lib/store";
+import { store, Animal, Financial, parseDateSafe } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, TrendingUp, DollarSign, Activity, Target, Calendar, Weight, Info, ChevronRight, Award, AlertCircle, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,7 +62,7 @@ export default function Reports() {
       const gain = a.weight - pEnt;
       const dataEnt = a.data_compra || a.birth_date;
       if (!dataEnt) return;
-      const days = Math.max(1, (new Date().getTime() - new Date(dataEnt).getTime()) / (1000 * 3600 * 24));
+      const days = Math.max(1, (new Date().getTime() - parseDateSafe(dataEnt).getTime()) / (1000 * 3600 * 24));
       const gmd = gain / days;
 
       if (!lotesMap[lote]) lotesMap[lote] = { gmd: 0, count: 0 };
@@ -84,7 +84,7 @@ export default function Reports() {
         const pEnt = a.peso_entrada || 30;
         const gain = a.weight - pEnt;
         const dataEnt = a.data_compra || a.birth_date;
-        const days = dataEnt ? Math.max(1, (new Date().getTime() - new Date(dataEnt).getTime()) / (1000 * 3600 * 24)) : 1;
+        const days = dataEnt ? Math.max(1, (new Date().getTime() - parseDateSafe(dataEnt).getTime()) / (1000 * 3600 * 24)) : 1;
         const gmd = Math.max(0.1, gain / days); // Avoid div by zero
         
         const remaining = Math.max(0, PE_ABATE - a.weight);

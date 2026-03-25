@@ -129,6 +129,24 @@ const cloud = (promise: Promise<any>) => {
   }).catch((e: any) => console.warn("Supabase offline:", e));
 };
 
+// Helper to format YYYY-MM-DD to DD/MM/YYYY without timezone shifts
+export const formatDateDisplay = (dateStr: string) => {
+  if (!dateStr) return "—";
+  if (dateStr.includes("T")) dateStr = dateStr.split("T")[0]; // Handle ISO strings
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  return `${d}/${m}/${y}`;
+};
+
+// Helper to parse YYYY-MM-DD into a LOCAL Date object (ignoring UTC/Timezone shift)
+export const parseDateSafe = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  if (dateStr.includes("T")) dateStr = dateStr.split("T")[0];
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
 export const store = {
   // Animals
   getAnimals: () => load<Animal>("bovi_animals"),

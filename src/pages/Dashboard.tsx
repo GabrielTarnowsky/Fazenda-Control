@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { store, Animal, Financial } from "@/lib/store";
+import { store, Animal, Financial, parseDateSafe } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,7 +125,7 @@ export default function Dashboard() {
       
       const pEnt = a.peso_entrada || 30; // Fallback
       const gain = a.weight - pEnt;
-      const days = Math.max(1, (new Date().getTime() - new Date(dataEnt).getTime()) / (1000 * 3600 * 24));
+      const days = Math.max(1, (new Date().getTime() - parseDateSafe(dataEnt).getTime()) / (1000 * 3600 * 24));
       const gmd = gain / days;
 
       if (!lotesMap[lote]) lotesMap[lote] = { totalGmd: 0, count: 0 };

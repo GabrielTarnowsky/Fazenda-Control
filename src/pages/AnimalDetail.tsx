@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { store, Animal, AnimalEvent } from "@/lib/store";
+import { store, Animal, AnimalEvent, formatDateDisplay } from "@/lib/store";
 import { ArrowLeft, Syringe, Weight, DollarSign, Calendar, Pencil, TrendingUp, TrendingDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export default function AnimalDetail() {
             <div className="mt-0.5">{typeIcons[ev.type] || <Calendar className="h-4 w-4" />}</div>
             <div className="flex-1">
               <p className="text-sm font-medium capitalize">{ev.type}</p>
-              <p className="text-xs text-muted-foreground">{ev.date}</p>
+              <p className="text-xs text-muted-foreground">{formatDateDisplay(ev.date)}</p>
               {ev.description && <p className="text-xs text-muted-foreground">{ev.description}</p>}
             </div>
             <div className="text-right text-sm">
