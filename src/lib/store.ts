@@ -543,10 +543,15 @@ export const store = {
           if (!user) continue;
 
           console.log(`Puxando ${table} para usuário ${user.id}...`);
-          const { data, error } = await supabase
-            .from(table)
-            .select('*')
-            .eq('user_id', user.id);
+          let query = supabase.from(table).select('*');
+          
+          if (table === 'users') {
+            query = query.eq('id', user.id);
+          } else {
+            query = query.eq('user_id', user.id);
+          }
+
+          const { data, error } = await query;
           if (error) {
             console.warn(`Erro na tabela ${table}:`, error.message);
             continue;
