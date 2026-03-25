@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
-import { store, Ration, FeedingLog, IngredientPurchase, Ingredient } from "@/lib/store";
+import { store, Ration, FeedingLog, IngredientPurchase, Ingredient, formatDateDisplay } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Plus, Wheat, ListFilter, TrendingUp, DollarSign, History, Utensils, Package, PackagePlus, Calendar } from "lucide-react";
+import { Plus, Wheat, ListFilter, TrendingUp, DollarSign, History, Utensils, Package, PackagePlus, Calendar, Pencil, Trash2, Check, X } from "lucide-react";
 import PurchaseForm from "@/components/PurchaseForm";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 export default function Rations() {
   const [rations, setRations] = useState<Ration[]>([]);
@@ -16,6 +17,8 @@ export default function Rations() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [showPurchase, setShowPurchase] = useState(false);
   const [selectedYearMonth, setSelectedYearMonth] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<IngredientPurchase>>({});
   const navigate = useNavigate();
 
   const loadData = () => {
@@ -46,6 +49,27 @@ export default function Rations() {
 
     return { totalCost, totalConsumption, avgCostPerAnimal, totalPurchases };
   }, [filteredLogs, filteredPurchases]);
+
+  const handleDeletePurchase = (id: string) => {
+    if (confirm("Tem certeza que deseja excluir esta compra?")) {
+      store.deleteIngredientPurchase(id);
+      loadData();
+      toast.success("Compra excluída");
+    }
+  };
+
+  const startEditing = (p: IngredientPurchase) => {
+    setEditingId(p.id);
+    setEditForm(p);
+  };
+
+  const saveEditing = () => {
+    if (!editingId) return;
+    store.updateIngredientPurchase(editingId, editForm);
+    setEditingId(null);
+    loadData();
+    toast.success("Compra atualizada");
+  };
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-8">
@@ -182,7 +206,7 @@ export default function Rations() {
                       const rat = rations.find(r => r.id === l.ration_id);
                       return (
                         <tr key={l.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap font-medium text-muted-foreground">{new Date(l.date).toLocaleDateString("pt-BR")}</td>
+                          <td className="px-4 py-3 whitespace-nowrap font-medium text-muted-foreground">{formatDateDisplay(l.date)}</td>
                           <td className="px-4 py-3 font-bold text-primary">{rat?.name || "Ração"}</td>
                           <td className="px-4 py-3">{l.lote_id || "—"}</td>
                           <td className="px-4 py-3 text-center font-bold">{l.num_animals}</td>
@@ -217,6 +241,7 @@ export default function Rations() {
                     <th className="px-4 py-3 border-b text-right">Quantidade (kg)</th>
                     <th className="px-4 py-3 border-b text-right">Valor Pago</th>
                     <th className="px-4 py-3 border-b text-right">Custo p/ kg</th>
+                    <th className="px-4 py-3 border-b text-center w-[100px]">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
@@ -227,9 +252,36 @@ export default function Rations() {
                   ) : (
                     filteredPurchases.sort((a,b) => b.date.localeCompare(a.date)).map(p => {
                       const ing = ingredients.find(i => i.id === p.ingredient_id);
+                      if (editingId === p.id) {
+                        return (
+                          <tr key={p.id} className="bg-primary/5 border-b border-primary/20">
+                            <td className="px-4 py-3">
+                              <Input type="date" className="h-8 text-xs w-[120px]" value={editForm.date || ""} onChange={e => setEditForm({ ...editForm, date: e.target.value })} />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select className="h-8 text-xs w-full rounded-md border border-input bg-background font-medium" value={editForm.ingredient_id} onChange={e => setEditForm({ ...editForm, ingredient_id: e.target.value })}>
+                                {ingredients.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Input type="number" step="0.1" className="h-8 text-xs text-right w-[80px]" value={editForm.total_qty_kg || ""} onChange={e => setEditForm({ ...editForm, total_qty_kg: Number(e.target.value) })} />
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Input type="number" step="0.01" className="h-8 text-xs text-right w-[100px]" value={editForm.total_value || ""} onChange={e => setEditForm({ ...editForm, total_value: Number(e.target.value) })} />
+                            </td>
+                            <td className="px-4 py-3 text-right">-</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:bg-primary/20" onClick={saveEditing}><Check className="h-4 w-4" /></Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:bg-slate-50" onClick={() => setEditingId(null)}><X className="h-4 w-4" /></Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
                       return (
-                        <tr key={p.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-3 whitespace-nowrap font-medium text-muted-foreground">{new Date(p.date).toLocaleDateString("pt-BR")}</td>
+                        <tr key={p.id} className="hover:bg-muted/30 transition-colors group">
+                          <td className="px-4 py-3 whitespace-nowrap font-medium text-muted-foreground">{formatDateDisplay(p.date)}</td>
                           <td className="px-4 py-3 font-bold uppercase">{ing?.name || "Insumo"}</td>
                           <td className="px-4 py-3 text-right font-medium">{p.total_qty_kg.toLocaleString("pt-BR")} kg</td>
                           <td className="px-4 py-3 text-right font-black text-destructive">
@@ -237,6 +289,12 @@ export default function Rations() {
                           </td>
                           <td className="px-4 py-3 text-right">
                              <Badge variant="outline" className="font-black text-primary">R$ {p.cost_per_kg.toFixed(2)}/kg</Badge>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-primary hover:bg-primary/10" onClick={() => startEditing(p)}><Pencil className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeletePurchase(p.id)}><Trash2 className="h-3 w-3" /></Button>
+                            </div>
                           </td>
                         </tr>
                       );

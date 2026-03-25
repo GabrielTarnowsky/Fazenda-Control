@@ -14,7 +14,13 @@ interface PurchaseFormProps {
 
 export default function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [form, setForm] = useState({ ingredient_id: "", total_value: 0, total_qty_kg: 0, payment_method: "Pix" });
+  const [form, setForm] = useState({ 
+    ingredient_id: "", 
+    total_value: 0, 
+    total_qty_kg: 0, 
+    payment_method: "Pix",
+    date: new Date().toISOString().split("T")[0]
+  });
 
   useEffect(() => {
     const list = store.getIngredients();
@@ -41,7 +47,7 @@ export default function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps)
     });
 
     toast.success(`Compra registrada! Novo custo: R$ ${new_cost_per_kg.toFixed(2)}/kg`);
-    setForm({ ...form, total_value: 0, total_qty_kg: 0 });
+    setForm({ ...form, total_value: 0, total_qty_kg: 0, date: new Date().toISOString().split("T")[0] });
     if (onSuccess) onSuccess();
   };
 
@@ -53,7 +59,11 @@ export default function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps)
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleRegisterPurchase} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <form onSubmit={handleRegisterPurchase} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+          <div className="space-y-2">
+            <Label className="text-xs uppercase font-bold text-muted-foreground">Data</Label>
+            <Input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="h-11 font-bold" />
+          </div>
           <div className="space-y-2">
             <Label className="text-xs uppercase font-bold text-muted-foreground">Produto</Label>
             <select 

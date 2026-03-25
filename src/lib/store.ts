@@ -343,6 +343,26 @@ export const store = {
     cloud(supabase.from('purchases').insert([item]));
     return item;
   },
+  updateIngredientPurchase: (id: string, data: Partial<IngredientPurchase>) => {
+    const list = load<IngredientPurchase>("bovi_purchases").map(p => {
+      if (p.id === id) {
+        const updated = { ...p, ...data };
+        if (data.total_value !== undefined || data.total_qty_kg !== undefined) {
+          updated.cost_per_kg = updated.total_value / updated.total_qty_kg;
+          store.updateIngredient(updated.ingredient_id, { cost_per_kg: updated.cost_per_kg });
+        }
+        return updated;
+      }
+      return p;
+    });
+    save("bovi_purchases", list);
+    cloud(supabase.from('purchases').update(data).eq('id', id));
+  },
+  deleteIngredientPurchase: (id: string) => {
+    const list = load<IngredientPurchase>("bovi_purchases").filter(p => p.id !== id);
+    save("bovi_purchases", list);
+    cloud(supabase.from('purchases').delete().eq('id', id));
+  },
 
   // Insemination
   getInseminations: () => load<Insemination>("bovi_inseminations"),
