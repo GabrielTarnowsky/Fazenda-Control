@@ -215,6 +215,16 @@ export const store = {
     await supabase.from('financial').insert([item]);
     return item;
   },
+  updateFinancial: async (id: string, data: Partial<Financial>) => {
+    const list = load<Financial>("bovi_financial").map(f => f.id === id ? { ...f, ...data } : f);
+    save("bovi_financial", list);
+    await supabase.from('financial').update(data).eq('id', id);
+  },
+  deleteFinancial: async (id: string) => {
+    const list = load<Financial>("bovi_financial").filter(f => f.id !== id);
+    save("bovi_financial", list);
+    await supabase.from('financial').delete().eq('id', id);
+  },
 
   // Health
   getHealthRecords: () => load<Health>("bovi_health"),

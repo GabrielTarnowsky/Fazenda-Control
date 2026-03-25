@@ -4,16 +4,15 @@ import {
   Plus,
   TrendingUp,
   TrendingDown,
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  Calendar as CalendarIcon,
-  DollarSign,
   Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Pencil,
+  X,
+  Check,
+  MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,16 +33,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell
-} from "recharts";
 
 const MONTHS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -68,6 +57,8 @@ export default function FinancialPage() {
   const [records, setRecords] = useState<Financial[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Financial>>({});
   const [form, setForm] = useState({
     type: "despesa",
     description: "",
@@ -77,8 +68,10 @@ export default function FinancialPage() {
     payment_method: "Pix"
   });
 
+  const refreshRecords = () => setRecords(store.getFinancials());
+
   useEffect(() => {
-    setRecords(store.getFinancials());
+    refreshRecords();
   }, []);
 
   const filteredRecords = useMemo(() => {
@@ -99,23 +92,6 @@ export default function FinancialPage() {
 
   const balance = totalRevenue - totalExpense;
 
-  const chartData = useMemo(() => {
-    const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
-    const data = Array.from({ length: daysInMonth }, (_, i) => ({
-      day: i + 1,
-      total: 0
-    }));
-
-    filteredRecords.forEach(r => {
-      const day = new Date(r.date).getDate();
-      if (day <= daysInMonth) {
-        data[day - 1].total += r.type === "receita" ? r.value : -r.value;
-      }
-    });
-
-    return data;
-  }, [filteredRecords, selectedDate]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.description || !form.value) {
@@ -124,7 +100,7 @@ export default function FinancialPage() {
     }
     await store.addFinancial(form);
     toast.success("Registro adicionado!");
-    setRecords(store.getFinancials());
+    refreshRecords();
     setShowForm(false);
     setForm({
       type: "despesa",
@@ -134,6 +110,37 @@ export default function FinancialPage() {
       category: "Outros",
       payment_method: "Pix"
     });
+  };
+
+  const startEditing = (record: Financial) => {
+    setEditingId(record.id);
+    setEditForm({
+      type: record.type,
+      description: record.description,
+      value: record.value,
+      date: record.date,
+      category: record.category,
+      payment_method: record.payment_method
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditForm({});
+  };
+
+  const saveEditing = async () => {
+    if (!editingId) return;
+    await store.updateFinancial(editingId, editForm);
+    toast.success("Registro atualizado!");
+    refreshRecords();
+    cancelEditing();
+  };
+
+  const handleDelete = async (id: string) => {
+    await store.deleteFinancial(id);
+    toast.success("Registro excluído");
+    refreshRecords();
   };
 
   const changeMonth = (offset: number) => {
@@ -290,42 +297,132 @@ export default function FinancialPage() {
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Descrição</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Pagamento</TableHead>
               <TableHead className="text-right text-[10px] font-black uppercase tracking-widest">Valor</TableHead>
+              <TableHead className="w-[80px] text-[10px] font-black uppercase tracking-widest text-center">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredRecords.map((r) => (
-              <TableRow key={r.id} className="hover:bg-muted/30 transition-colors border-b border-border/40">
-                <TableCell className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                  {new Date(r.date).toLocaleDateString("pt-BR")}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px] font-bold text-foreground leading-none">{r.category || "Geral"}</span>
-                    <Badge variant={r.type === "receita" ? "outline" : "destructive"} 
-                      className={`text-[9px] uppercase font-black h-4 px-1 rounded w-fit ${
-                        r.type === "receita" 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                        : "bg-rose-50 text-rose-700 border-rose-200"
-                      }`}
-                    >
-                      {r.type}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs font-semibold tracking-tight truncate max-w-[150px]">
-                  {r.description}
-                </TableCell>
-                <TableCell className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
-                  {r.payment_method || "—"}
-                </TableCell>
-                <TableCell className={`text-right text-sm font-black tracking-tighter ${r.type === "receita" ? "text-emerald-600" : "text-rose-600"}`}>
-                  {r.type === "receita" ? "" : "-"}{r.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </TableCell>
-              </TableRow>
+              editingId === r.id ? (
+                /* ===== INLINE EDIT ROW ===== */
+                <TableRow key={r.id} className="bg-primary/5 border-b border-primary/20">
+                  <TableCell>
+                    <Input
+                      type="date"
+                      className="h-8 text-xs w-[120px]"
+                      value={editForm.date || ""}
+                      onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Select value={editForm.category || ""} onValueChange={v => setEditForm(f => ({ ...f, category: v }))}>
+                      <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[...CATEGORIES, ...REVENUE_CATEGORIES].map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      className="h-8 text-xs"
+                      value={editForm.description || ""}
+                      onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Select value={editForm.payment_method || ""} onValueChange={v => setEditForm(f => ({ ...f, payment_method: v }))}>
+                      <SelectTrigger className="h-8 text-xs w-[100px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_METHODS.map(m => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="h-8 text-xs text-right w-[100px]"
+                      value={editForm.value || ""}
+                      onChange={e => setEditForm(f => ({ ...f, value: Number(e.target.value) }))}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-1">
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:bg-emerald-50" onClick={saveEditing}>
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:bg-slate-50" onClick={cancelEditing}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                /* ===== NORMAL ROW ===== */
+                <TableRow key={r.id} className="hover:bg-muted/30 transition-colors border-b border-border/40 group">
+                  <TableCell className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                    {new Date(r.date).toLocaleDateString("pt-BR")}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] font-bold text-foreground leading-none">{r.category || "Geral"}</span>
+                      <Badge variant={r.type === "receita" ? "outline" : "destructive"} 
+                        className={`text-[9px] uppercase font-black h-4 px-1 rounded w-fit ${
+                          r.type === "receita" 
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                        }`}
+                      >
+                        {r.type}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold tracking-tight truncate max-w-[150px]">
+                    {r.description}
+                  </TableCell>
+                  <TableCell className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
+                    {r.payment_method || "—"}
+                  </TableCell>
+                  <TableCell className={`text-right text-sm font-black tracking-tighter ${r.type === "receita" ? "text-emerald-600" : "text-rose-600"}`}>
+                    {r.type === "receita" ? "" : "-"}{r.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-500 hover:bg-blue-50" onClick={() => startEditing(r)} title="Editar">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-rose-400 hover:bg-rose-50" title="Excluir">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2 text-rose-600">
+                              <AlertTriangle className="h-5 w-5" /> Excluir Registro
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Deseja excluir "<strong>{r.description}</strong>" no valor de R$ {r.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(r.id)} className="bg-rose-600 hover:bg-rose-700 font-bold">Excluir</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
             ))}
             {filteredRecords.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground italic text-xs">
+                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic text-xs">
                   Nenhum lançamento encontrado neste período.
                 </TableCell>
               </TableRow>
