@@ -1,5 +1,6 @@
 const v4 = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 import { supabase } from "./supabase";
+import { toast } from "sonner";
 
 export interface Animal {
   id: string;
@@ -122,11 +123,17 @@ function save<T>(key: string, data: T[]) {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
-// Fire-and-forget Supabase helper — never blocks UI, logs errors silently
+// Fire-and-forget Supabase helper — triggers toast on error
 const cloud = (promise: Promise<any>) => {
   promise.then(({ error }: any) => {
-    if (error) console.warn("Supabase:", error.message);
-  }).catch((e: any) => console.warn("Supabase offline:", e));
+    if (error) {
+      console.warn("Supabase Error:", error.message);
+      toast.error(`Erro de Sincronização: ${error.message}. Seus dados estão salvos apenas neste dispositivo.`);
+    }
+  }).catch((e: any) => {
+    console.warn("Supabase offline:", e);
+    toast.error("Sem conexão com o servidor. Dados salvos apenas localmente.");
+  });
 };
 
 // Helper to format YYYY-MM-DD to DD/MM/YYYY without timezone shifts
@@ -488,23 +495,29 @@ export const store = {
         'animals', 'events', 'financial', 'inseminations', 'users',
         'ingredients', 'rations', 'feeding_logs', 'purchases', 'health'
       ];
+      console.log("Sync iniciada...");
       for (const table of tables) {
         try {
           const { data, error } = await supabase.from(table).select('*');
-          // CRITICAL: Only overwrite local data if Supabase returned real data
-          // Never overwrite with empty array — that would erase local records
-          if (!error && data && data.length > 0) {
-            save(`bovi_${table}`, data);
+          if (error) {
+            console.warn(`Erro na tabela ${table}:`, error.message);
+            continue;
           }
-        } catch {
-          // Table might not exist yet — skip silently, keep local data safe
-          console.warn(`Sync: tabela '${table}' não encontrada, mantendo dados locais`);
+          if (data && data.length > 0) {
+            save(`bovi_${table}`, data);
+            console.log(`Tabela '${table}' sincronizada: ${data.length} registros`);
+          } else {
+            console.log(`Tabela '${table}' está vazia no servidor.`);
+          }
+        } catch (e: any) {
+          console.warn(`Exceção na tabela '${table}':`, e.message);
         }
       }
       localStorage.setItem("bovi_last_sync", new Date().toISOString());
+      console.log("Sincronização concluída com sucesso.");
       return true;
     } catch (e) {
-      console.error("Erro na sincronização", e);
+      console.error("Erro fatal na sincronização", e);
       return false;
     }
   }
