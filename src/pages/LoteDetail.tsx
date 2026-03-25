@@ -129,7 +129,9 @@ export default function LoteDetail() {
         const eventoVenda = store.getEventsByAnimal(a.id).find(e => e.type === "venda" || e.type === "morto");
         pesoSai = (eventoVenda && eventoVenda.weight > 0) ? eventoVenda.weight : a.weight;
       }
-      somaPesosSaida += pesoSai;
+      // Se o animal foi vendido, o peso registrado é o peso morto. Usamos peso morto * 2 = peso vivo estimado de saída
+      const pesoSaiAjustado = a.status === "vendido" ? pesoSai * 2 : pesoSai;
+      somaPesosSaida += pesoSaiAjustado;
     });
 
     const ganhoTotalKg = somaPesosSaida - somaPesosEntrada;
@@ -471,7 +473,8 @@ export default function LoteDetail() {
         <TabsContent value="outros">
           <div className="space-y-3">
              {animals.filter(a => a.status === "vendido" || a.status === "morto").map(animal => {
-               const pesoFim = animal.peso_saida || animal.weight;
+               const pesoBase = animal.peso_saida || animal.weight;
+               const displayWeight = animal.status === "vendido" ? pesoBase * 2 : pesoBase;
                const vendaOrMorte = store.getEventsByAnimal(animal.id).find(e => e.type === "venda" || e.type === "morte");
                const vendaValue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
                const custoAnimal = animal.valor_compra || 0;
@@ -493,8 +496,8 @@ export default function LoteDetail() {
                         </div>
                      </div>
                      <div className="text-right">
-                        <p className="text-xl font-black tracking-tighter text-muted-foreground leading-none">{pesoFim}kg</p>
-                        <p className="text-[9px] text-muted-foreground uppercase font-black mt-1">Saída</p>
+                        <p className="text-xl font-black tracking-tighter text-muted-foreground leading-none">{displayWeight}kg</p>
+                        <p className="text-[9px] text-muted-foreground uppercase font-black mt-1">Saída {animal.status === "vendido" ? "(Vivo)" : ""}</p>
                      </div>
                    </div>
                    <div className="mt-3 pt-3 border-t border-muted/50 flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground">
