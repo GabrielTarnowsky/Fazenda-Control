@@ -98,7 +98,7 @@ export default function FinancialPage() {
       toast.error("Preencha descrição e valor");
       return;
     }
-    await store.addFinancial(form);
+    store.addFinancial(form);
     toast.success("Registro adicionado!");
     refreshRecords();
     setShowForm(false);
@@ -129,16 +129,16 @@ export default function FinancialPage() {
     setEditForm({});
   };
 
-  const saveEditing = async () => {
+  const saveEditing = () => {
     if (!editingId) return;
-    await store.updateFinancial(editingId, editForm);
+    store.updateFinancial(editingId, editForm);
     toast.success("Registro atualizado!");
     refreshRecords();
     cancelEditing();
   };
 
-  const handleDelete = async (id: string) => {
-    await store.deleteFinancial(id);
+  const handleDelete = (id: string) => {
+    store.deleteFinancial(id);
     toast.success("Registro excluído");
     refreshRecords();
   };
