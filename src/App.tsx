@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
+import Settings from "./pages/Settings";
 import { store } from "./lib/store";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,7 @@ const App = () => {
               <Route path="/rations/log/new" element={<ProtectedRoute><AddFeedingLog /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/insemination" element={<ProtectedRoute><Insemination /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
             </Route>
           </Routes>
