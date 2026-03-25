@@ -348,7 +348,7 @@ export const store = {
       const { data, error } = await supabase.from('users').insert([{
         name,
         email,
-        password_hash: btoa(unescape(encodeURIComponent(pass)))
+        password_hash: btoa(pass)
       }]).select().single();
 
       if (error) throw error;
@@ -359,21 +359,31 @@ export const store = {
       return data;
     },
     login: async (email: string, pass: string) => {
+      // Try with simple btoa
+      const hash1 = btoa(pass);
+      const hash2 = btoa(unescape(encodeURIComponent(pass)));
+      
       const { data, error } = await supabase.from('users')
         .select('*')
-        .ilike('email', email)
-        .eq('password_hash', btoa(unescape(encodeURIComponent(pass))))
-        .single();
-        
-      if (error || !data) throw new Error("Email ou senha inválidos");
+        .ilike('email', email.trim());
+
+      if (error || !data || data.length === 0) {
+        throw new Error("Email não encontrado");
+      }
+
+      const user = data.find(u => u.password_hash === hash1 || u.password_hash === hash2);
       
-      localStorage.setItem("bovi_session", data.id);
-      return data;
+      if (!user) {
+        throw new Error("Senha incorreta");
+      }
+      
+      localStorage.setItem("bovi_session", user.id);
+      return user;
     },
     resetPassword: async (email: string, newPass: string) => {
       const { data, error } = await supabase.from('users')
-        .update({ password_hash: btoa(unescape(encodeURIComponent(newPass))) })
-        .eq('email', email)
+        .update({ password_hash: btoa(newPass) })
+        .ilike('email', email.trim())
         .select();
 
       if (error || !data || data.length === 0) throw new Error("E-mail não encontrado");
