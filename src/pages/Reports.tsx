@@ -21,16 +21,19 @@ export default function Reports() {
 
   // 1. Custo da @ Produzida (Estratégico)
   const costAnalysis = useMemo(() => {
-    // Total Gain since start (all animals)
+    // Incluir animais ativos e vendidos para análise de custo total de produção
+    const relevantAnimals = animals.filter(a => a.status === "ativo" || a.status === "vendido");
     let totalGainKg = 0;
-    activeAnimals.forEach(a => {
+    
+    relevantAnimals.forEach(a => {
       const pEnt = a.peso_entrada || 30;
-      totalGainKg += (a.weight - pEnt);
+      const pFinal = a.status === "vendido" ? (a.peso_saida || a.weight) * 2 : a.weight;
+      totalGainKg += (pFinal - pEnt);
     });
     
     const totalArrobas = totalGainKg / 15;
 
-    // Total Expenses (Excluding Purchase Value for direct cost of production)
+    // Total Expenses
     const totalMaintenance = financials
       .filter(f => f.type === "despesa" && !f.description.includes("Compra"))
       .reduce((sum, f) => sum + f.value, 0);
@@ -42,7 +45,7 @@ export default function Reports() {
       totalMaintenance,
       costPerArroba
     };
-  }, [activeAnimals, financials]);
+  }, [animals, financials]);
 
   // 2. Projeção de Abate (Prontos p/ Gancho)
   const slaughterProjection = useMemo(() => {
@@ -56,10 +59,14 @@ export default function Reports() {
   // 3. Gráfico de Ganho por Lote (Performance)
   const lotPerformance = useMemo(() => {
     const lotesMap: Record<string, { gmd: number, count: number }> = {};
-    activeAnimals.forEach(a => {
+    const relevantAnimals = animals.filter(a => a.status === "ativo" || a.status === "vendido");
+    
+    relevantAnimals.forEach(a => {
       const lote = a.lote_id || "Sem Lote";
       const pEnt = a.peso_entrada || 30;
-      const gain = a.weight - pEnt;
+      const pFinal = a.status === "vendido" ? (a.peso_saida || a.weight) * 2 : a.weight;
+      const gain = pFinal - pEnt;
+      
       const dataEnt = a.data_compra || a.birth_date;
       if (!dataEnt) return;
       const days = Math.max(1, (new Date().getTime() - parseDateSafe(dataEnt).getTime()) / (1000 * 3600 * 24));
@@ -74,7 +81,7 @@ export default function Reports() {
       name,
       gmd: Number((data.gmd / data.count).toFixed(2))
     })).sort((a,b) => b.gmd - a.gmd);
-  }, [activeAnimals]);
+  }, [animals]);
 
   // 4. Projeção de Dias para Abate (Estratégico p/ Giro de Estoque)
   const daysToSlaughter = useMemo(() => {

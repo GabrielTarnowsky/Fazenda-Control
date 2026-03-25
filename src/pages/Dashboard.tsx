@@ -117,14 +117,22 @@ export default function Dashboard() {
   const lotPerformance = useMemo(() => {
     const lotesMap: Record<string, { totalGmd: number, count: number }> = {};
     
-    activeAnimals.forEach(a => {
+    // Incluir animais vendidos nos cálculos de performance do lote
+    const allRelevantAnimals = animals.filter(a => a.status === "ativo" || a.status === "vendido");
+    
+    allRelevantAnimals.forEach(a => {
       const lote = a.lote_id || "Sem Lote";
-      // Calc GMD
       const dataEnt = a.data_compra || a.birth_date;
       if (!dataEnt) return;
       
-      const pEnt = a.peso_entrada || 30; // Fallback
-      const gain = a.weight - pEnt;
+      const pEnt = a.peso_entrada || 30;
+      // Se vendido, usa Peso Morto * 2. Se ativo, usa o peso atual.
+      const pSaida = a.status === "vendido" ? (a.peso_saida || a.weight) * 2 : a.weight;
+      
+      const gain = pSaida - pEnt;
+      const dataFim = a.status === "vendido" ? (new Date().toISOString().split("T")[0]) : new Date().toISOString().split("T")[0]; 
+      // Idealmente pegaríamos a data exata da venda, mas por enquanto usamos a data atual como fim do período de ganho se não houver data de saída salva
+      
       const days = Math.max(1, (new Date().getTime() - parseDateSafe(dataEnt).getTime()) / (1000 * 3600 * 24));
       const gmd = gain / days;
 
@@ -140,7 +148,7 @@ export default function Dashboard() {
       }))
       .filter(l => l.gmd > 0)
       .sort((a,b) => b.gmd - a.gmd);
-  }, [activeAnimals]);
+  }, [animals]);
 
   // Colors for Pie Chart
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#6366f1'];
