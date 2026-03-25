@@ -150,7 +150,8 @@ export default function AnimalDetail() {
                <Calendar className="h-4 w-4 text-muted-foreground" />
                <div className="text-xs leading-none">
                  <p className="font-black text-muted-foreground uppercase text-[10px] mb-0.5">Data da Compra</p>
-                 <p className="font-bold">{animal.data_compra ? new Date(animal.data_compra).toLocaleDateString("pt-BR") : "—"}</p>
+                 <p className="font-bold">                  <p className="font-bold">{formatDateDisplay(animal.data_compra || "")}</p>
+</p>
                </div>
              </div>
              <div className="text-right">
