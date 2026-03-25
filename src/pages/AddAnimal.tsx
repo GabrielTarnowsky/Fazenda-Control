@@ -8,12 +8,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
+const BREEDS = [
+  "Nelore", 
+  "Tabapuã", 
+  "Gabiru", 
+  "Cruzamento Industrial", 
+  "Sindi", 
+  "Senepol", 
+  "Angus", 
+  "Outra"
+];
+
 export default function AddAnimal() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [animals_list, setAnimalsList] = useState<Animal[]>([]);
+  const [useExistingLote, setUseExistingLote] = useState(true);
   const [form, setForm] = useState({
-    tag: "", sex: "Macho", breed: "", birth_date: "", weight: 0, categoria: "Bezerro",
+    tag: "", sex: "Macho", breed: "Nelore", birth_date: "", weight: 0, categoria: "Bezerro",
     origem: "Nascimento", data_compra: "", valor_compra: "", lote_id: "", preco_arroba: "",
     peso_entrada: "", peso_saida: "", matriz_id: "", payment_method: "Pix"
   });
@@ -48,6 +60,8 @@ export default function AddAnimal() {
   const females = animals_list
     .filter(a => a.sex === "Fêmea")
     .sort((a, b) => a.tag.localeCompare(b.tag));
+
+  const existingLots = Array.from(new Set(animals_list.map(a => a.lote_id).filter(Boolean))) as string[];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,12 +228,41 @@ export default function AddAnimal() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Lote</Label>
-            <Input value={form.lote_id} onChange={e => setForm(f => ({ ...f, lote_id: e.target.value }))} placeholder="Lote 01" />
+            <Label className="flex justify-between items-center">
+              Lote 
+              {existingLots.length > 0 && (
+                <button type="button" onClick={() => setUseExistingLote(!useExistingLote)} className="text-[10px] text-primary hover:underline font-black uppercase">
+                  {useExistingLote ? "Criar Novo" : "Ver Existentes"}
+                </button>
+              )}
+            </Label>
+            {useExistingLote && existingLots.length > 0 ? (
+              <Select value={form.lote_id} onValueChange={v => setForm(f => ({ ...f, lote_id: v }))}>
+                <SelectTrigger className="h-10 bg-background"><SelectValue placeholder="Selecione o lote" /></SelectTrigger>
+                <SelectContent>
+                  {existingLots.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input value={form.lote_id} onChange={e => setForm(f => ({ ...f, lote_id: e.target.value }))} placeholder="Nome do novo lote" className="h-10" />
+            )}
           </div>
           <div className="space-y-2">
             <Label>Raça</Label>
-            <Input value={form.breed} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} placeholder="Nelore" />
+            <Select value={BREEDS.includes(form.breed) ? form.breed : "Outra"} onValueChange={v => setForm(f => ({ ...f, breed: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {BREEDS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {!BREEDS.includes(form.breed) && (
+              <Input 
+                value={form.breed} 
+                onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} 
+                placeholder="Qual raça?" 
+                className="mt-2 text-xs h-8"
+              />
+            )}
           </div>
         </div>
 
