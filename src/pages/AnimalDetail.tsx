@@ -139,7 +139,7 @@ export default function AnimalDetail() {
               </div>
            </div>
            <div className="space-y-0.5">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">R$/@ Atual</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Preço do Kg/V</p>
               <p className="font-bold">R$ {animal.preco_arroba?.toFixed(2) || "—"}</p>
            </div>
         </div>
