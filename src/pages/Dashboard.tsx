@@ -192,9 +192,6 @@ export default function Dashboard() {
           <Button onClick={() => setShowPurchase(!showPurchase)} className="font-bold shadow-lg">
             <PackagePlus className="mr-2 h-4 w-4" /> Comprar Insumo
           </Button>
-          <Button onClick={() => navigate("/financial")} variant="outline" className="text-primary border-primary/20 hover:bg-primary/10">
-            <DollarSign className="mr-2 h-4 w-4" /> Gasto Geral
-          </Button>
           <Button onClick={() => navigate("/animals/new")}>
             <Plus className="mr-2 h-4 w-4" /> Novo Animal
           </Button>

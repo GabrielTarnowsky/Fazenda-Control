@@ -440,12 +440,19 @@ export const store = {
         'ingredients', 'rations', 'feeding_logs', 'purchases', 'health'
       ];
       for (const table of tables) {
-        const { data } = await supabase.from(table).select('*');
-        if (data) {
-          save(`bovi_${table}`, data);
-          localStorage.setItem("bovi_last_sync", new Date().toISOString());
+        try {
+          const { data, error } = await supabase.from(table).select('*');
+          // CRITICAL: Only overwrite local data if Supabase returned real data
+          // Never overwrite with empty array — that would erase local records
+          if (!error && data && data.length > 0) {
+            save(`bovi_${table}`, data);
+          }
+        } catch {
+          // Table might not exist yet — skip silently, keep local data safe
+          console.warn(`Sync: tabela '${table}' não encontrada, mantendo dados locais`);
         }
       }
+      localStorage.setItem("bovi_last_sync", new Date().toISOString());
       return true;
     } catch (e) {
       console.error("Erro na sincronização", e);
