@@ -123,7 +123,7 @@ export default function AddEvent() {
         </div>
         {(form.type === "pesagem" || form.type === "venda") && (
           <div>
-            <Label>Peso (kg)</Label>
+            <Label>{form.type === "venda" ? "Peso Morto (kg)" : "Peso (kg)"}</Label>
             <Input type="number" value={form.weight || ""} onChange={e => setForm(f => ({ ...f, weight: Number(e.target.value) }))} />
           </div>
         )}

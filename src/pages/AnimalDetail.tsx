@@ -101,8 +101,8 @@ export default function AnimalDetail() {
           </div>
           <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
              <Weight className="h-5 w-5 text-blue-600 mb-1" />
-             <p className="text-xs text-blue-700/70 font-bold uppercase tracking-tighter mb-1">Peso Venda</p>
-             <p className="text-xl font-black text-blue-700 leading-none">{saleWeight}kg</p>
+             <p className="text-xs text-blue-700/70 font-bold uppercase tracking-tighter mb-1">Peso (M | V)</p>
+             <p className="text-lg font-black text-blue-700 leading-none">{saleWeight}kg | {saleWeight * 2}kg</p>
           </div>
           <div className="col-span-2 bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-between shadow-sm">
              <div className="flex items-center gap-3">
