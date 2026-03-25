@@ -23,9 +23,16 @@ export default function AddEvent() {
     value: 0,
     description: "",
     animal_id: animalIdFromParam,
-    payment_method: "Pix"
+    payment_method: "Pix",
+    price_kg_m: 0
   });
   const [loading, setLoading] = useState(!!id);
+
+  useEffect(() => {
+    if (form.type === "venda" && form.weight > 0 && form.price_kg_m > 0) {
+      setForm(f => ({ ...f, value: Number((f.weight * f.price_kg_m).toFixed(2)) }));
+    }
+  }, [form.weight, form.price_kg_m, form.type]);
 
   useEffect(() => {
     if (id) {
@@ -38,7 +45,8 @@ export default function AddEvent() {
           value: event.value || 0,
           description: event.description || "",
           animal_id: event.animal_id || "",
-          payment_method: (event as any).payment_method || "Pix"
+          payment_method: (event as any).payment_method || "Pix",
+          price_kg_m: (event as any).price_kg_m || 0
         });
         setLoading(false);
       } else {
@@ -119,16 +127,34 @@ export default function AddEvent() {
             <Input type="number" value={form.weight || ""} onChange={e => setForm(f => ({ ...f, weight: Number(e.target.value) }))} />
           </div>
         )}
-        {(form.type === "venda") && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Valor (R$)</Label>
-              <Input type="number" value={form.value || ""} onChange={e => setForm(f => ({ ...f, value: Number(e.target.value) }))} />
+        {form.type === "venda" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl animate-in slide-in-from-top-2 duration-300">
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase text-emerald-700">Preço do Kg/M (R$)</Label>
+              <Input 
+                type="number" 
+                step="0.01" 
+                value={form.price_kg_m || ""} 
+                onChange={e => setForm(f => ({ ...f, price_kg_m: Number(e.target.value) }))} 
+                className="bg-background border-emerald-200 focus-visible:ring-emerald-500"
+                placeholder="0.00"
+              />
             </div>
-            <div>
-              <Label>Forma de Recebimento</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase text-emerald-700">Valor Total da Venda (R$)</Label>
+              <Input 
+                type="number" 
+                step="0.01" 
+                value={form.value || ""} 
+                onChange={e => setForm(f => ({ ...f, value: Number(e.target.value) }))} 
+                className="bg-background border-emerald-200 font-bold"
+                placeholder="0.00"
+              />
+            </div>
+            <div className="md:col-span-2 space-y-2">
+              <Label className="text-xs font-black uppercase text-emerald-700">Forma de Recebimento</Label>
               <Select value={form.payment_method} onValueChange={v => setForm(f => ({ ...f, payment_method: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-background border-emerald-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Pix">Pix</SelectItem>
                   <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
