@@ -43,7 +43,7 @@ export default function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps)
       total_qty_kg: form.total_qty_kg,
       cost_per_kg: new_cost_per_kg,
       payment_method: form.payment_method,
-      date: new Date().toISOString().split("T")[0]
+      date: form.date
     });
 
     toast.success(`Compra registrada! Novo custo: R$ ${new_cost_per_kg.toFixed(2)}/kg`);
