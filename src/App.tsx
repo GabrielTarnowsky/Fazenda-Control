@@ -39,6 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
+    console.log("FazendaControl - Versão 1.1.0 (Cloud Sync & Migration)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });

@@ -148,11 +148,18 @@ export const formatDateDisplay = (dateStr: string) => {
 };
 
 // Helper to parse YYYY-MM-DD into a LOCAL Date object (ignoring UTC/Timezone shift)
-export const parseDateSafe = (dateStr: string) => {
-  if (!dateStr) return new Date();
-  if (dateStr.includes("T")) dateStr = dateStr.split("T")[0];
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d);
+export const parseDateSafe = (dateStr: string | null | undefined) => {
+  if (!dateStr || dateStr.trim() === "") return new Date();
+  try {
+    if (dateStr.includes("T")) dateStr = dateStr.split("T")[0];
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) return new Date();
+    const [y, m, d] = parts.map(Number);
+    const date = new Date(y, m - 1, d);
+    return isNaN(date.getTime()) ? new Date() : date;
+  } catch {
+    return new Date();
+  }
 };
 
 export const store = {
