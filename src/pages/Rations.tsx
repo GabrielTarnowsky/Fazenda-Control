@@ -50,6 +50,16 @@ export default function Rations() {
     return { totalCost, totalConsumption, avgCostPerAnimal, totalPurchases };
   }, [filteredLogs, filteredPurchases]);
 
+  const ingredientTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    purchases.forEach(p => {
+      const ing = ingredients.find(i => i.id === p.ingredient_id);
+      const name = ing?.name || "Desconhecido";
+      totals[name] = (totals[name] || 0) + p.total_qty_kg;
+    });
+    return Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  }, [purchases, ingredients]);
+
   const handleDeletePurchase = (id: string) => {
     if (confirm("Tem certeza que deseja excluir esta compra?")) {
       store.deleteIngredientPurchase(id);
@@ -143,6 +153,29 @@ export default function Rations() {
             <p className="text-xs text-muted-foreground mt-2 max-w-sm">Este valor representa todas as compras de insumos registradas no período selecionado. Ideal para fechamento de caixa e projeção de estoque.</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Ingredient Totals Cards (INVENTORY SUMMARY) */}
+      <div className="space-y-4">
+        <h2 className="font-bold flex items-center gap-2 text-lg"><Package className="h-5 w-5 text-primary" /> Estoque Acumulado (Total por Insumo)</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {ingredientTotals.length === 0 ? (
+            <p className="col-span-full text-xs text-muted-foreground font-bold uppercase italic py-4">Nenhum insumo registrado no histórico.</p>
+          ) : (
+            ingredientTotals.map(([name, total]) => (
+              <div key={name} className="bg-slate-900 text-white rounded-2xl p-4 shadow-xl border border-white/10 relative overflow-hidden group">
+                <div className="absolute -right-2 -top-2 opacity-5 group-hover:scale-110 transition-transform">
+                  <Wheat className="h-16 w-16" />
+                </div>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{name}</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-black italic">{total.toLocaleString("pt-BR")}</span>
+                  <span className="text-[10px] font-bold text-slate-400">kg</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* My Rations Section */}
