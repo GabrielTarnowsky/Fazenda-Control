@@ -306,18 +306,18 @@ export const store = {
     const item = { ...h, id: v4() };
     list.push(item);
     save("bovi_health", list);
-    cloud('health', 'insert', item);
+    cloud('insemination', 'insert', item);
     return item;
   },
   updateHealth: (id: string, data: Partial<Health>) => {
     const list = load<Health>("bovi_health").map(h => h.id === id ? { ...h, ...data } : h);
     save("bovi_health", list);
-    cloud('health', 'update', data, { col: 'id', val: id });
+    cloud('insemination', 'update', data, { col: 'id', val: id });
   },
   deleteHealth: (id: string) => {
     const list = load<Health>("bovi_health").filter(h => h.id !== id);
     save("bovi_health", list);
-    cloud('health', 'delete', null, { col: 'id', val: id });
+    cloud('insemination', 'delete', null, { col: 'id', val: id });
   },
   getUpcomingAlerts: () => {
     const today = new Date().toISOString().split("T")[0];
@@ -356,18 +356,18 @@ export const store = {
     const item = { ...r, id: v4() };
     list.push(item);
     save("bovi_rations", list);
-    cloud('rations', 'insert', item);
+    cloud('animals', 'insert', item);
     return item;
   },
   updateRation: (id: string, data: Partial<Ration>) => {
     const list = load<Ration>("bovi_rations").map(r => r.id === id ? { ...r, ...data } : r);
     save("bovi_rations", list);
-    cloud('rations', 'update', data, { col: 'id', val: id });
+    cloud('animals', 'update', data, { col: 'id', val: id });
   },
   deleteRation: (id: string) => {
     const list = load<Ration>("bovi_rations").filter(r => r.id !== id);
     save("bovi_rations", list);
-    cloud('rations', 'delete', null, { col: 'id', val: id });
+    cloud('animals', 'delete', null, { col: 'id', val: id });
   },
 
   // Feeding Logs
@@ -384,7 +384,7 @@ export const store = {
       value: l.total_cost,
       date: l.date
     });
-    cloud('feeding_logs', 'insert', item);
+    cloud('events', 'insert', item);
     return item;
   },
 
@@ -405,7 +405,7 @@ export const store = {
       value: p.total_value,
       date: p.date
     });
-    cloud('purchases', 'insert', item);
+    cloud('financial', 'insert', item);
     return item;
   },
   updateIngredientPurchase: (id: string, data: Partial<IngredientPurchase>) => {
@@ -421,12 +421,12 @@ export const store = {
       return p;
     });
     save("bovi_purchases", list);
-    cloud('purchases', 'update', data, { col: 'id', val: id });
+    cloud('financial', 'update', data, { col: 'id', val: id });
   },
   deleteIngredientPurchase: (id: string) => {
     const list = load<IngredientPurchase>("bovi_purchases").filter(p => p.id !== id);
     save("bovi_purchases", list);
-    cloud('purchases', 'delete', null, { col: 'id', val: id });
+    cloud('financial', 'delete', null, { col: 'id', val: id });
   },
 
   // Insemination
@@ -436,13 +436,13 @@ export const store = {
     const item = { ...ins, id: v4() };
     list.push(item);
     save("bovi_inseminations", list);
-    cloud('inseminations', 'insert', item);
+    cloud('insemination', 'insert', item);
     return item;
   },
   updateInsemination: (id: string, data: Partial<Insemination>) => {
     const list = load<Insemination>("bovi_inseminations").map(ins => ins.id === id ? { ...ins, ...data } : ins);
     save("bovi_inseminations", list);
-    cloud('inseminations', 'update', data, { col: 'id', val: id });
+    cloud('insemination', 'update', data, { col: 'id', val: id });
   },
   getInseminationsByAnimal: (animalId: string) => load<Insemination>("bovi_inseminations").filter(ins => ins.animal_id === animalId),
 
@@ -530,8 +530,7 @@ export const store = {
   sync: async () => {
     try {
       const tables = [
-        'animals', 'events', 'financial', 'inseminations', 'users',
-        'ingredients', 'rations', 'feeding_logs', 'purchases', 'health'
+        'animals', 'events', 'financial', 'insemination', 'users'
       ];
       console.log("Sync iniciada...");
       for (const table of tables) {
@@ -553,7 +552,11 @@ export const store = {
             continue;
           }
           if (data && data.length > 0) {
-            save(`bovi_${table}`, data);
+            // Map table names back to local keys if necessary
+            let localKey = `bovi_${table}`;
+            if (table === 'insemination') localKey = 'bovi_inseminations';
+            
+            save(localKey, data);
             console.log(`Tabela '${table}' sincronizada: ${data.length} registros`);
           } else {
             console.log(`Tabela '${table}' está vazia no servidor. Mantendo dados locais.`);
@@ -582,11 +585,11 @@ export const store = {
         { key: 'bovi_events', table: 'events' },
         { key: 'bovi_financial', table: 'financial' },
         { key: 'bovi_users', table: 'users' },
-        { key: 'bovi_ingredients', table: 'ingredients' },
-        { key: 'bovi_rations', table: 'rations' },
-        { key: 'bovi_purchases', table: 'purchases' },
-        { key: 'bovi_health', table: 'health' },
-        { key: 'bovi_inseminations', table: 'inseminations' }
+        { key: 'bovi_rations', table: 'animals' },
+        { key: 'bovi_feeding_logs', table: 'events' },
+        { key: 'bovi_purchases', table: 'financial' },
+        { key: 'bovi_health', table: 'insemination' },
+        { key: 'bovi_inseminations', table: 'insemination' }
       ];
 
       toast.info("Iniciando upload para nuvem...");
