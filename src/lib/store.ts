@@ -215,13 +215,36 @@ export const store = {
 
   // Financial
   getFinancials: () => load<Financial>("bovi_financial"),
-  addFinancial: (f: Omit<Financial, "id">) => {
+  addFinancial: (f: Omit<Financial, "id">, installments: number = 1) => {
     const list = load<Financial>("bovi_financial");
-    const item = { ...f, id: v4() };
-    list.push(item);
+    const items: Financial[] = [];
+    
+    if (installments > 1) {
+      const valuePerInstallment = f.value / installments;
+      const baseDate = parseDateSafe(f.date);
+      
+      for (let i = 0; i < installments; i++) {
+        // Create a new date object for each installment, incrementing the month
+        const instDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+        const instDateStr = instDate.toISOString().split("T")[0];
+        
+        const item = { 
+          ...f, 
+          id: v4(), 
+          value: valuePerInstallment, 
+          date: instDateStr,
+          description: `${f.description} (${i + 1}/${installments})` 
+        };
+        items.push(item);
+      }
+    } else {
+      items.push({ ...f, id: v4() });
+    }
+
+    list.push(...items);
     save("bovi_financial", list);
-    cloud(supabase.from('financial').insert([item]));
-    return item;
+    cloud(supabase.from('financial').insert(items));
+    return items[0];
   },
   updateFinancial: (id: string, data: Partial<Financial>) => {
     const list = load<Financial>("bovi_financial").map(f => f.id === id ? { ...f, ...data } : f);

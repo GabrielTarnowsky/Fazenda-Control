@@ -67,7 +67,8 @@ export default function FinancialPage() {
     value: 0,
     date: new Date().toISOString().split("T")[0],
     category: "Outros",
-    payment_method: "Pix"
+    payment_method: "Pix",
+    installments: 1
   });
 
   const refreshRecords = () => setRecords(store.getFinancials());
@@ -101,7 +102,7 @@ export default function FinancialPage() {
       toast.error("Preencha descrição e valor");
       return;
     }
-    store.addFinancial(form);
+    store.addFinancial(form, form.installments);
     toast.success("Registro adicionado!");
     refreshRecords();
     setShowForm(false);
@@ -111,7 +112,8 @@ export default function FinancialPage() {
       value: 0,
       date: new Date().toISOString().split("T")[0],
       category: "Outros",
-      payment_method: "Pix"
+      payment_method: "Pix",
+      installments: 1
     });
   };
 
@@ -280,9 +282,24 @@ export default function FinancialPage() {
                   <Label className="text-xs font-bold uppercase">Data</Label>
                   <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
                 </div>
-                <div className="flex justify-end gap-2 text-right">
+                {form.type === "despesa" && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-left-4 duration-500">
+                    <Label className="text-xs font-bold uppercase flex items-center gap-1 text-primary">
+                      Parcelas <Badge variant="outline" className="text-[9px] h-4 py-0 border-primary/30 text-primary">Novo</Badge>
+                    </Label>
+                    <Input 
+                      type="number" 
+                      min="1" 
+                      max="48" 
+                      value={form.installments} 
+                      onChange={e => setForm(f => ({ ...f, installments: Number(e.target.value) }))} 
+                      className="border-primary/20 focus-visible:ring-primary shadow-sm font-bold"
+                    />
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 text-right md:col-start-4">
                   <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
-                  <Button type="submit">Salvar</Button>
+                  <Button type="submit" className="font-bold shadow-md">Lançar {form.installments > 1 ? `${form.installments}x` : ""}</Button>
                 </div>
               </div>
             </form>
