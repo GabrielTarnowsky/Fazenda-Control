@@ -52,7 +52,7 @@ export default function AddAnimal() {
             preco_arroba: animal.preco_arroba ? animal.preco_arroba.toString() : "",
             peso_entrada: animal.peso_entrada ? animal.peso_entrada.toString() : "",
             peso_saida: animal.peso_saida ? animal.peso_saida.toString() : "",
-            lote_id: animal.lote_id || "",
+            lote_id: animal.lote_id || (animal as any).lot || "",
             matriz_id: animal.matriz_id || "",
           } as any);
         }

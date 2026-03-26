@@ -187,7 +187,9 @@ export const store = {
       console.error("Error fetching animals:", error.message);
       return [];
     }
-    return (data || []).sort((a, b) => b.tag.localeCompare(a.tag));
+    // Map DB 'lot' back to frontend 'lote_id'
+    const mapped = (data || []).map(a => ({ ...a, lote_id: a.lot }));
+    return mapped.sort((a, b) => b.tag.localeCompare(a.tag));
   },
   addAnimal: async (a: Omit<Animal, "id">) => {
     const user = store.auth.getCurrentUser();

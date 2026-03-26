@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.3.5 (Full Animal Schema Supported)");
+    console.log("FazendaControl - Versão 1.3.6 (Lote ID Mapping Fix)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });
