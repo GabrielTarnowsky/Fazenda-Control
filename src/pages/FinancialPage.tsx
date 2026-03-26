@@ -279,7 +279,18 @@ export default function FinancialPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase">Valor (R$)</Label>
-                  <Input type="number" step="0.01" value={form.value || ""} onChange={e => setForm(f => ({ ...f, value: Number(e.target.value) }))} placeholder="0,00" />
+                  <Input 
+                    type="text" 
+                    inputMode="decimal"
+                    value={form.value || ""} 
+                    onChange={e => {
+                      const val = e.target.value.replace(',', '.');
+                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                        setForm(f => ({ ...f, value: val === '' ? 0 : Number(val) }));
+                      }
+                    }} 
+                    placeholder="0.00" 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase">Data</Label>
