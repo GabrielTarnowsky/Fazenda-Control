@@ -280,15 +280,11 @@ export default function FinancialPage() {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase">Valor (R$)</Label>
                   <Input 
-                    type="text" 
-                    inputMode="decimal"
+                    type="number" 
+                    step="0.01"
                     value={form.value || ""} 
-                    onChange={e => {
-                      const val = e.target.value.replace(',', '.');
-                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                        setForm(f => ({ ...f, value: val === '' ? 0 : Number(val) }));
-                      }
-                    }} 
+                    onChange={e => setForm(f => ({ ...f, value: Number(e.target.value) }))} 
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="0.00" 
                   />
                 </div>
@@ -378,7 +374,7 @@ export default function FinancialPage() {
                     <Input
                       type="number"
                       step="0.01"
-                      className="h-8 text-xs text-right w-[100px]"
+                      className="h-8 text-xs text-right w-[100px] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       value={editForm.value || ""}
                       onChange={e => setEditForm(f => ({ ...f, value: Number(e.target.value) }))}
                     />

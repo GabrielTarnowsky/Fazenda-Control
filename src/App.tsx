@@ -40,7 +40,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.2.8 (Resilient Data Patch)");
+    console.log("FazendaControl - Versão 1.2.9 (Input UX Fix)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });
