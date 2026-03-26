@@ -177,6 +177,23 @@ export default function AddEvent() {
         <Button type="submit" className="w-full" size="lg">
           {id ? "Atualizar Evento" : "Salvar Evento"}
         </Button>
+        {id && (
+          <Button 
+            type="button" 
+            variant="destructive" 
+            className="w-full" 
+            size="lg"
+            onClick={async () => {
+              if (confirm("Deseja realmente excluir este evento?\nSe for uma venda ou morte, o animal voltará ao status 'ativo' no pasto.")) {
+                await store.deleteEvent(id);
+                toast.success("Evento excluído com sucesso!");
+                navigate(-1);
+              }
+            }}
+          >
+            Excluir Evento
+          </Button>
+        )}
       </form>
     </div>
   );

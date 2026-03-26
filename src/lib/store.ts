@@ -265,6 +265,16 @@ export const store = {
     if (!user) return;
     await supabase.from('events').update(data).eq('id', id).eq('user_id', user.id);
   },
+  deleteEvent: async (id: string) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    const event = await store.getEvent(id);
+    if (event && (event.type === 'venda' || event.type === 'morte')) {
+      // Retorna o animal para o rebanho ativo
+      await store.updateAnimal(event.animal_id, { status: 'ativo', peso_saida: 0 });
+    }
+    await supabase.from('events').delete().eq('id', id).eq('user_id', user.id);
+  },
   getEventsByAnimal: async (animalId: string) => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
