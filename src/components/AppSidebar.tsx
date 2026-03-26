@@ -20,7 +20,6 @@ const navItems = [
   { title: "Reprodução", url: "/insemination", icon: Baby },
   { title: "Relatórios", url: "/reports", icon: FileText },
   { title: "Configurações", url: "/settings", icon: Settings },
-  { title: "Teste DB", url: "/test-financial", icon: RefreshCw },
 ];
 
 export function AppSidebar() {
