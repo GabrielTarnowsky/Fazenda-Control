@@ -203,7 +203,10 @@ export const store = {
       'preco_arroba', 'peso_entrada', 'peso_saida', 'data_saida',
       'valor_venda', 'matriz_id'
     ];
-    optionalFields.forEach(f => { if ((a as any)[f] != null) item[f] = (a as any)[f]; });
+    optionalFields.forEach(f => {
+      const val = (a as any)[f];
+      if (val != null && val !== '') item[f] = val;
+    });
     // Map lote_id -> lot
     if (a.lote_id) item.lot = a.lote_id;
 
@@ -219,7 +222,10 @@ export const store = {
     if (!user) return;
     const sanitized: any = {};
     const allowed = ['tag', 'birth_date', 'sex', 'breed', 'weight', 'status', 'categoria', 'origem', 'data_compra', 'valor_compra', 'preco_arroba', 'peso_entrada', 'peso_saida', 'data_saida', 'valor_venda', 'matriz_id'];
-    allowed.forEach(col => { if ((data as any)[col] != null) sanitized[col] = (data as any)[col]; });
+    allowed.forEach(col => {
+      const val = (data as any)[col];
+      if (val != null && val !== '') sanitized[col] = val;
+    });
     // Map lote_id -> lot
     if ((data as any).lote_id) sanitized.lot = (data as any).lote_id;
     const { error } = await supabase.from('animals').update(sanitized).eq('id', id).eq('user_id', user.id);
