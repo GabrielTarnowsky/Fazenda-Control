@@ -40,7 +40,9 @@ export default function LoteDetail() {
     lucroPC: 0,
     ganhoTotalKg: 0,
     mediaArroba: 0,
-    custoAlimentacao: 0
+    custoAlimentacao: 0,
+    totalVendas: 0,
+    lucroTotalVendas: 0
   });
 
   const [loading, setLoading] = useState(true);
@@ -206,6 +208,19 @@ export default function LoteDetail() {
     const totalLuc = enriched.reduce((acc, ea) => acc + ea.lucro, 0);
     const gmdLote = cycleDaysAvg > 0 ? ganhoTotalKg / cycleDaysAvg : 0;
 
+    let totalVendasCalc = 0;
+    let lucroVendasCalc = 0;
+
+    loteAnimals.forEach(a => {
+        if (a.status === 'vendido') {
+             const vendaOrMorte = allEvents.find(e => e.animal_id === a.id && e.type === "venda");
+             const vendaValue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
+             const custoAnimal = a.valor_compra || 0;
+             totalVendasCalc += vendaValue;
+             lucroVendasCalc += (vendaValue - custoAnimal);
+        }
+    });
+
     setMetrics({
       gmd: gmdLote,
       rendimento: 52,
@@ -218,7 +233,9 @@ export default function LoteDetail() {
       lucroPC: enriched.length > 0 ? totalLuc / enriched.length : 0,
       ganhoTotalKg,
       mediaArroba,
-      custoAlimentacao: totalFeeding
+      custoAlimentacao: totalFeeding,
+      totalVendas: totalVendasCalc,
+      lucroTotalVendas: lucroVendasCalc
     });
     setLoading(false);
   };
@@ -316,6 +333,18 @@ export default function LoteDetail() {
             <TrendingUp className="h-5 w-5 text-emerald-500 mb-1" />
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Lucro P/C</p>
             <p className="text-base font-bold text-emerald-600">R$ {metrics.lucroPC.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-emerald-500/10 border-emerald-500/30 col-span-2 md:col-span-1 shadow-md hover:shadow-lg transition-all">
+          <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
+            <DollarSign className="h-6 w-6 text-emerald-600 mb-1" />
+            <p className="text-xs text-emerald-800 font-bold uppercase tracking-widest mb-0.5">Total de Vendas</p>
+            <p className="text-xl font-black text-emerald-700 leading-none">R$ {metrics.totalVendas.toLocaleString("pt-BR")}</p>
+            <div className="flex justify-between w-full mt-2 border-t border-emerald-500/20 pt-2 px-1 text-[11px] font-black uppercase">
+               <span className="text-emerald-800/70">Lucro Total:</span>
+               <span className={metrics.lucroTotalVendas >= 0 ? "text-emerald-700" : "text-destructive"}>R$ {metrics.lucroTotalVendas.toLocaleString("pt-BR")}</span>
+            </div>
           </CardContent>
         </Card>
       </div>
