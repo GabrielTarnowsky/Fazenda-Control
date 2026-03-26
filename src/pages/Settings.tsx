@@ -20,6 +20,7 @@ import {
   CheckCircle
 } from "lucide-react";
 
+
 export default function SettingsPage() {
   const navigate = useNavigate();
   const user = store.auth.getCurrentUser();
@@ -132,33 +133,6 @@ export default function SettingsPage() {
               <p className="text-[9px] font-black uppercase text-muted-foreground mt-1">Financeiro</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Cloud Migration Section */}
-      <Card className="border-none shadow-lg rounded-2xl overflow-hidden bg-amber-500/5 border border-amber-500/10">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 bg-amber-500/10 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-              <Cloud className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="font-black text-sm text-amber-900">Migrar Dados para a Nuvem</p>
-              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                Use este botão **apenas no computador onde seus dados estão salvos** para enviá-los à nuvem pela primeira vez.
-              </p>
-            </div>
-          </div>
-          <Button 
-            onClick={async () => {
-              if (window.confirm("Isso enviará todos os seus animais e gastos locais para o servidor. Deseja continuar?")) {
-                await store.pushToCloud();
-              }
-            }}
-            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black italic uppercase text-xs tracking-widest h-11 rounded-xl shadow-lg shadow-amber-600/20"
-          >
-            Subir Dados Locais para Nuvem
-          </Button>
         </CardContent>
       </Card>
 

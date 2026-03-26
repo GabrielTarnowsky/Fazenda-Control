@@ -24,7 +24,6 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import SettingsPage from "./pages/Settings";
-import SupabaseTest from "./pages/SupabaseTest";
 import { store } from "./lib/store";
 
 const queryClient = new QueryClient();
@@ -40,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.2.9 (Input UX Fix)");
+    console.log("FazendaControl - Versão 1.3.0 (Schema Resilience + Clean UI)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });
@@ -78,7 +77,6 @@ const App = () => {
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/insemination" element={<ProtectedRoute><Insemination /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-              <Route path="/test-financial" element={<ProtectedRoute><SupabaseTest /></ProtectedRoute>} />
               <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
             </Route>
           </Routes>
