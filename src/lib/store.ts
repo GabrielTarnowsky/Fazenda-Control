@@ -196,18 +196,15 @@ export const store = {
       tag: a.tag,
       user_id: user.id,
     };
-    // Optional fields - only include if present to avoid PGRST204 column errors
+    // Optional fields - ONLY what exists in the confirmed schema.sql
     const optionalFields: (keyof typeof a)[] = [
-      'birth_date', 'sex', 'breed', 'weight', 'status',
-      'categoria', 'origem', 'data_compra', 'valor_compra',
-      'preco_arroba', 'peso_entrada', 'peso_saida', 'data_saida',
-      'valor_venda', 'matriz_id'
+      'birth_date', 'sex', 'breed', 'weight', 'status'
     ];
     optionalFields.forEach(f => {
       const val = (a as any)[f];
       if (val != null && val !== '') item[f] = val;
     });
-    // Map lote_id -> lot
+    // Map lote_id -> lot (lot exists in DB schema)
     if (a.lote_id) item.lot = a.lote_id;
 
     const { data, error } = await supabase.from('animals').insert([item]).select().single();
@@ -221,13 +218,12 @@ export const store = {
     const user = store.auth.getCurrentUser();
     if (!user) return;
     const sanitized: any = {};
-    const allowed = ['tag', 'birth_date', 'sex', 'breed', 'weight', 'status', 'categoria', 'origem', 'data_compra', 'valor_compra', 'preco_arroba', 'peso_entrada', 'peso_saida', 'data_saida', 'valor_venda', 'matriz_id'];
+    // ONLY update columns confirmed to exist in schema.sql
+    const allowed = ['tag', 'birth_date', 'sex', 'breed', 'weight', 'status', 'lot'];
     allowed.forEach(col => {
-      const val = (data as any)[col];
+      const val = col === 'lot' ? (data as any).lote_id : (data as any)[col];
       if (val != null && val !== '') sanitized[col] = val;
     });
-    // Map lote_id -> lot
-    if ((data as any).lote_id) sanitized.lot = (data as any).lote_id;
     const { error } = await supabase.from('animals').update(sanitized).eq('id', id).eq('user_id', user.id);
     if (error) toast.error("Erro ao atualizar animal");
   },
