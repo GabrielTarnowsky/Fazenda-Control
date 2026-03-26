@@ -24,6 +24,7 @@ export default function AddAnimal() {
   const navigate = useNavigate();
   const [animals_list, setAnimalsList] = useState<Animal[]>([]);
   const [useExistingLote, setUseExistingLote] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     tag: "", sex: "Macho", breed: "Nelore", birth_date: "", weight: 0, categoria: "Bezerro",
     origem: "Nascimento", data_compra: "", valor_compra: "", lote_id: "", preco_arroba: "",
@@ -82,39 +83,47 @@ export default function AddAnimal() {
       status: "ativo" 
     };
 
-    if (id) {
-      await store.updateAnimal(id, animalData);
-      toast.success("Animal atualizado com sucesso!");
-      navigate(`/animals/${id}`);
-    } else {
-      const newAnimal = await store.addAnimal(animalData);
+    setSubmitting(true);
+    try {
+      if (id) {
+        await store.updateAnimal(id, animalData);
+        toast.success("Animal atualizado com sucesso!");
+        navigate(`/animals/${id}`);
+      } else {
+        const newAnimal = await store.addAnimal(animalData);
 
-      if (form.origem === "Compra" && Number(form.valor_compra) > 0) {
-        await store.addFinancial({
-          type: "despesa",
-          description: `Compra de Animal - Brinco ${form.tag}`,
-          category: "Compra de Animais",
-          payment_method: form.payment_method,
-          value: Number(form.valor_compra),
-          date: form.data_compra || new Date().toISOString().split("T")[0],
-          animal_id: newAnimal.id
-        });
+        if (form.origem === "Compra" && (Number(form.valor_compra) || 0) > 0) {
+          await store.addFinancial({
+            type: "despesa",
+            description: `Compra de Animal - Brinco ${form.tag}`,
+            category: "Compra de Animais",
+            payment_method: form.payment_method,
+            value: Number(form.valor_compra),
+            date: form.data_compra || new Date().toISOString().split("T")[0],
+            animal_id: newAnimal.id
+          });
+        }
+
+        // Adicionar evento de pesagem inicial para garantir histórico de ganho
+        if (pesoEntrada > 0) {
+          await store.addEvent({
+            animal_id: newAnimal.id,
+            type: "pesagem",
+            date: form.data_compra || form.birth_date || new Date().toISOString().split("T")[0],
+            description: "Peso Inicial (Cadastro)",
+            weight: pesoEntrada,
+            value: 0
+          });
+        }
+
+        toast.success("Animal cadastrado!");
+        navigate("/animals");
       }
-
-      // Adicionar evento de pesagem inicial para garantir histórico de ganho
-      if (pesoEntrada > 0) {
-        await store.addEvent({
-          animal_id: newAnimal.id,
-          type: "pesagem",
-          date: form.data_compra || form.birth_date || new Date().toISOString().split("T")[0],
-          description: "Peso Inicial (Cadastro)",
-          weight: pesoEntrada,
-          value: 0
-        });
-      }
-
-      toast.success("Animal cadastrado!");
-      navigate("/animals");
+    } catch (error: any) {
+      console.error("Submit error:", error);
+      toast.error("Falha ao salvar: " + (error.message || "Erro desconhecido"));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -282,8 +291,8 @@ export default function AddAnimal() {
           </div>
         </div>
 
-        <Button type="submit" className="w-full shadow-lg" size="lg">
-          {id ? "Atualizar Animal" : "Salvar Animal"}
+        <Button type="submit" className="w-full shadow-lg" size="lg" disabled={submitting}>
+          {submitting ? "Processando..." : (id ? "Atualizar Animal" : "Salvar Animal")}
         </Button>
       </form>
     </div>

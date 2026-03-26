@@ -39,21 +39,22 @@ export default function Reports() {
   // 1. Custo da @ Produzida (Estratégico)
   const costAnalysis = useMemo(() => {
     // Incluir animais ativos e vendidos para análise de custo total de produção
-    const relevantAnimals = animals.filter(a => a.status === "ativo" || a.status === "vendido");
+    const relevantAnimals = (animals || []).filter(a => a && (a.status === "ativo" || a.status === "vendido"));
     let totalGainKg = 0;
     
     relevantAnimals.forEach(a => {
-      const pEnt = a.peso_entrada || 30;
-      const pFinal = a.status === "vendido" ? (a.peso_saida || a.weight) * 2 : a.weight;
-      totalGainKg += (pFinal - pEnt);
+      const pEnt = Number(a.peso_entrada) || 30;
+      const weight = Number(a.weight) || 0;
+      const pFinal = a.status === "vendido" ? (Number(a.peso_saida) || weight) * 2 : weight;
+      totalGainKg += Math.max(0, pFinal - pEnt);
     });
     
     const totalArrobas = totalGainKg / 15;
 
     // Total Expenses
-    const totalMaintenance = financials
-      .filter(f => f.type === "despesa" && !f.description.includes("Compra"))
-      .reduce((sum, f) => sum + f.value, 0);
+    const totalMaintenance = (financials || [])
+      .filter(f => f && f.type === "despesa" && !(f.description || "").includes("Compra"))
+      .reduce((sum, f) => sum + (Number(f.value) || 0), 0);
     
     const costPerArroba = totalArrobas > 0 ? totalMaintenance / totalArrobas : 0;
     
@@ -67,26 +68,37 @@ export default function Reports() {
   // 2. Projeção de Abate (Prontos p/ Gancho)
   const slaughterProjection = useMemo(() => {
     const PE_ABATE = 540; // 540kg (aprox 18@)
-    const ready = activeAnimals.filter(a => a.weight >= PE_ABATE).length;
-    const near = activeAnimals.filter(a => a.weight >= (PE_ABATE - 50) && a.weight < PE_ABATE).length;
+    const ready = (activeAnimals || []).filter(a => (Number(a.weight) || 0) >= PE_ABATE).length;
+    const near = (activeAnimals || []).filter(a => {
+      const w = Number(a.weight) || 0;
+      return w >= (PE_ABATE - 50) && w < PE_ABATE;
+    }).length;
     
-    return { ready, near, totalWeightReady: activeAnimals.filter(a => a.weight >= PE_ABATE).reduce((s,a) => s+a.weight, 0) };
+    return { 
+      ready, 
+      near, 
+      totalWeightReady: (activeAnimals || []).filter(a => (Number(a.weight) || 0) >= PE_ABATE).reduce((s,a) => s + (Number(a.weight) || 0), 0) 
+    };
   }, [activeAnimals]);
 
   // 3. Gráfico de Ganho por Lote (Performance)
   const lotPerformance = useMemo(() => {
     const lotesMap: Record<string, { gmd: number, count: number }> = {};
-    const relevantAnimals = animals.filter(a => a.status === "ativo" || a.status === "vendido");
+    const relevantAnimals = (animals || []).filter(a => a && (a.status === "ativo" || a.status === "vendido"));
     
     relevantAnimals.forEach(a => {
       const lote = a.lote_id || "Sem Lote";
-      const pEnt = a.peso_entrada || 30;
-      const pFinal = a.status === "vendido" ? (a.peso_saida || a.weight) * 2 : a.weight;
-      const gain = pFinal - pEnt;
+      const pEnt = Number(a.peso_entrada) || 30;
+      const weight = Number(a.weight) || 0;
+      const pFinal = a.status === "vendido" ? (Number(a.peso_saida) || weight) * 2 : weight;
+      const gain = Math.max(0, pFinal - pEnt);
       
       const dataEnt = a.data_compra || a.birth_date;
       if (!dataEnt) return;
-      const days = Math.max(1, (new Date().getTime() - parseDateSafe(dataEnt).getTime()) / (1000 * 3600 * 24));
+      const entryTime = parseDateSafe(dataEnt).getTime();
+      if (isNaN(entryTime)) return;
+      
+      const days = Math.max(1, (new Date().getTime() - entryTime) / (1000 * 3600 * 24));
       const gmd = gain / days;
 
       if (!lotesMap[lote]) lotesMap[lote] = { gmd: 0, count: 0 };
@@ -96,24 +108,27 @@ export default function Reports() {
 
     return Object.entries(lotesMap).map(([name, data]) => ({
       name,
-      gmd: Number((data.gmd / data.count).toFixed(2))
+      gmd: Number((data.gmd / data.count).toFixed(2)) || 0
     })).sort((a,b) => b.gmd - a.gmd);
   }, [animals]);
 
   // 4. Projeção de Dias para Abate (Estratégico p/ Giro de Estoque)
   const daysToSlaughter = useMemo(() => {
     const PE_ABATE = 540;
-    return activeAnimals
+    return (activeAnimals || [])
       .map(a => {
-        const pEnt = a.peso_entrada || 30;
-        const gain = a.weight - pEnt;
+        const pEnt = Number(a.peso_entrada) || 30;
+        const weight = Number(a.weight) || 0;
+        const gain = Math.max(0, weight - pEnt);
         const dataEnt = a.data_compra || a.birth_date;
-        const days = dataEnt ? Math.max(1, (new Date().getTime() - parseDateSafe(dataEnt).getTime()) / (1000 * 3600 * 24)) : 1;
+        const entryDate = dataEnt ? parseDateSafe(dataEnt) : new Date();
+        const entryTime = entryDate.getTime();
+        const days = isNaN(entryTime) ? 1 : Math.max(1, (new Date().getTime() - entryTime) / (1000 * 3600 * 24));
         const gmd = Math.max(0.1, gain / days); // Avoid div by zero
         
-        const remaining = Math.max(0, PE_ABATE - a.weight);
+        const remaining = Math.max(0, PE_ABATE - weight);
         const daysLeft = Math.ceil(remaining / gmd);
-        const readiness = Math.min(100, (a.weight / PE_ABATE) * 100);
+        const readiness = Math.min(100, (weight / PE_ABATE) * 100);
         
         return { ...a, daysLeft, readiness, gmd };
       })
