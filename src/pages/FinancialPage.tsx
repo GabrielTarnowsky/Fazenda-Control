@@ -71,7 +71,10 @@ export default function FinancialPage() {
     installments: 1
   });
 
-  const refreshRecords = () => setRecords(store.getFinancials());
+  const refreshRecords = async () => {
+    const data = await store.getFinancials();
+    setRecords(data);
+  };
 
   useEffect(() => {
     refreshRecords();
@@ -102,9 +105,9 @@ export default function FinancialPage() {
       toast.error("Preencha descrição e valor");
       return;
     }
-    store.addFinancial(form, form.installments);
+    await store.addFinancial(form, form.installments);
     toast.success("Registro adicionado!");
-    refreshRecords();
+    await refreshRecords();
     setShowForm(false);
     setForm({
       type: "despesa",
@@ -134,18 +137,18 @@ export default function FinancialPage() {
     setEditForm({});
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
     if (!editingId) return;
-    store.updateFinancial(editingId, editForm);
+    await store.updateFinancial(editingId, editForm);
     toast.success("Registro atualizado!");
-    refreshRecords();
+    await refreshRecords();
     cancelEditing();
   };
 
-  const handleDelete = (id: string) => {
-    store.deleteFinancial(id);
+  const handleDelete = async (id: string) => {
+    await store.deleteFinancial(id);
     toast.success("Registro excluído");
-    refreshRecords();
+    await refreshRecords();
   };
 
   const changeMonth = (offset: number) => {
@@ -470,8 +473,8 @@ export default function FinancialPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => {
-                store.clearFinancials();
+              <AlertDialogAction onClick={async () => {
+                await store.clearFinancials();
                 window.location.reload();
               }} className="bg-rose-600 hover:bg-rose-700 font-bold">Zerar para Testar</AlertDialogAction>
             </AlertDialogFooter>

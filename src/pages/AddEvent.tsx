@@ -36,43 +36,47 @@ export default function AddEvent() {
 
   useEffect(() => {
     if (id) {
-      const event = store.getEvent(id);
-      if (event) {
-        setForm({
-          type: event.type || "vacina",
-          date: event.date || new Date().toISOString().split("T")[0],
-          weight: event.weight || 0,
-          value: event.value || 0,
-          description: event.description || "",
-          animal_id: event.animal_id || "",
-          payment_method: (event as any).payment_method || "Pix",
-          price_kg_m: (event as any).price_kg_m || 0
-        });
-        setLoading(false);
-      } else {
-        toast.error("Evento não encontrado");
-        navigate(-1);
-      }
+      const loadData = async () => {
+        setLoading(true);
+        const event = await store.getEvent(id);
+        if (event) {
+          setForm({
+            type: event.type || "vacina",
+            date: event.date || new Date().toISOString().split("T")[0],
+            weight: event.weight || 0,
+            value: event.value || 0,
+            description: event.description || "",
+            animal_id: event.animal_id || "",
+            payment_method: (event as any).payment_method || "Pix",
+            price_kg_m: (event as any).price_kg_m || 0
+          });
+          setLoading(false);
+        } else {
+          toast.error("Evento não encontrado");
+          navigate(-1);
+        }
+      };
+      loadData();
     }
   }, [id, navigate]);
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Carregando...</div>;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.animal_id) { toast.error("Animal não identificado"); return; }
     
     if (id) {
-      store.updateEvent(id, form);
+      await store.updateEvent(id, form);
     } else {
-      store.addEvent(form);
+      await store.addEvent(form);
     }
 
     // If vacina, also add health record
     if (form.type === "vacina" && !id) {
       const nextDate = new Date(form.date);
       nextDate.setMonth(nextDate.getMonth() + 6);
-      store.addHealth({
+      await store.addHealth({
         animal_id: form.animal_id,
         type: form.description || "Vacina",
         date: form.date,
@@ -82,7 +86,7 @@ export default function AddEvent() {
 
     // If venda, add financial record
     if (form.type === "venda" && form.value > 0 && !id && form.animal_id) {
-      store.addFinancial({
+      await store.addFinancial({
         type: "receita",
         category: "Venda de Animais",
         payment_method: form.payment_method,

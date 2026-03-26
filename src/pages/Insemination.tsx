@@ -23,11 +23,15 @@ export default function InseminationPage() {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    setAnimals(store.getAnimals().filter(a => a.sex === "Fêmea" || a.sex === "fêmea" || a.sex === "femea" || a.sex === "Femea"));
-    setInseminations(store.getInseminations());
+    const loadData = async () => {
+      const allAnimals = await store.getAnimals();
+      setAnimals(allAnimals.filter(a => a.sex?.toLowerCase() === "fêmea" || a.sex?.toLowerCase() === "femea"));
+      setInseminations(await store.getInseminations());
+    };
+    loadData();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAnimalId || !bull || !date) {
       toast.error("Preencha todos os campos obrigatórios");
@@ -37,7 +41,7 @@ export default function InseminationPage() {
     // Gestaçāo média: 283 dias
     const estBirth = addDays(new Date(date), 283).toISOString().split("T")[0];
 
-    store.addInsemination({
+    await store.addInsemination({
       animal_id: selectedAnimalId,
       date,
       bull,
@@ -46,7 +50,7 @@ export default function InseminationPage() {
       estimated_birth: estBirth
     });
 
-    setInseminations(store.getInseminations());
+    setInseminations(await store.getInseminations());
     setShowForm(false);
     toast.success("Inseminação registrada com sucesso!");
     // Reset form
@@ -171,9 +175,9 @@ export default function InseminationPage() {
                           </div>
                         )}
                         {!ins.status || ins.status === "aguardando" && (
-                           <Button variant="ghost" size="sm" className="text-xs font-bold" onClick={() => {
-                             store.updateInsemination(ins.id, { status: "prenha" });
-                             setInseminations(store.getInseminations());
+                           <Button variant="ghost" size="sm" className="text-xs font-bold" onClick={async () => {
+                             await store.updateInsemination(ins.id, { status: "prenha" });
+                             setInseminations(await store.getInseminations());
                              toast.success("Status atualizado para PRENHA!");
                            }}>
                              Confirmar Prenhez <ChevronRight className="ml-1 h-3 w-3" />

@@ -31,39 +31,42 @@ export default function AddAnimal() {
   });
 
   useEffect(() => {
-    const all = store.getAnimals();
-    setAnimalsList(all);
-    
-    if (id) {
-      const animal = all.find(a => a.id === id);
-      if (animal) {
-        setForm({
-          tag: animal.tag || "",
-          sex: animal.sex || "Macho",
-          breed: animal.breed || "",
-          birth_date: animal.birth_date || "",
-          weight: animal.weight || 0,
-          categoria: animal.categoria || "Bezerro",
-          origem: animal.origem || "Nascimento",
-          data_compra: animal.data_compra || "",
-          valor_compra: animal.valor_compra ? animal.valor_compra.toString() : "",
-          preco_arroba: animal.preco_arroba ? animal.preco_arroba.toString() : "",
-          peso_entrada: animal.peso_entrada ? animal.peso_entrada.toString() : "",
-          peso_saida: animal.peso_saida ? animal.peso_saida.toString() : "",
-          lote_id: animal.lote_id || "",
-          matriz_id: animal.matriz_id || "",
-        } as any);
+    const loadData = async () => {
+      const all = await store.getAnimals();
+      setAnimalsList(all);
+      
+      if (id) {
+        const animal = all.find(a => a.id === id);
+        if (animal) {
+          setForm({
+            tag: animal.tag || "",
+            sex: animal.sex || "Macho",
+            breed: animal.breed || "",
+            birth_date: animal.birth_date || "",
+            weight: animal.weight || 0,
+            categoria: animal.categoria || "Bezerro",
+            origem: animal.origem || "Nascimento",
+            data_compra: animal.data_compra || "",
+            valor_compra: animal.valor_compra ? animal.valor_compra.toString() : "",
+            preco_arroba: animal.preco_arroba ? animal.preco_arroba.toString() : "",
+            peso_entrada: animal.peso_entrada ? animal.peso_entrada.toString() : "",
+            peso_saida: animal.peso_saida ? animal.peso_saida.toString() : "",
+            lote_id: animal.lote_id || "",
+            matriz_id: animal.matriz_id || "",
+          } as any);
+        }
       }
-    }
+    };
+    loadData();
   }, [id]);
 
   const females = animals_list
-    .filter(a => a.sex === "Fêmea")
+    .filter(a => a.sex?.toLowerCase() === "fêmea" || a.sex?.toLowerCase() === "femea")
     .sort((a, b) => a.tag.localeCompare(b.tag));
 
   const existingLots = Array.from(new Set(animals_list.map(a => a.lote_id).filter(Boolean))) as string[];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.tag) { toast.error("Informe o brinco"); return; }
     
@@ -80,14 +83,14 @@ export default function AddAnimal() {
     };
 
     if (id) {
-      store.updateAnimal(id, animalData);
+      await store.updateAnimal(id, animalData);
       toast.success("Animal atualizado com sucesso!");
       navigate(`/animals/${id}`);
     } else {
-      const newAnimal = store.addAnimal(animalData);
+      const newAnimal = await store.addAnimal(animalData);
 
       if (form.origem === "Compra" && Number(form.valor_compra) > 0) {
-        store.addFinancial({
+        await store.addFinancial({
           type: "despesa",
           description: `Compra de Animal - Brinco ${form.tag}`,
           category: "Compra de Animais",
@@ -100,7 +103,7 @@ export default function AddAnimal() {
 
       // Adicionar evento de pesagem inicial para garantir histórico de ganho
       if (pesoEntrada > 0) {
-        store.addEvent({
+        await store.addEvent({
           animal_id: newAnimal.id,
           type: "pesagem",
           date: form.data_compra || form.birth_date || new Date().toISOString().split("T")[0],

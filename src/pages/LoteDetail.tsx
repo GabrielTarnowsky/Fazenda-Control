@@ -15,6 +15,7 @@ export default function LoteDetail() {
   const { nome } = useParams<{ nome: string }>();
   const navigate = useNavigate();
   const [animals, setAnimals] = useState<Animal[]>([]);
+  const [animalsWithMetrics, setAnimalsWithMetrics] = useState<any[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [quickWeight, setQuickWeight] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -41,7 +42,9 @@ export default function LoteDetail() {
     custoAlimentacao: 0
   });
 
-  const handleQuickWeight = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(true);
+
+  const handleQuickWeight = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickWeight.tag || quickWeight.weight <= 0) {
       toast.error("Preencha o número e o peso");
@@ -54,15 +57,7 @@ export default function LoteDetail() {
       return;
     }
 
-    // Calcular ganho
-    const weights = store.getEventsByAnimal(animal.id)
-      .filter(ev => ev.type === "pesagem")
-      .sort((a,b) => b.date.localeCompare(a.date));
-    
-    const lastWeight = weights.length > 0 ? weights[0].weight : (animal.peso_entrada || animal.weight);
-    const gain = lastWeight > 0 ? quickWeight.weight - lastWeight : 0;
-
-    store.addEvent({
+    await store.addEvent({
       animal_id: animal.id,
       type: "pesagem",
       date: quickWeight.date,
@@ -75,73 +70,111 @@ export default function LoteDetail() {
     setIsReportOpen(true);
     toast.success("Peso registrado!");
 
-    const gainStr = gain !== 0 ? ` (Ganho: ${gain > 0 ? "+" : ""}${gain.toFixed(1)}kg)` : "";
-    setSuccessMsg(`Animal #${quickWeight.tag}: ${quickWeight.weight}kg salvo!${gainStr}`);
+    setSuccessMsg(`Animal #${quickWeight.tag}: ${quickWeight.weight}kg salvo!`);
     setQuickWeight({ ...quickWeight, tag: "", weight: 0 });
     
-    // Refresh animal list to show new weight
-    const loteNome = decodeURIComponent(nome || "");
-    setAnimals(store.getAnimals().filter(a => (a.lote_id || "Sem Lote") === loteNome));
-    
-    // Focus back to tag input
+    // Refresh
+    loadData();
     tagInputRef.current?.focus();
-
-    // Clear alert after 3s
     setTimeout(() => setSuccessMsg(""), 3000);
   };
 
-  useEffect(() => {
+  const loadData = async () => {
     if (!nome) return;
-
+    setLoading(true);
     const loteNome = decodeURIComponent(nome);
-    const allAnimals = store.getAnimals();
+    const [allAnimals, allEvents, allFinancials, feedingLogsData] = await Promise.all([
+      store.getAnimals(),
+      store.getEvents(),
+      store.getFinancials(),
+      store.getFeedingLogs()
+    ]);
+
     const loteAnimals = allAnimals.filter(a => (a.lote_id || "Sem Lote") === loteNome);
-
     setAnimals(loteAnimals);
-    if (loteAnimals.length === 0) return;
 
-    // Calc Peso Total
-    const pesoTotal = loteAnimals.reduce((acc, a) => acc + (a.weight || 0), 0);
-    
-    // Calc @ Produzidas (seguindo regra estrita do passo a passo)
-    let somaPesosEntrada = 0;
-    let somaPesosSaida = 0;
-    
-    loteAnimals.forEach(a => {
-      let pesoEnt = a.peso_entrada && a.peso_entrada > 0 ? a.peso_entrada : 0; 
-      if (pesoEnt === 0) {
-        const eventosPesagem = store.getEventsByAnimal(a.id)
+    if (loteAnimals.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    const PRECO_MERCADO_ARROBA = 280;
+    const todayStr = new Date().toISOString().split("T")[0];
+    const loteAnimalIds = loteAnimals.map(a => a.id);
+    const feedingLogs = feedingLogsData.filter(l => (l.lote_id || "Sem Lote") === loteNome);
+
+    // Calc individual metrics for the list
+    const enriched = loteAnimals.map(a => {
+      const animalEvents = allEvents.filter(e => e.animal_id === a.id);
+      
+      // Peso entrada
+      let pEnt = a.peso_entrada && a.peso_entrada > 0 ? a.peso_entrada : 0; 
+      if (pEnt === 0) {
+        const evsP = animalEvents
           .filter(e => e.type === "pesagem")
           .sort((ev1, ev2) => ev1.date.localeCompare(ev2.date));
-        
-        if (eventosPesagem.length > 0) {
-          pesoEnt = eventosPesagem[0].weight;
-        } else if (a.origem === "Nascimento") {
-          pesoEnt = 30; 
-        } else {
-          pesoEnt = a.weight; 
-        }
+        pEnt = evsP.length > 0 ? evsP[0].weight : (a.origem === "Nascimento" ? 30 : a.weight);
       }
-      somaPesosEntrada += pesoEnt;
 
-      let pesoSai = a.peso_saida && a.peso_saida > 0 ? a.peso_saida : 0;
-      if (pesoSai === 0) {
-        const eventoVenda = store.getEventsByAnimal(a.id).find(e => e.type === "venda" || e.type === "morto");
-        pesoSai = (eventoVenda && eventoVenda.weight > 0) ? eventoVenda.weight : a.weight;
+      // Days
+      const dEnt = a.data_compra || a.birth_date;
+      let dFim = todayStr;
+      const vOm = animalEvents.find(e => e.type === "venda" || e.type === "morte");
+      if (a.status === "vendido" || a.status === "morto") {
+        if (vOm && vOm.date) dFim = vOm.date;
       }
-      // Se o animal foi vendido, o peso registrado é o peso morto. Usamos peso morto * 2 = peso vivo estimado de saída
-      const pesoSaiAjustado = a.status === "vendido" ? pesoSai * 2 : pesoSai;
-      somaPesosSaida += pesoSaiAjustado;
+      const msDiff = new Date(dFim).getTime() - new Date(dEnt).getTime();
+      const dias = Math.max(1, msDiff / (1000 * 3600 * 24));
+
+      // Weight out
+      let pSai = a.peso_saida && a.peso_saida > 0 ? a.peso_saida : 0;
+      if (pSai === 0) {
+        pSai = (vOm && vOm.weight > 0) ? vOm.weight : a.weight;
+      }
+      const pSaiAdj = a.status === "vendido" ? pSai * 2 : pSai;
+
+      const gKg = pSaiAdj - pEnt;
+      const gmdVal = gKg / dias;
+      const arrG = gKg / 15;
+
+      // Financial
+      const cAnim = a.valor_compra || 0;
+      const prBase = a.preco_arroba > 0 ? a.preco_arroba : PRECO_MERCADO_ARROBA;
+      let rev = 0;
+      if (a.status === "vendido" || a.status === "morto") {
+        rev = (vOm && vOm.value > 0) ? vOm.value : 0;
+      } else {
+        rev = (pSaiAdj / 15) * prBase;
+      }
+      const luc = rev - cAnim;
+
+      return {
+        ...a,
+        gmd: gmdVal,
+        lucro: luc,
+        arrobasGanhas: arrG,
+        pesoEntradaCal: pEnt,
+        diasPermanencia: dias,
+        vendaValueReal: rev,
+        displayWeight: pSaiAdj
+      };
     });
 
-    const ganhoTotalKg = somaPesosSaida - somaPesosEntrada;
+    setAnimalsWithMetrics(enriched);
+
+    // Aggregate metrics
+    let somaPesosEntradaTotal = 0;
+    let somaPesosSaidaTotal = 0;
+    enriched.forEach(ea => {
+      somaPesosEntradaTotal += ea.pesoEntradaCal;
+      somaPesosSaidaTotal += ea.displayWeight;
+    });
+
+    const ganhoTotalKg = somaPesosSaidaTotal - somaPesosEntradaTotal;
     const arrobasTotal = ganhoTotalKg / 15;
-    const mediaArroba = loteAnimals.length > 0 ? (arrobasTotal / loteAnimals.length) : 0;
+    const mediaArroba = enriched.length > 0 ? (arrobasTotal / enriched.length) : 0;
 
-    const allFinancials = store.getFinancials();
-    const loteAnimalIds = loteAnimals.map(a => a.id);
     let custoTotal = 0;
-
     allFinancials.forEach(f => {
       if (f.type === "despesa" && f.animal_id && loteAnimalIds.includes(f.animal_id)) {
         custoTotal += f.value;
@@ -149,101 +182,50 @@ export default function LoteDetail() {
     });
 
     loteAnimals.forEach(a => {
-      const hasFinancialLink = allFinancials.some(f => f.animal_id === a.id && f.type === "despesa" && f.description.includes("Compra"));
-      if (!hasFinancialLink && a.origem === "Compra" && a.valor_compra) {
+      const hasFinComp = allFinancials.some(f => f.animal_id === a.id && f.description.includes("Compra"));
+      if (!hasFinComp && a.origem === "Compra" && a.valor_compra) {
         custoTotal += a.valor_compra;
       }
     });
 
     const custoArroba = arrobasTotal > 0 ? custoTotal / arrobasTotal : 0;
-
-    let totalRendimento = 0;
-    let validRendCount = 0;
-    loteAnimals.forEach(a => {
-      const eventos = store.getEventsByAnimal(a.id);
-      const vendaEvent = eventos.find(e => e.type === "venda");
-      const pesoVenda = (vendaEvent && vendaEvent.weight > 0) ? vendaEvent.weight : a.weight;
-      if (pesoVenda > 0) {
-        const pesoDividido = pesoVenda / 2;
-        const rendimento = (pesoDividido / pesoVenda) * 100;
-        totalRendimento += rendimento;
-        validRendCount++;
-      }
-    });
-    const rendimentoMedio = validRendCount > 0 ? (totalRendimento / validRendCount) : 0;
-
-    let totalDias = 0;
-    let validDiasCount = 0;
-    const todayStr = new Date().toISOString().split("T")[0];
-
-    loteAnimals.forEach(a => {
-      const dataEntrada = a.data_compra || a.birth_date;
-      if (dataEntrada) {
-        let dataFim = todayStr;
-        if (a.status === "vendido" || a.status === "morto") {
-          const eventos = store.getEventsByAnimal(a.id);
-          const vendaOrMorte = eventos.find(e => e.type === "venda" || e.type === "morte");
-          if (vendaOrMorte && vendaOrMorte.date) {
-            dataFim = vendaOrMorte.date;
-          }
-        }
-        const msDiff = new Date(dataFim).getTime() - new Date(dataEntrada).getTime();
-        const days = msDiff / (1000 * 3600 * 24);
-        if (days > 0) {
-          totalDias += days;
-          validDiasCount++;
-        }
-      }
-    });
-    const cicloDias = validDiasCount > 0 ? (totalDias / validDiasCount) : 0;
-
-    const feedingLogs = store.getFeedingLogs().filter(l => (l.lote_id || "Sem Lote") === loteNome);
-    const custoAlimentacao = feedingLogs.reduce((acc, l) => acc + (l.total_cost || 0), 0);
+    const cycleDaysAvg = enriched.reduce((acc, ea) => acc + ea.diasPermanencia, 0) / (enriched.length || 1);
+    const totalFeeding = feedingLogs.reduce((acc, l) => acc + (l.total_cost || 0), 0);
     
-    let custoManutencao = 0;
+    let sumMaint = 0;
     allFinancials.forEach(f => {
       if (f.type === "despesa" && f.animal_id && loteAnimalIds.includes(f.animal_id) && !f.description.includes("Compra")) {
-        custoManutencao += f.value;
+        sumMaint += f.value;
       }
     });
 
-    const custoOperacionalTotal = custoAlimentacao + custoManutencao;
-    const custoDiarioPC = (loteAnimals.length > 0 && cicloDias > 0) ? (custoOperacionalTotal / loteAnimals.length) / cicloDias : 0;
-
-    const PRECO_MERCADO_ARROBA = 280;
-    let totalLucroLot = 0;
-    loteAnimals.forEach(a => {
-      const custo = a.valor_compra || 0;
-      let revenue = 0;
-      if (a.status === "vendido" || a.status === "morto") {
-        const events = store.getEventsByAnimal(a.id);
-        const vendaOrMorte = events.find(e => e.type === "venda" || e.type === "morte");
-        revenue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
-      } else {
-        const preco = a.preco_arroba && a.preco_arroba > 0 ? a.preco_arroba : PRECO_MERCADO_ARROBA;
-        const arrobas = (a.weight || 0) / 15; 
-        revenue = (arrobas * preco);
-      }
-      totalLucroLot += (revenue - custo);
-    });
-    const lucroPC = loteAnimals.length > 0 ? totalLucroLot / loteAnimals.length : 0;
-    const gmdLote = cicloDias > 0 ? ganhoTotalKg / cicloDias : 0;
+    const totalOp = totalFeeding + sumMaint;
+    const costPerDayPC = (enriched.length > 0 && cycleDaysAvg > 0) ? (totalOp / enriched.length) / cycleDaysAvg : 0;
+    const totalLuc = enriched.reduce((acc, ea) => acc + ea.lucro, 0);
+    const gmdLote = cycleDaysAvg > 0 ? ganhoTotalKg / cycleDaysAvg : 0;
 
     setMetrics({
       gmd: gmdLote,
-      rendimento: rendimentoMedio,
+      rendimento: 52,
       custoArroba,
       arrobasProduzidas: arrobasTotal,
-      pesoTotal: somaPesosSaida,
+      pesoTotal: somaPesosSaidaTotal,
       custoTotal,
-      cicloDias,
-      custoDiarioPC,
-      lucroPC,
+      cicloDias: cycleDaysAvg,
+      custoDiarioPC: costPerDayPC,
+      lucroPC: enriched.length > 0 ? totalLuc / enriched.length : 0,
       ganhoTotalKg,
       mediaArroba,
-      custoAlimentacao
+      custoAlimentacao: totalFeeding
     });
-  }, [nome, animals]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [nome]);
+
+  if (loading) return <div className="p-4 text-center py-20 italic">Calculando performance do lote...</div>;
 
   if (!nome) return null;
   const decodedNome = decodeURIComponent(nome);

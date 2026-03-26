@@ -16,16 +16,27 @@ const typeIcons: Record<string, React.ReactNode> = {
 export default function AnimalDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const [animal, setAnimal] = useState<Animal | undefined>();
   const [events, setEvents] = useState<AnimalEvent[]>([]);
 
   useEffect(() => {
     if (!id) return;
-    setAnimal(store.getAnimal(id));
-    setEvents(store.getEventsByAnimal(id).sort((a, b) => b.date.localeCompare(a.date)));
+    const loadData = async () => {
+      setLoading(true);
+      const [animalData, eventsData] = await Promise.all([
+        store.getAnimal(id),
+        store.getEventsByAnimal(id)
+      ]);
+      setAnimal(animalData);
+      setEvents(eventsData.sort((a, b) => b.date.localeCompare(a.date)));
+      setLoading(false);
+    };
+    loadData();
   }, [id]);
 
-  if (!animal) return <div className="p-4">Animal não encontrado</div>;
+  if (loading) return <div className="p-4 text-center py-20">Carregando detalhes do animal...</div>;
+  if (!animal) return <div className="p-4 text-center py-20">Animal não encontrado</div>;
 
   const renderEventList = (eventList: AnimalEvent[]) => {
     if (eventList.length === 0) return <p className="text-muted-foreground text-sm py-4 text-center border border-dashed rounded-lg">Nenhum evento registrado</p>;

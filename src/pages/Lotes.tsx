@@ -15,80 +15,80 @@ interface LoteStats {
 
 export default function Lotes() {
   const [stats, setStats] = useState<LoteStats[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const animals = store.getAnimals();
-    const lotesMap: Record<string, Animal[]> = {};
+    const loadData = async () => {
+      setLoading(true);
+      const [animals, allEvents] = await Promise.all([
+        store.getAnimals(),
+        store.getEvents()
+      ]);
 
-    animals.forEach(a => {
-      const loteName = a.lote_id || "Sem Lote";
-      if (!lotesMap[loteName]) lotesMap[loteName] = [];
-      lotesMap[loteName].push(a);
-    });
+      const lotesMap: Record<string, Animal[]> = {};
 
-    const lotesStats: LoteStats[] = Object.keys(lotesMap).map(nome => {
-      const loteAnimals = lotesMap[nome];
-      
-      let somaPesoFinal = 0;
-      let maxDate = "";
-
-      loteAnimals.forEach(a => {
-        // Encontrar data do ultimo evento
-        const events = store.getEventsByAnimal(a.id);
-        events.forEach(e => {
-          if (e.date > maxDate) maxDate = e.date;
-        });
-
-        // 1. Tenta o campo direto peso_saida
-        let pSai = (a.peso_saida && a.peso_saida > 0) ? a.peso_saida : 0;
-        
-        // 2. Se não tiver, busca no histórico de eventos (Legacy fallback)
-        if (pSai === 0 && (a.status === "vendido" || a.status === "morto")) {
-          const saleEvent = events.find(e => e.type === "venda" || e.type === "morte");
-          if (saleEvent && saleEvent.weight > 0) {
-            pSai = saleEvent.weight;
-          }
-        }
-        
-        // 3. Se for ativo e não tiver peso_saida, usa o peso atual
-        const pesoFinal = pSai > 0 ? pSai : (a.weight || 0);
-        somaPesoFinal += pesoFinal;
+      animals.forEach(a => {
+        const loteName = a.lote_id || "Sem Lote";
+        if (!lotesMap[loteName]) lotesMap[loteName] = [];
+        lotesMap[loteName].push(a);
       });
 
-      const pesoMedioFinal = loteAnimals.length ? somaPesoFinal / loteAnimals.length : 0;
-      const isVendido = loteAnimals.length > 0 && loteAnimals.every(a => a.status === "vendido" || a.status === "morto");
-      
-      return {
-        nome,
-        quantidade: loteAnimals.length,
-        pesoTotal: somaPesoFinal,
-        pesoMedio: pesoMedioFinal,
-        isVendido,
-        dataFim: maxDate
-      };
-    });
+      const lotesStats: LoteStats[] = Object.keys(lotesMap).map(nome => {
+        const loteAnimals = lotesMap[nome];
+        
+        let somaPesoFinal = 0;
+        let maxDate = "";
 
-    lotesStats.sort((a, b) => {
-      // Prioridade 1: "Sem Lote" sempre por último
-      if (a.nome === "Sem Lote") return 1;
-      if (b.nome === "Sem Lote") return -1;
+        loteAnimals.forEach(a => {
+          // Encontrar data do ultimo evento filtrando localmente
+          const animalEvents = allEvents.filter(e => e.animal_id === a.id);
+          animalEvents.forEach(e => {
+            if (e.date > maxDate) maxDate = e.date;
+          });
 
-      // Prioridade 2: Ativos (isVendido = false) primeiro
-      if (a.isVendido !== b.isVendido) {
-        return a.isVendido ? 1 : -1;
-      }
+          // 1. Tenta o campo direto peso_saida
+          let pSai = (a.peso_saida && a.peso_saida > 0) ? a.peso_saida : 0;
+          
+          // 2. Se não tiver, busca no histórico de eventos (Legacy fallback)
+          if (pSai === 0 && (a.status === "vendido" || a.status === "morto")) {
+            const saleEvent = animalEvents.find(e => e.type === "venda" || e.type === "morte");
+            if (saleEvent && saleEvent.weight > 0) {
+              pSai = saleEvent.weight;
+            }
+          }
+          
+          // 3. Se for ativo e não tiver peso_saida, usa o peso atual
+          const pesoFinal = pSai > 0 ? pSai : (a.weight || 0);
+          somaPesoFinal += pesoFinal;
+        });
 
-      // Se ambos finalizados, ordena pela data de fim (mais recente primeiro: "ultimo finalizado por primeiro")
-      if (a.isVendido && b.isVendido) {
-        return b.dataFim.localeCompare(a.dataFim);
-      }
+        const pesoMedioFinal = loteAnimals.length ? somaPesoFinal / loteAnimals.length : 0;
+        const isVendido = loteAnimals.length > 0 && loteAnimals.every(a => a.status === "vendido" || a.status === "morto");
+        
+        return {
+          nome,
+          quantidade: loteAnimals.length,
+          pesoTotal: somaPesoFinal,
+          pesoMedio: pesoMedioFinal,
+          isVendido,
+          dataFim: maxDate
+        };
+      });
 
-      // Se ambos ativos, ordena por nome
-      return a.nome.localeCompare(b.nome);
-    });
+      lotesStats.sort((a, b) => {
+        if (a.nome === "Sem Lote") return 1;
+        if (b.nome === "Sem Lote") return -1;
+        if (a.isVendido !== b.isVendido) return a.isVendido ? 1 : -1;
+        if (a.isVendido && b.isVendido) return b.dataFim.localeCompare(a.dataFim);
+        return a.nome.localeCompare(b.nome);
+      });
 
-    setStats(lotesStats);
+      setStats(lotesStats);
+      setLoading(false);
+    };
+
+    loadData();
   }, []);
 
   return (

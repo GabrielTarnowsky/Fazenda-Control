@@ -13,10 +13,17 @@ export default function Animals() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [search, setSearch] = useState("");
   const [selectedLote, setSelectedLote] = useState<string | null>(searchParams.get("lote") || null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    setAnimals(store.getAnimals());
+    const loadData = async () => {
+      setLoading(true);
+      const data = await store.getAnimals();
+      setAnimals(data);
+      setLoading(false);
+    };
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -37,11 +44,12 @@ export default function Animals() {
   const totalWeight = activeAnimals.reduce((acc, a) => acc + (a.weight || 0), 0);
   const avgWeight = activeAnimals.length > 0 ? totalWeight / activeAnimals.length : 0;
 
-  const handleDelete = (e: React.MouseEvent, id: string, tag: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string, tag: string) => {
     e.stopPropagation();
     if (window.confirm(`Tem certeza que deseja excluir o animal brinco ${tag}? Esta ação não pode ser desfeita e removerá todo o histórico dele.`)) {
-      store.deleteAnimal(id);
-      setAnimals(store.getAnimals());
+      await store.deleteAnimal(id);
+      const data = await store.getAnimals();
+      setAnimals(data);
       toast.success("Animal removido com sucesso");
     }
   };
@@ -185,17 +193,21 @@ export default function Animals() {
         </TabsList>
         
         <TabsContent value="ativo" className="mt-0">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.filter(a => a.status === "ativo").map(animal => renderAnimalCard(animal))}
-            {filtered.filter(a => a.status === "ativo").length === 0 && (
-              <div className="col-span-full py-12 text-center flex flex-col items-center gap-2">
-                <div className="h-16 w-16 bg-muted/30 rounded-full flex items-center justify-center text-muted-foreground/40">
-                  <TrendingUp className="h-8 w-8" />
+          {loading ? (
+            <div className="py-20 text-center">Carregando animais...</div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.filter(a => a.status === "ativo").map(animal => renderAnimalCard(animal))}
+              {filtered.filter(a => a.status === "ativo").length === 0 && (
+                <div className="col-span-full py-12 text-center flex flex-col items-center gap-2">
+                  <div className="h-16 w-16 bg-muted/30 rounded-full flex items-center justify-center text-muted-foreground/40">
+                    <TrendingUp className="h-8 w-8" />
+                  </div>
+                  <p className="text-muted-foreground font-medium">Nenhum animal ativo encontrado</p>
                 </div>
-                <p className="text-muted-foreground font-medium">Nenhum animal ativo encontrado</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="outros" className="mt-0">

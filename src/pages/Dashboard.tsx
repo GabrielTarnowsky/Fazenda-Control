@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { store, Animal, Financial, parseDateSafe } from "@/lib/store";
+import { store, Animal, Financial, AnimalEvent, parseDateSafe } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight, Cloud, Database, RefreshCw, Upload, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,14 +15,25 @@ export default function Dashboard() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [financials, setFinancials] = useState<Financial[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
+  const [events, setEvents] = useState<AnimalEvent[]>([]);
   const [showPurchase, setShowPurchase] = useState(false);
   
   const navigate = useNavigate();
 
   useEffect(() => {
-    setAnimals(store.getAnimals());
-    setFinancials(store.getFinancials());
-    setIngredients(store.getIngredients());
+    const loadData = async () => {
+      const [animalsData, financialsData, ingredientsData, eventsData] = await Promise.all([
+        store.getAnimals(),
+        store.getFinancials(),
+        store.getIngredients(),
+        store.getEvents()
+      ]);
+      setAnimals(animalsData);
+      setFinancials(financialsData);
+      setIngredients(ingredientsData);
+      setEvents(eventsData);
+    };
+    loadData();
   }, []);
 
   const user = store.auth.getCurrentUser();
@@ -63,8 +74,8 @@ export default function Dashboard() {
     const result = months.map(m => ({ name: m, value: 0 }));
 
     activeAnimals.forEach(a => {
-      const events = store.getEventsByAnimal(a.id)
-        .filter(e => e.type === "pesagem")
+      const animalEvents = events
+        .filter(e => e.animal_id === a.id && e.type === "pesagem")
         .sort((e1, e2) => e1.date.localeCompare(e2.date));
       
       const entryWeight = a.peso_entrada || a.weight;
@@ -73,8 +84,8 @@ export default function Dashboard() {
       months.forEach((m, idx) => {
         // Find last weight in or before month M
         // Find last weight before month M
-        const lastInM = events.filter(e => e.date.startsWith(m)).reverse()[0];
-        const lastBeforeM = events.filter(e => e.date < m).reverse()[0];
+        const lastInM = animalEvents.filter(e => e.date.startsWith(m)).reverse()[0];
+        const lastBeforeM = animalEvents.filter(e => e.date < m).reverse()[0];
 
         let weightEnd = 0;
         let weightStart = 0;
@@ -101,7 +112,7 @@ export default function Dashboard() {
     });
 
     return result.map(r => ({ ...r, value: Number(r.value.toFixed(1)) }));
-  }, [activeAnimals]);
+  }, [activeAnimals, events]);
 
   // Transformation for Herd Composition (Donut Chart)
   const herdComposition = useMemo(() => {
@@ -208,9 +219,9 @@ export default function Dashboard() {
 
       {showPurchase && (
         <PurchaseForm 
-          onSuccess={() => {
-            setFinancials(store.getFinancials());
-            setIngredients(store.getIngredients());
+          onSuccess={async () => {
+            setFinancials(await store.getFinancials());
+            setIngredients(await store.getIngredients());
             setShowPurchase(false);
           }}
           onCancel={() => setShowPurchase(false)}
