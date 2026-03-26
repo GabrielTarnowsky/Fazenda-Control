@@ -30,13 +30,9 @@ export default function Reports() {
     load();
   }, []);
 
-  if (loading) {
-    return <div className="p-4 text-center mt-20 font-bold animate-pulse text-muted-foreground">Carregando inteligência de dados...</div>;
-  }
-
-  const activeAnimals = useMemo(() => animals.filter(a => a.status === "ativo"), [animals]);
-
   // 1. Custo da @ Produzida (Estratégico)
+  const activeAnimals = useMemo(() => (animals || []).filter(a => a.status === "ativo"), [animals]);
+
   const costAnalysis = useMemo(() => {
     // Incluir animais ativos e vendidos para análise de custo total de produção
     const relevantAnimals = (animals || []).filter(a => a && (a.status === "ativo" || a.status === "vendido"));
@@ -138,6 +134,10 @@ export default function Reports() {
   }, [activeAnimals]);
 
   const PRECO_MERCADO_ARROBA = 280;
+
+  if (loading) {
+    return <div className="p-4 text-center mt-20 font-bold animate-pulse text-muted-foreground">Carregando inteligência de dados...</div>;
+  }
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6 max-w-7xl mx-auto">
