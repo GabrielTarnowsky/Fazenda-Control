@@ -21,11 +21,14 @@ export default function AddFeedingLog() {
   });
 
   useEffect(() => {
-    const list = store.getRations();
-    setRations(list);
-    if (list.length > 0) {
-      setForm(f => ({ ...f, ration_id: list[0].id }));
-    }
+    const load = async () => {
+      const list = await store.getRations();
+      setRations(list);
+      if (list.length > 0) {
+        setForm(f => ({ ...f, ration_id: list[0].id }));
+      }
+    };
+    load();
   }, []);
 
   const calculations = useMemo(() => {
@@ -37,11 +40,11 @@ export default function AddFeedingLog() {
     return { totalConsumption, totalCost, costPerAnimal };
   }, [form, rations]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.ration_id) { toast.error("Selecione uma ração"); return; }
     
-    store.addFeedingLog({
+    await store.addFeedingLog({
       ...form,
       total_consumption_kg: calculations.totalConsumption,
       total_cost: calculations.totalCost

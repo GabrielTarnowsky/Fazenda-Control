@@ -99,6 +99,17 @@ export interface Ration {
   user_id?: string;
 }
 
+export interface IngredientPurchase {
+  id: string;
+  ingredient_id: string;
+  date: string;
+  unit_price: number;
+  total_qty_kg: number;
+  total_value: number;
+  lote_id?: string;
+  user_id?: string;
+}
+
 export interface FeedingLog {
   id: string;
   ration_id: string;
@@ -215,12 +226,41 @@ export const store = {
     const { data } = await supabase.from('events').select('*').eq('animal_id', animalId).eq('user_id', user.id).order('date', { ascending: false });
     return data || [];
   },
-  getFeedingLogs: async () => {
+  getFeedingLogs: async (): Promise<FeedingLog[]> => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
-    // Feeding logs are stored in the events table with type 'alimentacao'
-    const { data } = await supabase.from('events').select('*').eq('user_id', user.id).eq('type', 'alimentacao');
-    return data || [];
+    const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'feeding_log');
+    if (!data) return [];
+    return data.map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
+  },
+  addFeedingLog: async (log: Omit<FeedingLog, "id">) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) throw new Error("Não autenticado");
+    const item = { ...log, id: v4(), user_id: user.id };
+    
+    const finMeta = {
+      id: item.id,
+      type: 'metadata',
+      category: 'feeding_log',
+      value: item.total_cost || 0,
+      date: item.date || new Date().toISOString(),
+      description: JSON.stringify(item),
+      user_id: user.id
+    };
+
+    const finExpense = {
+      id: v4(),
+      type: 'despesa',
+      category: 'Alimentação',
+      value: item.total_cost || 0,
+      date: item.date || new Date().toISOString(),
+      description: `Trato Lote ${item.lote_id || "Geral"} - ${item.days} dias`,
+      user_id: user.id
+    };
+
+    const { error } = await supabase.from('financial').insert([finMeta, finExpense]);
+    if (error) throw error;
+    return item;
   },
   addEvent: async (e: Omit<AnimalEvent, "id">) => {
     const user = store.auth.getCurrentUser();
@@ -245,7 +285,7 @@ export const store = {
   getFinancials: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
-    const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).order('date', { ascending: false });
+    const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).neq('type', 'metadata').order('date', { ascending: false });
     return data || [];
   },
   addFinancial: async (f: Omit<Financial, "id">, installments: number = 1) => {
@@ -319,12 +359,100 @@ export const store = {
     await supabase.from('insemination').update(data).eq('id', id).eq('user_id', user.id);
   },
 
-  // Ingredients stored in 'animals' for now
-  getIngredients: async () => {
+  // --- RATIONS & INGREDIENTS METADATA OVER FINANCIAL ---
+  getIngredients: async (): Promise<Ingredient[]> => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
-    const { data } = await supabase.from('animals').select('*').eq('user_id', user.id).eq('status', 'ingredient');
-    return data || []; 
+    const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'ingredient');
+    if (!data) return [];
+    return data.map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
+  },
+  addIngredient: async (ing: Omit<Ingredient, "id">) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) throw new Error("Não autenticado");
+    const item = { ...ing, id: v4(), user_id: user.id };
+    const fin = { id: item.id, type: 'metadata', category: 'ingredient', value: 0, date: new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
+    const { error } = await supabase.from('financial').insert([fin]);
+    if (error) throw error;
+    return item;
+  },
+  updateIngredient: async (id: string, data: Partial<Ingredient>) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    const all = await store.getIngredients();
+    const existing = all.find(i => i.id === id);
+    if (!existing) return;
+    const updated = { ...existing, ...data };
+    const finParams = { description: JSON.stringify(updated) };
+    await supabase.from('financial').update(finParams).eq('id', id).eq('user_id', user.id);
+  },
+  deleteIngredient: async (id: string) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
+  },
+
+  getRations: async (): Promise<Ration[]> => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return [];
+    const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'ration');
+    if (!data) return [];
+    return data.map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
+  },
+  addRation: async (rat: Omit<Ration, "id">) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) throw new Error("Não autenticado");
+    const item = { ...rat, id: v4(), user_id: user.id };
+    const fin = { id: item.id, type: 'metadata', category: 'ration', value: 0, date: new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
+    const { error } = await supabase.from('financial').insert([fin]);
+    if (error) throw error;
+    return item;
+  },
+  updateRation: async (id: string, data: Partial<Ration>) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    const all = await store.getRations();
+    const existing = all.find(r => r.id === id);
+    if (!existing) return;
+    const updated = { ...existing, ...data };
+    await supabase.from('financial').update({ description: JSON.stringify(updated) }).eq('id', id).eq('user_id', user.id);
+  },
+  deleteRation: async (id: string) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
+  },
+
+  getIngredientPurchases: async (): Promise<IngredientPurchase[]> => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return [];
+    const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'purchase');
+    if (!data) return [];
+    return data.map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
+  },
+  addIngredientPurchase: async (pur: Omit<IngredientPurchase, "id">) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) throw new Error("Não autenticado");
+    const item = { ...pur, id: v4(), user_id: user.id };
+    // We also save it as a financial transaction implicitly through the UI or keep it isolated. We'll keep it isolated here and let the UI handle financial duplication.
+    const fin = { id: item.id, type: 'metadata', category: 'purchase', value: item.total_value || 0, date: item.date || new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
+    const { error } = await supabase.from('financial').insert([fin]);
+    if (error) throw error;
+    return item;
+  },
+  updateIngredientPurchase: async (id: string, data: Partial<IngredientPurchase>) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    const all = await store.getIngredientPurchases();
+    const existing = all.find(p => p.id === id);
+    if (!existing) return;
+    const updated = { ...existing, ...data };
+    await supabase.from('financial').update({ description: JSON.stringify(updated), value: updated.total_value }).eq('id', id).eq('user_id', user.id);
+  },
+  deleteIngredientPurchase: async (id: string) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
 
   // Auth

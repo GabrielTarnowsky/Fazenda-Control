@@ -21,11 +21,17 @@ export default function Rations() {
   const [editForm, setEditForm] = useState<Partial<IngredientPurchase>>({});
   const navigate = useNavigate();
 
-  const loadData = () => {
-    setRations(store.getRations());
-    setLogs(store.getFeedingLogs());
-    setPurchases(store.getIngredientPurchases());
-    setIngredients(store.getIngredients());
+  const loadData = async () => {
+    const [r, l, p, i] = await Promise.all([
+      store.getRations(),
+      store.getFeedingLogs(),
+      store.getIngredientPurchases(),
+      store.getIngredients()
+    ]);
+    setRations(r);
+    setLogs(l);
+    setPurchases(p);
+    setIngredients(i);
   };
 
   useEffect(() => {
@@ -33,18 +39,18 @@ export default function Rations() {
   }, []);
 
   const filteredLogs = useMemo(() => {
-    return logs.filter(l => l.date.substring(0, 7) === selectedYearMonth);
+    return logs.filter(l => l && l.date && l.date.substring(0, 7) === selectedYearMonth);
   }, [logs, selectedYearMonth]);
 
   const filteredPurchases = useMemo(() => {
-    return purchases.filter(p => p.date.substring(0, 7) === selectedYearMonth);
+    return purchases.filter(p => p && p.date && p.date.substring(0, 7) === selectedYearMonth);
   }, [purchases, selectedYearMonth]);
 
   const stats = useMemo(() => {
-    const totalCost = filteredLogs.reduce((acc, log) => acc + log.total_cost, 0);
-    const totalConsumption = filteredLogs.reduce((acc, log) => acc + log.total_consumption_kg, 0);
-    const totalAnimals = filteredLogs.reduce((acc, log) => acc + log.num_animals, 0);
-    const totalPurchases = filteredPurchases.reduce((acc, p) => acc + p.total_value, 0);
+    const totalCost = filteredLogs.reduce((acc, log) => acc + (Number(log.total_cost) || 0), 0);
+    const totalConsumption = filteredLogs.reduce((acc, log) => acc + (Number(log.total_consumption_kg) || 0), 0);
+    const totalAnimals = filteredLogs.reduce((acc, log) => acc + (Number(log.num_animals) || 0), 0);
+    const totalPurchases = filteredPurchases.reduce((acc, p) => acc + (Number(p.total_value) || 0), 0);
     const avgCostPerAnimal = totalAnimals > 0 ? totalCost / totalAnimals : 0;
 
     return { totalCost, totalConsumption, avgCostPerAnimal, totalPurchases };
@@ -56,15 +62,15 @@ export default function Rations() {
       const ing = ingredients.find(i => i.id === p.ingredient_id);
       const name = ing?.name || "Desconhecido";
       if (!totals[name]) totals[name] = { qty: 0, value: 0 };
-      totals[name].qty += p.total_qty_kg;
-      totals[name].value += p.total_value;
+      totals[name].qty += Number(p.total_qty_kg) || 0;
+      totals[name].value += Number(p.total_value) || 0;
     });
     return Object.entries(totals).sort((a, b) => b[1].value - a[1].value);
   }, [filteredPurchases, ingredients]);
 
-  const handleDeletePurchase = (id: string) => {
+  const handleDeletePurchase = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir esta compra?")) {
-      store.deleteIngredientPurchase(id);
+      await store.deleteIngredientPurchase(id);
       loadData();
       toast.success("Compra excluída");
     }
@@ -75,9 +81,9 @@ export default function Rations() {
     setEditForm(p);
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
     if (!editingId) return;
-    store.updateIngredientPurchase(editingId, editForm);
+    await store.updateIngredientPurchase(editingId, editForm);
     setEditingId(null);
     loadData();
     toast.success("Compra atualizada");
@@ -198,11 +204,11 @@ export default function Rations() {
               <Card key={r.id} className="hover:border-primary/40 transition-all cursor-pointer group" onClick={() => navigate(`/rations/${r.id}/edit`)}>
                 <CardContent className="p-4 flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold">{r.name}</h3>
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold">{r.products.length} Insumos</p>
+                    <h3 className="font-bold">{r.name || "Inominada"}</h3>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">{(r.products || []).length} Insumos</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-black text-primary">R$ {r.cost_per_kg.toFixed(2)}</p>
+                    <p className="text-lg font-black text-primary">R$ {(Number(r.cost_per_kg) || 0).toFixed(2)}</p>
                     <p className="text-[9px] uppercase font-bold text-muted-foreground">p/ kg</p>
                   </div>
                 </CardContent>
@@ -242,18 +248,18 @@ export default function Rations() {
                       <td colSpan={7} className="text-center py-10 text-muted-foreground italic bg-muted/5">Nenhum registro de trato para este período.</td>
                     </tr>
                   ) : (
-                    filteredLogs.sort((a,b) => b.date.localeCompare(a.date)).map(l => {
+                    filteredLogs.sort((a,b) => (b.date || "").localeCompare(a.date || "")).map(l => {
                       const rat = rations.find(r => r.id === l.ration_id);
                       return (
                         <tr key={l.id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3 whitespace-nowrap font-medium text-muted-foreground">{formatDateDisplay(l.date)}</td>
                           <td className="px-4 py-3 font-bold text-primary">{rat?.name || "Ração"}</td>
                           <td className="px-4 py-3">{l.lote_id || "—"}</td>
-                          <td className="px-4 py-3 text-center font-bold">{l.num_animals}</td>
-                          <td className="px-4 py-3 text-center">{l.days} dias</td>
-                          <td className="px-4 py-3 text-right font-medium text-primary-foreground font-bold">{l.total_consumption_kg.toLocaleString("pt-BR")} kg</td>
+                          <td className="px-4 py-3 text-center font-bold">{l.num_animals || 0}</td>
+                          <td className="px-4 py-3 text-center">{l.days || 0} dias</td>
+                          <td className="px-4 py-3 text-right font-medium text-primary-foreground font-bold">{(Number(l.total_consumption_kg) || 0).toLocaleString("pt-BR")} kg</td>
                           <td className="px-4 py-3 text-right font-black text-destructive">
-                            R$ {l.total_cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            R$ {(Number(l.total_cost) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </td>
                         </tr>
                       );
@@ -328,7 +334,7 @@ export default function Rations() {
                             R$ {p.total_value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </td>
                           <td className="px-4 py-3 text-right">
-                             <Badge variant="outline" className="font-black text-primary">R$ {p.cost_per_kg.toFixed(2)}/kg</Badge>
+                             <Badge variant="outline" className="font-black text-primary">R$ {(p.unit_price || 0).toFixed(2)}/kg</Badge>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -16,23 +16,23 @@ export default function Ingredients() {
   const [showPurchase, setShowPurchase] = useState(false);
   const navigate = useNavigate();
 
-  const loadData = () => {
-    setIngredients(store.getIngredients());
+  const loadData = async () => {
+    setIngredients(await store.getIngredients());
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name) return;
 
     if (editingId) {
-      store.updateIngredient(editingId, form);
+      await store.updateIngredient(editingId, form);
       toast.success("Produto atualizado!");
     } else {
-      store.addIngredient(form);
+      await store.addIngredient(form);
       toast.success("Produto cadastrado!");
     }
 
@@ -47,9 +47,9 @@ export default function Ingredients() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Deseja excluir este produto?")) {
-      store.deleteIngredient(id);
+      await store.deleteIngredient(id);
       loadData();
       toast.info("Produto removido");
     }

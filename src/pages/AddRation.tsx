@@ -16,14 +16,19 @@ export default function AddRation() {
   const [selectedProducts, setSelectedProducts] = useState<RationProduct[]>([]);
 
   useEffect(() => {
-    setIngredients(store.getIngredients());
-    if (id) {
-      const ration = store.getRation(id);
-      if (ration) {
-        setName(ration.name);
-        setSelectedProducts(ration.products);
+    const load = async () => {
+      const ings = await store.getIngredients();
+      setIngredients(ings);
+      if (id) {
+        const allRats = await store.getRations();
+        const ration = allRats.find(r => r.id === id);
+        if (ration) {
+          setName(ration.name);
+          setSelectedProducts(ration.products);
+        }
       }
-    }
+    };
+    load();
   }, [id]);
 
   const totalPercentage = useMemo(() => {
@@ -56,7 +61,7 @@ export default function AddRation() {
     setSelectedProducts(selectedProducts.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) { toast.error("Informe o nome da ração"); return; }
     if (selectedProducts.length === 0) { toast.error("Adicione ao menos um ingrediente"); return; }
@@ -72,10 +77,10 @@ export default function AddRation() {
     };
 
     if (id) {
-      store.updateRation(id, rationData);
+      await store.updateRation(id, rationData);
       toast.success("Ração atualizada!");
     } else {
-      store.addRation(rationData);
+      await store.addRation(rationData);
       toast.success("Ração criada com sucesso!");
     }
     navigate("/rations");
