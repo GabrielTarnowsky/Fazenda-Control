@@ -198,9 +198,12 @@ export const store = {
       tag: a.tag,
       user_id: user.id,
     };
-    // Optional fields - ONLY what exists in the confirmed schema.sql
+    // Optional fields - now safe to include all since DB is upgraded
     const optionalFields: (keyof typeof a)[] = [
-      'birth_date', 'sex', 'breed', 'weight', 'status'
+      'birth_date', 'sex', 'breed', 'weight', 'status',
+      'categoria', 'origem', 'data_compra', 'valor_compra',
+      'preco_arroba', 'peso_entrada', 'peso_saida', 'data_saida',
+      'valor_venda', 'matriz_id'
     ];
     optionalFields.forEach(f => {
       const val = (a as any)[f];
@@ -220,8 +223,8 @@ export const store = {
     const user = store.auth.getCurrentUser();
     if (!user) return;
     const sanitized: any = {};
-    // ONLY update columns confirmed to exist in schema.sql
-    const allowed = ['tag', 'birth_date', 'sex', 'breed', 'weight', 'status', 'lot'];
+    // Update all columns now that schema is fully supported
+    const allowed = ['tag', 'birth_date', 'sex', 'breed', 'weight', 'status', 'categoria', 'origem', 'data_compra', 'valor_compra', 'preco_arroba', 'peso_entrada', 'peso_saida', 'data_saida', 'valor_venda', 'matriz_id', 'lot'];
     allowed.forEach(col => {
       const val = col === 'lot' ? (data as any).lote_id : (data as any)[col];
       if (val != null && val !== '') sanitized[col] = val;
