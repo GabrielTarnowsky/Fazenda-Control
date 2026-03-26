@@ -123,6 +123,8 @@ export interface IngredientPurchase {
   total_value: number;
   lote_id?: string;
   user_id?: string;
+  payment_method?: string;
+  cost_per_kg?: number;
 }
 
 export interface FeedingLog {
@@ -508,9 +510,29 @@ export const store = {
     const user = store.auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { ...pur, id: v4(), user_id: user.id };
-    // We also save it as a financial transaction implicitly through the UI or keep it isolated. We'll keep it isolated here and let the UI handle financial duplication.
-    const fin = { id: item.id, type: 'metadata', category: 'purchase', value: item.total_value || 0, date: item.date || new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
-    const { error } = await supabase.from('financial').insert([fin]);
+    const finMeta = { id: item.id, type: 'metadata', category: 'purchase', value: item.total_value || 0, date: item.date || new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
+    
+    let ingName = "Insumo";
+    try {
+      const { data } = await supabase.from('financial').select('*').eq('id', item.ingredient_id).eq('user_id', user.id).single();
+      if (data && data.description) {
+         const decoded = JSON.parse(data.description);
+         if (decoded.name) ingName = decoded.name;
+      }
+    } catch (e) {}
+
+    const finExpense = {
+      id: v4(),
+      type: 'despesa',
+      category: 'Compra de Insumos',
+      value: item.total_value || 0,
+      date: item.date || new Date().toISOString(),
+      payment_method: item.payment_method || 'Pix',
+      description: `Compra de ${item.total_qty_kg}kg de ${ingName}`,
+      user_id: user.id
+    };
+
+    const { error } = await supabase.from('financial').insert([finMeta, finExpense]);
     if (error) throw error;
     return item;
   },
