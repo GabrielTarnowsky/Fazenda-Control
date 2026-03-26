@@ -558,11 +558,53 @@ export const store = {
     const existing = all.find(p => p.id === id);
     if (!existing) return;
     const updated = { ...existing, ...data };
-    await supabase.from('financial').update({ description: JSON.stringify(updated), value: updated.total_value }).eq('id', id).eq('user_id', user.id);
+    
+    // Atualiza a metadata nativa
+    await supabase.from('financial').update({ description: JSON.stringify(updated), value: updated.total_value, date: updated.date }).eq('id', id).eq('user_id', user.id);
+
+    // Tenta encontrar e atualizar a despesa real vinculada a essa compra
+    const { data: expenses } = await supabase.from('financial')
+      .select('id')
+      .eq('category', 'Compra de Insumos')
+      .eq('value', existing.total_value)
+      .eq('date', existing.date)
+      .eq('user_id', user.id);
+
+    if (expenses && expenses.length > 0) {
+      let ingName = "Insumo";
+      try {
+        const ingData = await supabase.from('financial').select('description').eq('id', updated.ingredient_id).single();
+        if (ingData.data?.description) {
+           const dec = JSON.parse(ingData.data.description);
+           if (dec.name) ingName = dec.name;
+        }
+      } catch(e){}
+
+      await supabase.from('financial').update({
+          value: updated.total_value,
+          date: updated.date,
+          payment_method: updated.payment_method || 'Pix',
+          description: `Compra de ${updated.total_qty_kg}kg de ${ingName}`
+      }).eq('id', expenses[0].id).eq('user_id', user.id);
+    }
   },
   deleteIngredientPurchase: async (id: string) => {
     const user = store.auth.getCurrentUser();
     if (!user) return;
+    
+    // Tenta encontrar a despesa associada antes de deletar
+    const all = await store.getIngredientPurchases();
+    const existing = all.find(p => p.id === id);
+    if (existing) {
+       await supabase.from('financial')
+         .delete()
+         .eq('category', 'Compra de Insumos')
+         .eq('value', existing.total_value)
+         .eq('date', existing.date)
+         .eq('user_id', user.id);
+    }
+
+    // Deleta a metadata da compra
     await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
 

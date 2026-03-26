@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.3.7 (Event Deletion Support)");
+    console.log("FazendaControl - Versão 1.3.8 (Bidirectional Ration Sync)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });
