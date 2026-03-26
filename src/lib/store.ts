@@ -358,9 +358,8 @@ export const store = {
     const sanitizeItem = (item: any) => {
       const { id, type, category, description, value, date, payment_method, user_id, animal_id } = item;
       const base: any = { id, type, category, description, value, date, payment_method, user_id };
-      // CRITICAL: Only include animal_id if it has a value, to avoid PGRST204 errors 
-      // if the user hasn't updated their schema yet.
-      if (animal_id) base.animal_id = animal_id;
+      // CRITICAL: A tabela 'financial' original não possui a coluna 'animal_id'. 
+      // Por isso, omitimos essa coluna do insert para evitar erro PGRST204 e travamento da tela.
       return base;
     };
 

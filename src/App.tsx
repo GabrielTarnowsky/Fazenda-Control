@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.3.2 (Definitive Schema Fix)");
+    console.log("FazendaControl - Versão 1.3.3 (Post-Save Flow Fix)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });
