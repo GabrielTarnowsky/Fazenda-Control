@@ -12,10 +12,27 @@ export default function Reports() {
   const [financials, setFinancials] = useState<Financial[]>([]);
   const navigate = useNavigate();
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    setAnimals(store.getAnimals());
-    setFinancials(store.getFinancials());
+    const load = async () => {
+      try {
+        const [a, f] = await Promise.all([
+          store.getAnimals(),
+          store.getFinancials()
+        ]);
+        setAnimals(a || []);
+        setFinancials(f || []);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
+
+  if (loading) {
+    return <div className="p-4 text-center mt-20 font-bold animate-pulse text-muted-foreground">Carregando inteligência de dados...</div>;
+  }
 
   const activeAnimals = useMemo(() => animals.filter(a => a.status === "ativo"), [animals]);
 

@@ -15,6 +15,7 @@ export default function LoteDetail() {
   const { nome } = useParams<{ nome: string }>();
   const navigate = useNavigate();
   const [animals, setAnimals] = useState<Animal[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [animalsWithMetrics, setAnimalsWithMetrics] = useState<any[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [quickWeight, setQuickWeight] = useState({
@@ -92,6 +93,7 @@ export default function LoteDetail() {
 
     const loteAnimals = allAnimals.filter(a => (a.lote_id || "Sem Lote") === loteNome);
     setAnimals(loteAnimals);
+    setEvents(allEvents);
 
     if (loteAnimals.length === 0) {
       setLoading(false);
@@ -396,7 +398,7 @@ export default function LoteDetail() {
               const PRECO_MERCADO_ARROBA = 280;
               let pesoEnt = animal.peso_entrada && animal.peso_entrada > 0 ? animal.peso_entrada : 0;
               if (pesoEnt === 0) {
-                const evs = store.getEventsByAnimal(animal.id).filter(e => e.type === "pesagem").sort((ev1, ev2) => ev1.date.localeCompare(ev2.date));
+                const evs = allEvents.filter(e => e.animal_id === animal.id && e.type === "pesagem").sort((ev1, ev2) => ev1.date.localeCompare(ev2.date));
                 pesoEnt = evs.length > 0 ? evs[0].weight : (animal.origem === "Nascimento" ? 30 : animal.weight);
               }
               const ganhoKg = animal.weight - pesoEnt;
@@ -457,7 +459,7 @@ export default function LoteDetail() {
              {animals.filter(a => a.status === "vendido" || a.status === "morto").map(animal => {
                const pesoBase = animal.peso_saida || animal.weight;
                const displayWeight = animal.status === "vendido" ? pesoBase * 2 : pesoBase;
-               const vendaOrMorte = store.getEventsByAnimal(animal.id).find(e => e.type === "venda" || e.type === "morte");
+               const vendaOrMorte = allEvents.find(e => e.animal_id === animal.id && (e.type === "venda" || e.type === "morte"));
                const vendaValue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
                const custoAnimal = animal.valor_compra || 0;
                const lucro = vendaValue - custoAnimal;

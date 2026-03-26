@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,24 @@ export default function SettingsPage() {
   const user = store.auth.getCurrentUser();
   const [syncing, setSyncing] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const [counts, setCounts] = useState({ animals: 0, events: 0, financials: 0 });
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const [a, e, f] = await Promise.all([
+          store.getAnimals(),
+          store.getEvents(),
+          store.getFinancials()
+        ]);
+        setCounts({ animals: a.length, events: e.length, financials: f.length });
+      } catch (err) {
+        console.error("Count err:", err);
+      }
+    };
+    fetchCounts();
+  }, []);
 
   const lastSync = localStorage.getItem("bovi_last_sync");
   const lastSyncFormatted = lastSync 
@@ -54,9 +72,9 @@ export default function SettingsPage() {
   };
 
   // Count local data for info
-  const animalCount = store.getAnimals().length;
-  const eventCount = store.getEvents().length;
-  const financialCount = store.getFinancials().length;
+  const animalCount = counts.animals;
+  const eventCount = counts.events;
+  const financialCount = counts.financials;
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6 max-w-2xl mx-auto">
