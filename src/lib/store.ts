@@ -20,6 +20,8 @@ export interface Animal {
   preco_arroba?: number;
   peso_entrada?: number;
   peso_saida?: number;
+  data_saida?: string;
+  valor_venda?: number;
   matriz_id?: string;
   user_id?: string;
 }
@@ -64,6 +66,8 @@ export interface Insemination {
   technician?: string;
   observation?: string;
   estimated_birth?: string;
+  type?: string;
+  next_date?: string;
   user_id?: string;
 }
 
@@ -175,7 +179,27 @@ export const store = {
   addAnimal: async (a: Omit<Animal, "id">) => {
     const user = store.auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
-    const item = { ...a, user_id: user.id, id: v4() };
+    const item = { 
+      id: v4(),
+      tag: a.tag,
+      birth_date: a.birth_date,
+      sex: a.sex,
+      breed: a.breed,
+      weight: a.weight,
+      status: a.status,
+      lot: a.lote_id, // Map frontend lote_id to DB lot
+      categoria: a.categoria,
+      origem: a.origem,
+      data_compra: a.data_compra,
+      valor_compra: a.valor_compra,
+      preco_arroba: a.preco_arroba,
+      peso_entrada: a.peso_entrada,
+      peso_saida: a.peso_saida,
+      data_saida: a.data_saida,
+      valor_venda: a.valor_venda,
+      matriz_id: a.matriz_id,
+      user_id: user.id
+    };
     const { data, error } = await supabase.from('animals').insert([item]).select().single();
     if (error) {
       toast.error("Erro ao salvar animal: " + error.message);
@@ -186,7 +210,19 @@ export const store = {
   updateAnimal: async (id: string, data: Partial<Animal>) => {
     const user = store.auth.getCurrentUser();
     if (!user) return;
-    const { error } = await supabase.from('animals').update(data).eq('id', id).eq('user_id', user.id);
+    const updatePayload: any = { ...data };
+    if (updatePayload.lote_id) {
+      updatePayload.lot = updatePayload.lote_id;
+      delete updatePayload.lote_id;
+    }
+    // Clean up any potential frontend-only fields
+    const allowedColumns = ['tag', 'birth_date', 'sex', 'breed', 'weight', 'status', 'lot', 'categoria', 'origem', 'data_compra', 'valor_compra', 'preco_arroba', 'peso_entrada', 'peso_saida', 'data_saida', 'valor_venda', 'matriz_id'];
+    const sanitized: any = {};
+    allowedColumns.forEach(col => {
+      if (updatePayload[col] !== undefined) sanitized[col] = updatePayload[col];
+    });
+
+    const { error } = await supabase.from('animals').update(sanitized).eq('id', id).eq('user_id', user.id);
     if (error) toast.error("Erro ao atualizar animal");
   },
   deleteAnimal: async (id: string) => {
@@ -265,7 +301,15 @@ export const store = {
   addEvent: async (e: Omit<AnimalEvent, "id">) => {
     const user = store.auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
-    const item = { ...e, user_id: user.id, id: v4() };
+    const item = { 
+      id: v4(),
+      animal_id: e.animal_id,
+      type: e.type,
+      date: e.date,
+      description: e.description,
+      value: e.type === "pesagem" ? e.weight : e.value, // Treat weight as value for weighing events
+      user_id: user.id
+    };
     const { data, error } = await supabase.from('events').insert([item]).select().single();
     if (error) throw error;
 
@@ -309,7 +353,13 @@ export const store = {
     } else {
       items.push({ ...f, id: v4(), user_id: user.id });
     }
-    const { data, error } = await supabase.from('financial').insert(items).select();
+    const sanitizeItem = (item: any) => {
+      const { id, type, category, description, value, date, payment_method, user_id, animal_id } = item;
+      return { id, type, category, description, value, date, payment_method, user_id, animal_id };
+    };
+
+    const sanitizedItems = items.map(sanitizeItem);
+    const { data, error } = await supabase.from('financial').insert(sanitizedItems).select();
     if (error) throw error;
     return data[0];
   },
@@ -339,7 +389,19 @@ export const store = {
   addInsemination: async (ins: Omit<Insemination, "id">) => {
     const user = store.auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
-    const item = { ...ins, id: v4(), user_id: user.id };
+    const item = { 
+      id: v4(),
+      animal_id: ins.animal_id,
+      date: ins.date,
+      bull: ins.bull,
+      status: ins.status,
+      technician: ins.technician,
+      observation: ins.observation,
+      estimated_birth: ins.estimated_birth,
+      type: ins.type,
+      next_date: ins.next_date,
+      user_id: user.id
+    };
     const { data, error } = await supabase.from('insemination').insert([item]).select().single();
     if (error) throw error;
     return data;
@@ -348,7 +410,14 @@ export const store = {
     const user = store.auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     // Using insemination table for health as per mapping
-    const item = { ...h, id: v4(), user_id: user.id };
+    const item = { 
+      id: v4(),
+      animal_id: h.animal_id,
+      date: h.date,
+      type: h.type,
+      next_date: h.next_date,
+      user_id: user.id
+    };
     const { data, error } = await supabase.from('insemination').insert([item]).select().single();
     if (error) throw error;
     return data;
