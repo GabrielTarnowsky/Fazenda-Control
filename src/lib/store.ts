@@ -272,6 +272,14 @@ export const store = {
     if (event && (event.type === 'venda' || event.type === 'morte')) {
       // Retorna o animal para o rebanho ativo
       await store.updateAnimal(event.animal_id, { status: 'ativo', peso_saida: 0 });
+
+      // Se for venda, apaga as notas financeiras vinculadas (Receita e Frete)
+      if (event.type === 'venda') {
+        await supabase.from('financial').delete()
+          .eq('animal_id', event.animal_id)
+          .in('category', ['Venda de Animais', 'Frete de Venda'])
+          .eq('user_id', user.id);
+      }
     }
     await supabase.from('events').delete().eq('id', id).eq('user_id', user.id);
   },

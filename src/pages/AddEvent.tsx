@@ -24,7 +24,8 @@ export default function AddEvent() {
     description: "",
     animal_id: animalIdFromParam,
     payment_method: "Pix",
-    price_kg_m: 0
+    price_kg_m: 0,
+    frete: 0
   });
   const [loading, setLoading] = useState(!!id);
 
@@ -48,7 +49,8 @@ export default function AddEvent() {
             description: event.description || "",
             animal_id: event.animal_id || "",
             payment_method: (event as any).payment_method || "Pix",
-            price_kg_m: (event as any).price_kg_m || 0
+            price_kg_m: (event as any).price_kg_m || 0,
+            frete: 0
           });
           setLoading(false);
         } else {
@@ -86,6 +88,7 @@ export default function AddEvent() {
 
     // If venda, add financial record
     if (form.type === "venda" && form.value > 0 && !id && form.animal_id) {
+      // Receita da Venda
       await store.addFinancial({
         type: "receita",
         category: "Venda de Animais",
@@ -95,6 +98,19 @@ export default function AddEvent() {
         date: form.date,
         animal_id: form.animal_id,
       });
+
+      // Despesa do Frete (se houver)
+      if (form.frete > 0) {
+         await store.addFinancial({
+           type: "despesa",
+           category: "Frete de Venda",
+           payment_method: form.payment_method,
+           description: `Frete da Venda (Animal ${form.animal_id.slice(0, 8)})`,
+           value: form.frete,
+           date: form.date,
+           animal_id: form.animal_id,
+         });
+      }
     }
 
     toast.success(id ? "Evento atualizado!" : "Evento registrado!");
@@ -145,7 +161,7 @@ export default function AddEvent() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase text-emerald-700">Valor Total da Venda (R$)</Label>
+              <Label className="text-xs font-black uppercase text-emerald-700">Valor Bruto da Venda (R$)</Label>
               <Input 
                 type="number" 
                 step="0.01" 
@@ -155,7 +171,18 @@ export default function AddEvent() {
                 placeholder="0.00"
               />
             </div>
-            <div className="md:col-span-2 space-y-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase text-rose-700">Desconto de Frete (R$) Opcional</Label>
+              <Input 
+                type="number" 
+                step="0.01" 
+                value={form.frete || ""} 
+                onChange={e => setForm(f => ({ ...f, frete: Number(e.target.value) }))} 
+                className="bg-background border-rose-200 focus-visible:ring-rose-500 font-bold text-rose-700"
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
               <Label className="text-xs font-black uppercase text-emerald-700">Forma de Recebimento</Label>
               <Select value={form.payment_method} onValueChange={v => setForm(f => ({ ...f, payment_method: v }))}>
                 <SelectTrigger className="bg-background border-emerald-200"><SelectValue /></SelectTrigger>

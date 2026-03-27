@@ -17,6 +17,7 @@ export default function LoteDetail() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [animalsWithMetrics, setAnimalsWithMetrics] = useState<any[]>([]);
+  const [financials, setFinancials] = useState<any[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [quickWeight, setQuickWeight] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -96,6 +97,7 @@ export default function LoteDetail() {
     const loteAnimals = allAnimals.filter(a => (a.lote_id || "Sem Lote") === loteNome);
     setAnimals(loteAnimals);
     setEvents(allEvents);
+    setFinancials(allFinancials);
 
     if (loteAnimals.length === 0) {
       setLoading(false);
@@ -216,8 +218,9 @@ export default function LoteDetail() {
              const vendaOrMorte = allEvents.find(e => e.animal_id === a.id && e.type === "venda");
              const vendaValue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
              const custoAnimal = a.valor_compra || 0;
+             const freteDeVenda = allFinancials.find(f => f.animal_id === a.id && f.category === 'Frete de Venda')?.value || 0;
              totalVendasCalc += vendaValue;
-             lucroVendasCalc += (vendaValue - custoAnimal);
+             lucroVendasCalc += (vendaValue - custoAnimal - freteDeVenda);
         }
     });
 
@@ -491,7 +494,8 @@ export default function LoteDetail() {
                const vendaOrMorte = events.find(e => e.animal_id === animal.id && (e.type === "venda" || e.type === "morte"));
                const vendaValue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
                const custoAnimal = animal.valor_compra || 0;
-               const lucro = vendaValue - custoAnimal;
+               const freteDesc = financials.find(f => f.animal_id === animal.id && f.category === 'Frete de Venda')?.value || 0;
+               const lucro = vendaValue - custoAnimal - freteDesc;
 
                return (
                  <div key={animal.id} onClick={() => navigate(`/animals/${animal.id}`)} className="bg-card rounded-2xl p-4 border flex flex-col cursor-pointer opacity-80 hover:opacity-100 transition-all shadow-sm border-muted/60">
