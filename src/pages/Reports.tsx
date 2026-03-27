@@ -10,6 +10,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGri
 export default function Reports() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [financials, setFinancials] = useState<Financial[]>([]);
+  const [marketPrice, setMarketPrice] = useState(220);
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -17,12 +18,16 @@ export default function Reports() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [a, f] = await Promise.all([
+        const [a, f, settings] = await Promise.all([
           store.getAnimals(),
-          store.getFinancials()
+          store.getFinancials(),
+          store.getSettings()
         ]);
         setAnimals(a || []);
         setFinancials(f || []);
+        
+        const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
+        if (price) setMarketPrice(Number(price));
       } finally {
         setLoading(false);
       }
@@ -133,8 +138,6 @@ export default function Reports() {
       .slice(0, 5);
   }, [activeAnimals]);
 
-  const PRECO_MERCADO_ARROBA = 280;
-
   if (loading) {
     return <div className="p-4 text-center mt-20 font-bold animate-pulse text-muted-foreground">Carregando inteligência de dados...</div>;
   }
@@ -178,8 +181,8 @@ export default function Reports() {
             <CardTitle className="text-xs font-black uppercase text-muted-foreground">Potencial de Faturamento</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black italic text-emerald-700">R$ {(activeAnimals.reduce((s,a) => s + (a.weight/15), 0) * PRECO_MERCADO_ARROBA).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</div>
-            <p className="text-[9px] text-emerald-600/70 font-bold mt-1">Valor do rebanho ativo a R$ {PRECO_MERCADO_ARROBA}/@</p>
+            <div className="text-3xl font-black italic text-emerald-700">R$ {(activeAnimals.reduce((s,a) => s + (a.weight/15), 0) * marketPrice).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</div>
+            <p className="text-[9px] text-emerald-600/70 font-bold mt-1">Valor do rebanho ativo a R$ {marketPrice}/@</p>
           </CardContent>
         </Card>
 
@@ -264,7 +267,7 @@ export default function Reports() {
                     <Award className="h-4 w-4" />
                  </div>
               </div>
-              <p className="mt-3 text-[11px] font-bold text-slate-300">Total: R$ {(slaughterProjection.totalWeightReady / 15 * PRECO_MERCADO_ARROBA).toLocaleString("pt-BR")} estimados</p>
+              <p className="mt-3 text-[11px] font-bold text-slate-300">Total: R$ {(slaughterProjection.totalWeightReady / 15 * marketPrice).toLocaleString("pt-BR")} estimados</p>
             </div>
 
             <div className="space-y-4">

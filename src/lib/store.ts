@@ -77,9 +77,22 @@ export interface Insemination {
   technician?: string;
   observation?: string;
   estimated_birth?: string;
-  type?: string;
-  next_date?: string;
-  user_id?: string;
+  type?: string; // Preserved from original
+  next_date?: string; // Preserved from original
+  user_id?: string; // Preserved from original
+  lot?: string;
+  lote_id?: string;
+  lote?: string;
+  data_compra?: string;
+  valor_compra?: number;
+}
+
+export interface Setting {
+  id: string;
+  key: string;
+  value: string;
+  user_id?: string; // Added for consistency with other interfaces
+  updated_at?: string; // Added for consistency with upsert
 }
 
 export interface Health {
@@ -653,6 +666,59 @@ export const store = {
       const users = loadUsers();
       const user = users.find(u => u.id === userId);
       return user || { id: userId, name: "Usuário", email: "", password_hash: "", createdAt: "" };
+    }
+  },
+
+  // Settings Methods
+  getSettings: async (): Promise<Setting[]> => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return [];
+    
+    // Tenta carregar do Supabase
+    const { data } = await supabase.from('settings').select('*').eq('user_id', user.id);
+    if (data) return data;
+
+    // Fallback local caso precise (opcional)
+    return [];
+  },
+
+  updateSetting: async (key: string, value: string) => {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+
+    const { error } = await supabase.from('settings').upsert({
+      user_id: user.id,
+      key,
+      value,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,key' });
+
+    if (error) console.error("Error saving setting:", error);
+  },
+
+  // Market Price Robot (Scraper)
+  fetchMarketPrice: async (): Promise<number | null> => {
+    try {
+      // Usando allorigins para evitar CORS
+      const targetUrl = encodeURIComponent("https://www.noticiasagricolas.com.br/cotacoes/boi-gordo");
+      const proxyUrl = `https://api.allorigins.win/get?url=${targetUrl}`;
+      
+      const response = await fetch(proxyUrl);
+      const data = await response.json();
+      const html = data.contents;
+
+      // Regex para encontrar a cotação do Piauí ou Praça de Referência
+      // O site costuma ter tabelas. Procuramos por "Piauí" ou algo similar seguido de valor.
+      // Como o site muda, tentamos uma captura genérica de valor de @
+      const match = html.match(/Piauí.*?(\d+,\d{2})/i) || html.match(/PI.*?(\d+,\d{2})/i);
+      
+      if (match && match[1]) {
+        return parseFloat(match[1].replace(',', '.'));
+      }
+      return null;
+    } catch (err) {
+      console.error("Market fetch failed:", err);
+      return null;
     }
   },
 

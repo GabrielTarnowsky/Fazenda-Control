@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   Beef,
   Activity,
-  CheckCircle
+  CheckCircle,
+  TrendingUp
 } from "lucide-react";
 
 
@@ -25,6 +26,8 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const user = store.auth.getCurrentUser();
   const [syncing, setSyncing] = useState(false);
+  const [fetchingMarket, setFetchingMarket] = useState(false);
+  const [marketPrice, setMarketPrice] = useState("205.00");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [counts, setCounts] = useState({ animals: 0, events: 0, financials: 0 });
@@ -43,7 +46,30 @@ export default function SettingsPage() {
       }
     };
     fetchCounts();
+
+    // Load market price from settings
+    store.getSettings().then(settings => {
+      const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
+      if (price) setMarketPrice(price);
+    });
   }, []);
+
+  const handleUpdatePrice = async (val: string) => {
+    setMarketPrice(val);
+    await store.updateSetting('preco_arroba_pi', val);
+  };
+
+  const syncMarket = async () => {
+    setFetchingMarket(true);
+    const price = await store.fetchMarketPrice();
+    if (price) {
+      handleUpdatePrice(price.toFixed(2));
+      toast.success(`Cotação atualizada: R$ ${price.toFixed(2)}`);
+    } else {
+      toast.error("Não foi possível obter a cotação automática agora.");
+    }
+    setFetchingMarket(false);
+  };
 
   const lastSync = localStorage.getItem("bovi_last_sync");
   const lastSyncFormatted = lastSync 
@@ -107,6 +133,45 @@ export default function SettingsPage() {
                 <Shield className="h-3 w-3 mr-1" /> Conta Ativa
               </Badge>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Mercado e Parâmetros */}
+      <Card className="border-none shadow-xl bg-slate-900 text-white overflow-hidden rounded-2xl border-pink-500/20">
+        <CardHeader className="pb-3 bg-slate-800 border-b border-white/5">
+          <CardTitle className="text-sm font-black uppercase tracking-wider text-pink-400 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" /> Mercado e Parâmetros (Piauí)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-400 uppercase">Preço da Arroba Base (@)</p>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-black text-pink-500 italic">R$</span>
+                <input 
+                  type="number" 
+                  value={marketPrice}
+                  onChange={(e) => handleUpdatePrice(e.target.value)}
+                  className="bg-transparent border-none text-2xl font-black italic focus:ring-0 w-24 text-white"
+                />
+              </div>
+            </div>
+            <Button 
+              size="sm"
+              onClick={syncMarket}
+              disabled={fetchingMarket}
+              className="bg-pink-600 hover:bg-pink-700 text-white font-black italic uppercase text-[10px] rounded-xl px-4 py-5 shadow-lg shadow-pink-900/20"
+            >
+              {fetchingMarket ? "Buscando..." : "Sincronizar Mercado"}
+            </Button>
+          </div>
+          <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex items-start gap-3">
+             <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+             <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+               Este preço é usado para calcular a <span className="text-pink-400 font-bold">Previsão de Lucro</span> dos seus lotes ativos. O valor de animais já vendidos não será afetado.
+             </p>
           </div>
         </CardContent>
       </Card>

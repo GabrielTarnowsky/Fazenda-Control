@@ -18,6 +18,7 @@ export default function LoteDetail() {
   const [events, setEvents] = useState<any[]>([]);
   const [animalsWithMetrics, setAnimalsWithMetrics] = useState<any[]>([]);
   const [financials, setFinancials] = useState<any[]>([]);
+  const [marketPrice, setMarketPrice] = useState(220);
   const [successMsg, setSuccessMsg] = useState("");
   const [quickWeight, setQuickWeight] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -87,12 +88,16 @@ export default function LoteDetail() {
     if (!nome) return;
     setLoading(true);
     const loteNome = decodeURIComponent(nome);
-    const [allAnimals, allEvents, allFinancials, feedingLogsData] = await Promise.all([
+    const [allAnimals, allEvents, allFinancials, feedingLogsData, settings] = await Promise.all([
       store.getAnimals(),
       store.getEvents(),
       store.getFinancials(),
-      store.getFeedingLogs()
+      store.getFeedingLogs(),
+      store.getSettings()
     ]);
+
+    const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
+    if (price) setMarketPrice(Number(price));
 
     const loteAnimals = allAnimals.filter(a => (a.lote_id || "Sem Lote") === loteNome);
     setAnimals(loteAnimals);
@@ -219,8 +224,16 @@ export default function LoteDetail() {
              const vendaValue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
              const custoAnimal = a.valor_compra || 0;
              const freteDeVenda = allFinancials.find(f => f.animal_id === a.id && f.category === 'Frete de Venda')?.value || 0;
+             
              totalVendasCalc += vendaValue;
-             lucroVendasCalc += (vendaValue - custoAnimal - freteDeVenda);
+
+             // SE VENDIDO: Lucro Real (Venda - Custo). SE ATIVO: Previsão (Peso/@ * PreçoMercado - Custo)
+             if (a.status === 'vendido') {
+                lucroVendasCalc += (vendaValue - custoAnimal - freteDeVenda);
+             } else if (a.status === 'ativo') {
+                const previsaoVenda = (a.weight / 15) * marketPrice;
+                lucroVendasCalc += (previsaoVenda - custoAnimal);
+             }
         }
     });
 
@@ -495,7 +508,11 @@ export default function LoteDetail() {
                const vendaValue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
                const custoAnimal = animal.valor_compra || 0;
                const freteDesc = financials.find(f => f.animal_id === animal.id && f.category === 'Frete de Venda')?.value || 0;
-               const lucro = vendaValue - custoAnimal - freteDesc;
+               
+               // Lucro Diferenciado
+               const lucro = animal.status === 'vendido' 
+                  ? (vendaValue - custoAnimal - freteDesc)
+                  : ((animal.weight / 15) * marketPrice - custoAnimal);
 
                return (
                  <div key={animal.id} onClick={() => navigate(`/animals/${animal.id}`)} className="bg-card rounded-2xl p-4 border flex flex-col cursor-pointer opacity-80 hover:opacity-100 transition-all shadow-sm border-muted/60">
