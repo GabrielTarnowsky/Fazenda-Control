@@ -315,7 +315,7 @@ export default function Reports() {
                    <div className="h-32 w-32 rounded-full border-4 border-pink-500/30 flex items-center justify-center bg-pink-500/10 ring-4 ring-pink-500/5">
                       <div className="flex flex-col items-center">
                          <span className="text-xs text-pink-300 font-bold">R$</span>
-                         <span className="text-4xl font-black italic text-pink-400 leading-none">205</span>
+                         <span className="text-4xl font-black italic text-pink-400 leading-none">{marketPrice}</span>
                          <span className="text-[10px] text-pink-500/80 font-bold">/@ boi</span>
                       </div>
                    </div>
@@ -348,37 +348,37 @@ export default function Reports() {
                  
                  <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 flex flex-col justify-center items-center text-center">
                     <p className="text-[10px] text-emerald-400/80 font-black uppercase mb-1 tracking-wider">São Paulo (SP)</p>
-                    <p className="text-3xl font-black text-emerald-400">232<span className="text-sm">,00</span></p>
+                    <p className="text-3xl font-black text-emerald-400">352<span className="text-sm">,00</span></p>
                     <p className="text-[9px] font-bold text-emerald-500 mt-2 bg-emerald-500/20 px-2 py-0.5 rounded-full">Referência B3</p>
                  </div>
 
                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
                     <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Mato Grosso (MT)</p>
-                    <p className="text-2xl font-black text-white">210<span className="text-sm text-slate-400">,00</span></p>
+                    <p className="text-2xl font-black text-white">315<span className="text-sm text-slate-400">,00</span></p>
                     <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Base Cuiabá</p>
                  </div>
 
                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
                     <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Goiás (GO)</p>
-                    <p className="text-2xl font-black text-amber-500">225<span className="text-sm opacity-50">,00</span></p>
+                    <p className="text-2xl font-black text-amber-500">335<span className="text-sm opacity-50">,00</span></p>
                     <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Base Goiânia</p>
                  </div>
 
                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
                     <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Mato G. Sul (MS)</p>
-                    <p className="text-2xl font-black text-purple-400">220<span className="text-sm opacity-50">,00</span></p>
+                    <p className="text-2xl font-black text-purple-400">330<span className="text-sm opacity-50">,00</span></p>
                     <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Base C. Grande</p>
                  </div>
 
                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
                     <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Minas Gerais (MG)</p>
-                    <p className="text-2xl font-black text-sky-400">228<span className="text-sm opacity-50">,00</span></p>
+                    <p className="text-2xl font-black text-sky-400">342<span className="text-sm opacity-50">,00</span></p>
                     <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Triângulo Min.</p>
                  </div>
 
                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
                     <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Pará (PA)</p>
-                    <p className="text-2xl font-black text-white">202<span className="text-sm text-slate-400">,00</span></p>
+                    <p className="text-2xl font-black text-white">310<span className="text-sm text-slate-400">,00</span></p>
                     <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Sul do PA</p>
                  </div>
 
