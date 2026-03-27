@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.3.10 (Freight Deduction Fix)");
+    console.log("FazendaControl - Versão 1.3.11 (Market Price Chart)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });

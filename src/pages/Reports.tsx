@@ -139,6 +139,15 @@ export default function Reports() {
     return <div className="p-4 text-center mt-20 font-bold animate-pulse text-muted-foreground">Carregando inteligência de dados...</div>;
   }
 
+  const marketData = [
+    { month: 'Out', SP: 235, MG: 230, GO: 225, MS: 228, MT: 215 },
+    { month: 'Nov', SP: 238, MG: 235, GO: 230, MS: 232, MT: 220 },
+    { month: 'Dez', SP: 245, MG: 240, GO: 238, MS: 235, MT: 225 },
+    { month: 'Jan', SP: 248, MG: 242, GO: 240, MS: 238, MT: 228 },
+    { month: 'Fev', SP: 240, MG: 235, GO: 230, MS: 232, MT: 220 },
+    { month: 'Mar', SP: 232, MG: 228, GO: 225, MS: 220, MT: 210 },
+  ];
+
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
@@ -290,7 +299,42 @@ export default function Reports() {
         </Card>
       </div>
 
-      {/* Conteúdo inferior removido a pedido do usuário */}
+      {/* Indicadores de Mercado */}
+      <div className="mt-6">
+        <Card className="border-border/50 shadow-lg rounded-2xl overflow-hidden bg-white/50 backdrop-blur-sm">
+          <CardHeader className="bg-muted/30">
+            <CardTitle className="text-lg flex items-center justify-between italic font-black text-muted-foreground">
+               MERCADO AGROPECUÁRIO (Cotação Histórica da @)
+               <TrendingUp className="h-5 w-5 text-emerald-600" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={marketData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} />
+                  <YAxis axisLine={false} tickLine={false} domain={['dataMin - 10', 'auto']} tickFormatter={(v) => `R$ ${v}`} tick={{ fontSize: 12, fontWeight: 'bold' }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
+                    itemStyle={{ fontWeight: 'black' }}
+                    formatter={(value: number) => [`R$ ${value}`, '']}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontWeight: 'bold', fontSize: 12, paddingTop: '10px' }} />
+                  <Line type="monotone" dataKey="SP" name="São Paulo" stroke="#0ea5e9" strokeWidth={4} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="MG" name="Minas Gerais" stroke="#f59e0b" strokeWidth={3} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="GO" name="Goiás" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="MS" name="Mato Grosso do Sul" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="MT" name="Mato Grosso" stroke="#ef4444" strokeWidth={3} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center mt-4 font-bold uppercase tracking-widest">
+              Valores em R$ para a arroba do boi gordo (Prazos/livre de Funrural) - Referência (Dados Históricos)
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
