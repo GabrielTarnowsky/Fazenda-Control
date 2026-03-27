@@ -299,7 +299,7 @@ export default function Reports() {
 
       {/* Indicadores de Mercado Modernos */}
       <div className="mt-6">
-        <h2 className="font-display font-black text-muted-foreground uppercase tracking-widest text-lg mb-3">Inteligência de Mercado Agrícola</h2>
+        <h2 className="font-display font-black text-muted-foreground uppercase tracking-widest text-lg mb-3">Cotação do Preço da @</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="border-border/50 shadow-lg rounded-2xl bg-slate-900 text-white overflow-hidden lg:col-span-1 border-pink-500/20">
