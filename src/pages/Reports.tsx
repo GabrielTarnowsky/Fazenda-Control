@@ -140,12 +140,12 @@ export default function Reports() {
   }
 
   const marketData = [
-    { month: 'Out', SP: 235, MG: 230, GO: 225, MS: 228, MT: 215 },
-    { month: 'Nov', SP: 238, MG: 235, GO: 230, MS: 232, MT: 220 },
-    { month: 'Dez', SP: 245, MG: 240, GO: 238, MS: 235, MT: 225 },
-    { month: 'Jan', SP: 248, MG: 242, GO: 240, MS: 238, MT: 228 },
-    { month: 'Fev', SP: 240, MG: 235, GO: 230, MS: 232, MT: 220 },
-    { month: 'Mar', SP: 232, MG: 228, GO: 225, MS: 220, MT: 210 },
+    { month: 'Out', SP: 235, MG: 230, GO: 225, MS: 228, MT: 215, PI: 210 },
+    { month: 'Nov', SP: 238, MG: 235, GO: 230, MS: 232, MT: 220, PI: 215 },
+    { month: 'Dez', SP: 245, MG: 240, GO: 238, MS: 235, MT: 225, PI: 220 },
+    { month: 'Jan', SP: 248, MG: 242, GO: 240, MS: 238, MT: 228, PI: 222 },
+    { month: 'Fev', SP: 240, MG: 235, GO: 230, MS: 232, MT: 220, PI: 215 },
+    { month: 'Mar', SP: 232, MG: 228, GO: 225, MS: 220, MT: 210, PI: 205 },
   ];
 
   return (
@@ -321,10 +321,11 @@ export default function Reports() {
                     formatter={(value: number) => [`R$ ${value}`, '']}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontWeight: 'bold', fontSize: 12, paddingTop: '10px' }} />
-                  <Line type="monotone" dataKey="SP" name="São Paulo" stroke="#0ea5e9" strokeWidth={4} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="SP" name="São Paulo" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="PI" name="Piauí (PI)" stroke="#ec4899" strokeWidth={4} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
                   <Line type="monotone" dataKey="MG" name="Minas Gerais" stroke="#f59e0b" strokeWidth={3} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey="GO" name="Goiás" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="MS" name="Mato Grosso do Sul" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="MS" name="Mato Grosso Sul" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey="MT" name="Mato Grosso" stroke="#ef4444" strokeWidth={3} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
