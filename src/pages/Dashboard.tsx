@@ -164,20 +164,30 @@ export default function Dashboard() {
   // Colors for Pie Chart
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#6366f1'];
 
-  // Consolidação Mensal de Gastos (Nova Solicitação)
+  // Consolidação Mensal de Gastos (Jan-Dez do ano atual)
   const monthlyConsolidated = useMemo(() => {
-    const map = new Map<string, { total: number, count: number }>();
-    financials.filter(f => f.type === "despesa").forEach(f => {
-      const month = f.date.substring(0, 7); // YYYY-MM
-      const current = map.get(month) || { total: 0, count: 0 };
-      map.set(month, { 
-        total: current.total + f.value, 
-        count: current.count + 1 
-      });
+    const currentYear = new Date().getFullYear();
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1;
+      return `${currentYear}-${m.toString().padStart(2, '0')}`;
     });
+
+    const map = new Map<string, { total: number, count: number }>();
+    months.forEach(m => map.set(m, { total: 0, count: 0 }));
+
+    financials
+      .filter(f => f.type === "despesa" && f.date.startsWith(currentYear.toString()))
+      .forEach(f => {
+        const month = f.date.substring(0, 7);
+        const current = map.get(month) || { total: 0, count: 0 };
+        map.set(month, { 
+          total: current.total + f.value, 
+          count: current.count + 1 
+        });
+      });
     
     return Array.from(map.entries())
-      .sort((a,b) => b[0].localeCompare(a[0])) // Descendente
+      .sort((a,b) => a[0].localeCompare(b[0])) // Ordem cronológica Jan -> Dez
       .map(([month, data]) => ({
         month,
         ...data
@@ -432,41 +442,53 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Second Table: Gastos Recentes */}
-      <Card className="rounded-xl shadow-sm border-border/50">
-        <CardHeader>
-          <CardTitle>Resumo de Gastos por Mês</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1">
-            {monthlyConsolidated.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground text-sm">Nenhum gasto consolidado encontrado.</div>
-            ) : (
-              monthlyConsolidated.slice(0, 5).map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors group">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-xl bg-background border flex items-center justify-center shadow-sm group-hover:bg-primary/5 group-hover:border-primary/20 transition-all">
-                      <Calendar className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                         <span className="text-sm font-black italic text-foreground tracking-tight">{formatMonthName(item.month)}</span>
-                         <Badge variant="outline" className="text-[9px] h-4 py-0 px-1 border-primary/20 bg-primary/5 text-primary font-bold">{item.count} despes{item.count === 1 ? 'a' : 'as'}</Badge>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Total consolidado do período</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-black text-rose-600 tracking-tighter text-lg">
-                      -R$ {item.total.toLocaleString("pt-BR")}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+       {/* Gastos Mensais - Design Moderno */}
+       <Card className="rounded-2xl shadow-xl border-none bg-slate-900 text-white overflow-hidden">
+         <CardHeader className="bg-slate-800/50 border-b border-white/5 pb-4">
+           <CardTitle className="text-lg font-black italic uppercase tracking-wider flex items-center justify-between">
+             <div className="flex items-center gap-2">
+               <Calendar className="h-5 w-5 text-rose-500" />
+               Fluxo de Gastos Anual ({new Date().getFullYear()})
+             </div>
+             <Badge className="bg-rose-500/20 text-rose-400 border-rose-500/30">Jan - Dez</Badge>
+           </CardTitle>
+         </CardHeader>
+         <CardContent className="p-0">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+             {monthlyConsolidated.map((item, i) => {
+               const hasValue = item.total > 0;
+               return (
+                 <div 
+                   key={i} 
+                   className={`p-5 border-b border-r border-white/5 transition-all hover:bg-white/5 group relative ${!hasValue ? 'opacity-40' : ''}`}
+                 >
+                   <div className="flex flex-col gap-1">
+                     <span className="text-[10px] font-black uppercase text-slate-500 group-hover:text-rose-400 transition-colors">
+                       {formatMonthName(item.month).split("/")[0]}
+                     </span>
+                     <div className="flex items-end gap-1">
+                        <span className="text-xs font-bold text-slate-400 mb-1">R$</span>
+                        <span className={`text-2xl font-black italic tracking-tighter ${hasValue ? 'text-white' : 'text-slate-600'}`}>
+                          {item.total.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                     </div>
+                     <div className="flex items-center justify-between mt-2">
+                       <span className="text-[9px] font-bold text-slate-500 uppercase">
+                         {item.count} {item.count === 1 ? 'Lançamento' : 'Lançamentos'}
+                       </span>
+                       {hasValue && (
+                         <div className="h-1 w-12 bg-rose-500/20 rounded-full overflow-hidden">
+                           <div className="h-full bg-rose-500 w-full animate-pulse" />
+                         </div>
+                       )}
+                     </div>
+                   </div>
+                 </div>
+               );
+             })}
+           </div>
+         </CardContent>
+       </Card>
     </div>
   );
 }

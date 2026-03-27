@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.3.15 (Report Market UI Fix)");
+    console.log("FazendaControl - Versão 1.3.16 (Annual Expense Dashboard)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });
