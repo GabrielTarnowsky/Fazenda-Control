@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.3.11 (Market Price Chart)");
+    console.log("FazendaControl - Versão 1.3.12 (Market Price Dashboard)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });

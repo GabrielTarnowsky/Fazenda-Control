@@ -139,14 +139,9 @@ export default function Reports() {
     return <div className="p-4 text-center mt-20 font-bold animate-pulse text-muted-foreground">Carregando inteligência de dados...</div>;
   }
 
-  const marketData = [
-    { month: 'Out', SP: 235, MG: 230, GO: 225, MS: 228, MT: 215, PI: 210 },
-    { month: 'Nov', SP: 238, MG: 235, GO: 230, MS: 232, MT: 220, PI: 215 },
-    { month: 'Dez', SP: 245, MG: 240, GO: 238, MS: 235, MT: 225, PI: 220 },
-    { month: 'Jan', SP: 248, MG: 242, GO: 240, MS: 238, MT: 228, PI: 222 },
-    { month: 'Fev', SP: 240, MG: 235, GO: 230, MS: 232, MT: 220, PI: 215 },
-    { month: 'Mar', SP: 232, MG: 228, GO: 225, MS: 220, MT: 210, PI: 205 },
-  ];
+  if (loading) {
+    return <div className="p-4 text-center mt-20 font-bold animate-pulse text-muted-foreground">Carregando inteligência de dados...</div>;
+  }
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6 max-w-7xl mx-auto">
@@ -299,42 +294,107 @@ export default function Reports() {
         </Card>
       </div>
 
-      {/* Indicadores de Mercado */}
+      {/* Indicadores de Mercado Modernos */}
       <div className="mt-6">
-        <Card className="border-border/50 shadow-lg rounded-2xl overflow-hidden bg-white/50 backdrop-blur-sm">
-          <CardHeader className="bg-muted/30">
-            <CardTitle className="text-lg flex items-center justify-between italic font-black text-muted-foreground">
-               MERCADO AGROPECUÁRIO (Cotação Histórica da @)
-               <TrendingUp className="h-5 w-5 text-emerald-600" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="h-[350px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={marketData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} />
-                  <YAxis axisLine={false} tickLine={false} domain={['dataMin - 10', 'auto']} tickFormatter={(v) => `R$ ${v}`} tick={{ fontSize: 12, fontWeight: 'bold' }} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', fontWeight: 'bold' }}
-                    itemStyle={{ fontWeight: 'black' }}
-                    formatter={(value: number) => [`R$ ${value}`, '']}
-                  />
-                  <Legend iconType="circle" wrapperStyle={{ fontWeight: 'bold', fontSize: 12, paddingTop: '10px' }} />
-                  <Line type="monotone" dataKey="SP" name="São Paulo" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="PI" name="Piauí (PI)" stroke="#ec4899" strokeWidth={4} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="MG" name="Minas Gerais" stroke="#f59e0b" strokeWidth={3} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="GO" name="Goiás" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="MS" name="Mato Grosso Sul" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="MT" name="Mato Grosso" stroke="#ef4444" strokeWidth={3} dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <p className="text-[10px] text-muted-foreground text-center mt-4 font-bold uppercase tracking-widest">
-              Valores em R$ para a arroba do boi gordo (Prazos/livre de Funrural) - Referência (Dados Históricos)
-            </p>
-          </CardContent>
-        </Card>
+        <h2 className="font-display font-black text-muted-foreground uppercase tracking-widest text-lg mb-3">Inteligência de Mercado Agrícola</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card className="border-border/50 shadow-lg rounded-2xl bg-slate-900 text-white overflow-hidden lg:col-span-1 border-pink-500/20">
+            <CardHeader className="bg-slate-800 border-b border-white/5 pb-2">
+              <CardTitle className="text-base font-black italic uppercase tracking-tighter flex items-center gap-2">
+                <Target className="h-5 w-5 text-pink-500" /> Cotação Região Piaui
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              <div className="flex flex-col items-center">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Base MATOPIBA (PI)</p>
+                <div className="relative">
+                   <div className="h-32 w-32 rounded-full border-4 border-pink-500/30 flex items-center justify-center bg-pink-500/10 ring-4 ring-pink-500/5">
+                      <div className="flex flex-col items-center">
+                         <span className="text-xs text-pink-300 font-bold">R$</span>
+                         <span className="text-4xl font-black italic text-pink-400 leading-none">205</span>
+                         <span className="text-[10px] text-pink-500/80 font-bold">/@ boi</span>
+                      </div>
+                   </div>
+                   <div className="absolute -bottom-1 -right-1 bg-pink-500 p-2 rounded-full ring-4 ring-slate-900 shadow-xl">
+                      <TrendingUp className="h-5 w-5 text-white" />
+                   </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-white/5 rounded-xl border border-white/10 mt-2">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-pink-400 shrink-0" />
+                  <p className="text-[10px] text-slate-300 leading-relaxed font-medium">
+                    <span className="font-bold text-white">Projeção Regional:</span> O boi no PI sofre deságio natural frente à B3 por custos de escoamento ao sudeste, acompanhando mais de perto MA e TO.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 shadow-lg rounded-2xl bg-slate-950 text-white overflow-hidden lg:col-span-2">
+            <CardHeader className="bg-slate-900 border-b border-white/5 pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-base font-black italic uppercase tracking-tighter flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-400" /> Referências Nacionais
+              </CardTitle>
+              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/20">Hoje</Badge>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                 
+                 <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 flex flex-col justify-center items-center text-center">
+                    <p className="text-[10px] text-emerald-400/80 font-black uppercase mb-1 tracking-wider">São Paulo (SP)</p>
+                    <p className="text-3xl font-black text-emerald-400">232<span className="text-sm">,00</span></p>
+                    <p className="text-[9px] font-bold text-emerald-500 mt-2 bg-emerald-500/20 px-2 py-0.5 rounded-full">Referência B3</p>
+                 </div>
+
+                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Mato Grosso (MT)</p>
+                    <p className="text-2xl font-black text-white">210<span className="text-sm text-slate-400">,00</span></p>
+                    <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Base Cuiabá</p>
+                 </div>
+
+                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Goiás (GO)</p>
+                    <p className="text-2xl font-black text-amber-500">225<span className="text-sm opacity-50">,00</span></p>
+                    <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Base Goiânia</p>
+                 </div>
+
+                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Mato G. Sul (MS)</p>
+                    <p className="text-2xl font-black text-purple-400">220<span className="text-sm opacity-50">,00</span></p>
+                    <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Base C. Grande</p>
+                 </div>
+
+                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Minas Gerais (MG)</p>
+                    <p className="text-2xl font-black text-sky-400">228<span className="text-sm opacity-50">,00</span></p>
+                    <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Triângulo Min.</p>
+                 </div>
+
+                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1 tracking-wider">Pará (PA)</p>
+                    <p className="text-2xl font-black text-white">202<span className="text-sm text-slate-400">,00</span></p>
+                    <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase">Sul do PA</p>
+                 </div>
+
+                 <div className="col-span-2 p-4 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col justify-center">
+                    <div className="flex gap-2 items-start">
+                      <AlertCircle className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400">ATENÇÃO AO PREÇO DO BEZERRO</p>
+                        <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                          A proporção de troca (Boi Gordo x Bezerro) está exigindo eficiência produtiva (maior GMD no pasto) para compensar custos de reposição (Ágio histórico). Avalie reajustar insumos com base em parcerias no Piauí.
+                        </p>
+                      </div>
+                    </div>
+                 </div>
+
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
