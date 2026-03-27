@@ -10,7 +10,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGri
 export default function Reports() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [financials, setFinancials] = useState<Financial[]>([]);
-  const [marketPrice, setMarketPrice] = useState(220);
+  const [marketPrice, setMarketPrice] = useState(330);
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);

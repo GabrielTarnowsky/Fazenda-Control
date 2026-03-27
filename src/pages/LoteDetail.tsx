@@ -18,7 +18,7 @@ export default function LoteDetail() {
   const [events, setEvents] = useState<any[]>([]);
   const [animalsWithMetrics, setAnimalsWithMetrics] = useState<any[]>([]);
   const [financials, setFinancials] = useState<any[]>([]);
-  const [marketPrice, setMarketPrice] = useState(220);
+  const [marketPrice, setMarketPrice] = useState(330);
   const [successMsg, setSuccessMsg] = useState("");
   const [quickWeight, setQuickWeight] = useState({
     date: new Date().toISOString().split("T")[0],

@@ -700,17 +700,17 @@ export const store = {
   fetchMarketPrice: async (): Promise<number | null> => {
     try {
       // Usando allorigins para evitar CORS
-      const targetUrl = encodeURIComponent("https://www.noticiasagricolas.com.br/cotacoes/boi-gordo");
+      const targetUrl = encodeURIComponent("https://www.scotconsultoria.com.br/cotacoes/boi-gordo/");
       const proxyUrl = `https://api.allorigins.win/get?url=${targetUrl}`;
       
       const response = await fetch(proxyUrl);
       const data = await response.json();
       const html = data.contents;
 
-      // Regex para encontrar a cotação do Piauí ou Praça de Referência
-      // O site costuma ter tabelas. Procuramos por "Piauí" ou algo similar seguido de valor.
-      // Como o site muda, tentamos uma captura genérica de valor de @
-      const match = html.match(/Piauí.*?(\d+,\d{2})/i) || html.match(/PI.*?(\d+,\d{2})/i);
+      // Na Scot, o valor geralmente está em tabelas. 
+      // Procuramos por "Teresina" ou "Piauí" e o primeiro valor monetário após.
+      // Tentamos capturar o valor "a prazo" ou "à vista" (Geralmente 330-350 na Scot hoje)
+      const match = html.match(/(?:Teresina|Piauí).*?(\d{3}(?:,\d{2})?)/i);
       
       if (match && match[1]) {
         return parseFloat(match[1].replace(',', '.'));

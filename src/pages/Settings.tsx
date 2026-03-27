@@ -27,7 +27,7 @@ export default function SettingsPage() {
   const user = store.auth.getCurrentUser();
   const [syncing, setSyncing] = useState(false);
   const [fetchingMarket, setFetchingMarket] = useState(false);
-  const [marketPrice, setMarketPrice] = useState("205.00");
+  const [marketPrice, setMarketPrice] = useState("330.00");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const [counts, setCounts] = useState({ animals: 0, events: 0, financials: 0 });
