@@ -9,6 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const { setOpenMobile } = useSidebar();
 
   return (
     <Sidebar className="border-r border-border/50 bg-sidebar text-sidebar-foreground">
@@ -42,7 +44,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive} className={`py-5 px-3 rounded-lg transition-colors ${isActive ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:bg-muted"}`}>
-                      <Link to={item.url} className="flex items-center gap-3">
+                      <Link to={item.url} className="flex items-center gap-3" onClick={() => setOpenMobile(false)}>
                         <item.icon className="h-5 w-5" />
                         <span className="text-[15px]">{item.title}</span>
                       </Link>
