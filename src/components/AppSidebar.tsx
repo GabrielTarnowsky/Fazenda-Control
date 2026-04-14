@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { store } from "@/lib/store";
 import { Home, DollarSign, Beef, Target, FileText, Settings, Wheat, Baby, RefreshCw } from "lucide-react";
 import {
   Sidebar,
@@ -28,8 +27,6 @@ export function AppSidebar() {
   const location = useLocation();
   const { setOpenMobile } = useSidebar();
 
-  const user = store.auth.getCurrentUser();
-
   return (
     <Sidebar className="border-r border-border/50 bg-sidebar text-sidebar-foreground">
       <SidebarContent className="bg-sidebar">
@@ -38,9 +35,7 @@ export function AppSidebar() {
             <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center">
                <Beef className="h-6 w-6 text-primary" />
             </div>
-            <span className="font-display font-black text-2xl text-sidebar-foreground tracking-tighter truncate">
-              {user?.farm_name || "FazendaControl"}
-            </span>
+            <span className="font-display font-black text-2xl text-sidebar-foreground tracking-tighter">FazendaControl</span>
           </div>
           <SidebarGroupContent>
             <SidebarMenu className="px-2 space-y-1">
