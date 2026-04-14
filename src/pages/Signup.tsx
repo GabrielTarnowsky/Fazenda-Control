@@ -94,7 +94,7 @@ export default function Signup() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Senha (Mín. 8 dígitos, 1 maiúscula, 1 número)</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Senha (Mín. 6 dígitos)</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <Input 

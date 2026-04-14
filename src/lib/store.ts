@@ -190,9 +190,7 @@ async function hashPassword(password: string, salt?: string): Promise<{ hash: st
 
 // Validação de senha forte
 export function validatePasswordStrength(pass: string): string | null {
-  if (pass.length < 8) return "A senha deve ter no mínimo 8 caracteres";
-  if (!/[A-Z]/.test(pass)) return "A senha deve conter pelo menos uma letra maiúscula";
-  if (!/[0-9]/.test(pass)) return "A senha deve conter pelo menos um número";
+  if (pass.length < 6) return "A senha deve ter no mínimo 6 caracteres";
   return null; // Senha válida
 }
 
