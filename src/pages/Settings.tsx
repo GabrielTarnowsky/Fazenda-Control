@@ -18,7 +18,9 @@ import {
   Beef,
   Activity,
   CheckCircle,
-  TrendingUp
+  TrendingUp,
+  Sun,
+  Moon
 } from "lucide-react";
 
 
@@ -29,6 +31,7 @@ export default function SettingsPage() {
   const [fetchingMarket, setFetchingMarket] = useState(false);
   const [marketPrice, setMarketPrice] = useState("330.00");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [theme, setTheme] = useState(localStorage.getItem('bovi_theme') || 'light');
 
   const [counts, setCounts] = useState({ animals: 0, events: 0, financials: 0 });
 
@@ -98,6 +101,17 @@ export default function SettingsPage() {
     navigate("/login", { replace: true });
   };
 
+  const toggleTheme = (newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
+    localStorage.setItem('bovi_theme', newTheme);
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    toast.success(`Modo ${newTheme === 'dark' ? 'Escuro' : 'Claro'} ativado!`);
+  };
+
   // Count local data for info
   const animalCount = counts.animals;
   const eventCount = counts.events;
@@ -133,6 +147,35 @@ export default function SettingsPage() {
                 <Shield className="h-3 w-3 mr-1" /> Conta Ativa
               </Badge>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Aparência (Modo Escuro/Claro) */}
+      <Card className="border-none shadow-xl bg-card overflow-hidden rounded-2xl">
+        <CardHeader className="pb-3 bg-muted/20 border-b">
+          <CardTitle className="text-sm font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Activity className="h-4 w-4" /> Aparência
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              variant={theme === 'light' ? 'default' : 'outline'}
+              onClick={() => toggleTheme('light')}
+              className={`h-16 rounded-xl flex flex-col gap-1 transition-all ${theme === 'light' ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''}`}
+            >
+              <Sun className="h-5 w-5" />
+              <span className="text-[10px] font-black uppercase italic">Claro</span>
+            </Button>
+            <Button 
+              variant={theme === 'dark' ? 'default' : 'outline'}
+              onClick={() => toggleTheme('dark')}
+              className={`h-16 rounded-xl flex flex-col gap-1 transition-all ${theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : ''}`}
+            >
+              <Moon className="h-5 w-5" />
+              <span className="text-[10px] font-black uppercase italic">Escuro</span>
+            </Button>
           </div>
         </CardContent>
       </Card>
