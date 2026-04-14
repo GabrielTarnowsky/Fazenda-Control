@@ -206,7 +206,9 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black italic tracking-tighter text-slate-900 leading-none uppercase">FAZENDA CONTROL</h1>
+          <h1 className="text-3xl font-black italic tracking-tighter text-slate-900 leading-none uppercase">
+            {user?.farm_name || "FAZENDA CONTROL"}
+          </h1>
           <p className="text-muted-foreground text-sm mt-1 flex items-center gap-2">
             Bem-vindo, <span className="text-primary font-bold">{user?.name || "Produtor"}</span>
             {lastSync && (

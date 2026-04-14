@@ -9,6 +9,7 @@ import { Beef, UserPlus, Mail, Lock, User, ArrowRight, ShieldCheck } from "lucid
 
 export default function Signup() {
   const [name, setName] = useState("");
+  const [farmName, setFarmName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,7 +29,7 @@ export default function Signup() {
     try {
       // Small delay to simulate server
       await new Promise(resolve => setTimeout(resolve, 1000));
-      await store.auth.signup(name, email, password);
+      await store.auth.signup(name, email, password, farmName);
       toast.success("Conta criada! Boas-vindas ao FazendaControl.");
       // Automatically log in
       await store.auth.login(email, password);
@@ -73,6 +74,21 @@ export default function Signup() {
                     className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-emerald-500/50 transition-all rounded-xl"
                     value={name}
                     onChange={e => setName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Nome da Fazenda</label>
+                <div className="relative">
+                  <Beef className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                  <Input 
+                    type="text" 
+                    placeholder="Nome da sua propriedade" 
+                    className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-emerald-500/50 transition-all rounded-xl"
+                    value={farmName}
+                    onChange={e => setFarmName(e.target.value)}
                     required
                   />
                 </div>

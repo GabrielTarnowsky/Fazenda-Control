@@ -41,6 +41,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  farm_name?: string;
   password_hash?: string;
   salt?: string;
   createdAt: string;
@@ -708,7 +709,7 @@ export const store = {
 
   // Auth — Seguro (SHA-256 + Salt + Sessão com expiração)
   auth: {
-    signup: async (name: string, email: string, pass: string) => {
+    signup: async (name: string, email: string, pass: string, farmName?: string) => {
       // Validação de senha forte
       const passError = validatePasswordStrength(pass);
       if (passError) throw new Error(passError);
@@ -720,7 +721,8 @@ export const store = {
         name,
         email: email.trim().toLowerCase(),
         password_hash: hash,
-        salt
+        salt,
+        farm_name: farmName ? sanitizeString(farmName) : null
       }]).select().single();
       if (error) {
         if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
@@ -733,9 +735,9 @@ export const store = {
       return data;
     },
     login: async (email: string, pass: string) => {
-      // Buscar APENAS id, name, email, salt e password_hash (não retornar para o client depois)
+      // Buscar APENAS id, name, email, salt, password_hash e farm_name
       const { data, error } = await supabase.from('users')
-        .select('id, name, email, password_hash, salt')
+        .select('id, name, email, password_hash, salt, farm_name')
         .ilike('email', email.trim().toLowerCase());
       
       if (error || !data || data.length === 0) throw new Error("Email não encontrado");
