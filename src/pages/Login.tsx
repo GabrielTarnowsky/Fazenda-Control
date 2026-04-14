@@ -46,11 +46,11 @@ export default function Login() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[120px]"></div>
 
       <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in duration-500">
-        <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-4 border border-primary/20">
-            <Beef className="h-10 w-10 text-primary" />
+        <div className="text-center mb-6">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white mb-3 border border-white/10 overflow-hidden shadow-2xl">
+            <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
           </div>
-          <h1 className="text-4xl font-display font-black text-white tracking-tighter italic">FazendaControl</h1>
+          <h1 className="text-4xl font-display font-black text-white tracking-tighter italic">FAZENDA CONTROL</h1>
           <p className="text-slate-400 mt-2 font-medium">Gestão de Peucária Inteligente</p>
         </div>
 

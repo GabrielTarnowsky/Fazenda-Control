@@ -28,7 +28,9 @@ export function SidebarLayout({ children }: { children?: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto w-full p-4 md:p-8 pt-16 md:pt-8 bg-background/50">
           <div className="md:hidden flex items-center justify-between fixed top-0 left-0 right-0 p-4 bg-card border-b z-20 shadow-sm">
              <div className="flex items-center gap-2">
-                <Beef className="h-6 w-6 text-primary" />
+                <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-border/50">
+                  <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
+                </div>
                 <h1 className="font-display font-black italic tracking-tighter text-primary text-xl">FazendaControl</h1>
              </div>
              <SidebarTrigger />

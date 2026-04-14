@@ -32,8 +32,8 @@ export function AppSidebar() {
       <SidebarContent className="bg-sidebar">
         <SidebarGroup>
           <div className="px-5 py-8 mb-4 flex items-center gap-3">
-            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center">
-               <Beef className="h-6 w-6 text-primary" />
+            <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-sm border border-border/50">
+               <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
             </div>
             <span className="font-display font-black text-2xl text-sidebar-foreground tracking-tighter">FazendaControl</span>
           </div>
