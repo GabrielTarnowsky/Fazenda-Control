@@ -188,6 +188,12 @@ async function hashPassword(password: string, salt?: string): Promise<{ hash: st
   return { hash: hashHex, salt: usedSalt };
 }
 
+// Sanitização básica contra XSS
+export function sanitizeString(str: string): string {
+  if (!str) return str;
+  return str.replace(/[<>]/g, '').trim(); // Remove < e > para evitar tags maliciosas
+}
+
 // Validação de senha forte
 export function validatePasswordStrength(pass: string): string | null {
   if (pass.length < 6) return "A senha deve ter no mínimo 6 caracteres";
@@ -270,7 +276,7 @@ export const store = {
     // Core fields that MUST exist in every schema
     const item: any = { 
       id: v4(),
-      tag: a.tag,
+      tag: sanitizeString(a.tag),
       user_id: user.id,
     };
     // Optional fields - now safe to include all since DB is upgraded
@@ -281,8 +287,13 @@ export const store = {
       'valor_venda', 'matriz_id'
     ];
     optionalFields.forEach(f => {
-      const val = (a as any)[f];
-      if (val != null && val !== '') item[f] = val;
+      let val = (a as any)[f];
+      if (val != null && val !== '') {
+        if (typeof val === 'string' && ['breed', 'categoria', 'origem', 'status', 'lot'].includes(f)) {
+          val = sanitizeString(val);
+        }
+        item[f] = val;
+      }
     });
     // Map lote_id -> lot (lot exists in DB schema)
     if (a.lote_id) item.lot = a.lote_id;
@@ -451,7 +462,13 @@ export const store = {
         });
       }
     } else {
-      items.push({ ...f, id: v4(), user_id: user.id });
+      items.push({ 
+        ...f, 
+        id: v4(), 
+        user_id: user.id,
+        description: sanitizeString(f.description),
+        category: sanitizeString(f.category)
+      });
     }
     const sanitizeItem = (item: any) => {
       const { id, type, category, description, value, date, payment_method, user_id, animal_id } = item;

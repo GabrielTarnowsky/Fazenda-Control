@@ -461,33 +461,6 @@ export default function FinancialPage() {
         </Table>
       </div>
 
-      {/* FERRAMENTA DE TESTE - RODAPÉ MÍNIMO */}
-      <div className="fixed bottom-4 left-4 z-10">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-[8px] font-black uppercase text-slate-300 hover:text-rose-500 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all">
-              <Trash2 className="h-3 w-3 mr-1" /> Resetar Dados (Fim da Página)
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2 text-rose-600">
-                <AlertTriangle className="h-5 w-5" /> Modo de Teste
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Deseja limpar todos os registros financeiros para recomeçar o teste? Isso apaga gastos, alimentação e compras mas mantém o rebanho.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={async () => {
-                await store.clearFinancials();
-                window.location.reload();
-              }} className="bg-rose-600 hover:bg-rose-700 font-bold">Zerar para Testar</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
     </div>
   );
 }
