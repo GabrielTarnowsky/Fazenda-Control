@@ -206,13 +206,13 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black italic tracking-tighter text-slate-900 leading-none uppercase">
+          <h1 className="text-3xl font-black italic tracking-tighter text-foreground leading-none uppercase">
             {user?.farm_name || "FAZENDA CONTROL"}
           </h1>
           <p className="text-muted-foreground text-sm mt-1 flex items-center gap-2">
             Bem-vindo, <span className="text-primary font-bold">{user?.name || "Produtor"}</span>
             {lastSync && (
-              <Badge variant="outline" className="text-[10px] font-bold text-slate-400 bg-slate-100/50 border-none ml-2">
+              <Badge variant="outline" className="text-[10px] font-bold text-muted-foreground bg-muted/50 border-none ml-2">
                 <Activity className="h-3 w-3 mr-1 text-emerald-500" /> 
                 Sincronizado {new Date(lastSync).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
               </Badge>
