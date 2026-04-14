@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { store } from "@/lib/store";
+import { store, validatePasswordStrength } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -27,8 +27,9 @@ export default function ForgotPassword() {
       toast.error("As senhas não coincidem");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("A senha deve ter no mínimo 6 caracteres");
+    const passError = validatePasswordStrength(newPassword);
+    if (passError) {
+      toast.error(passError);
       return;
     }
 

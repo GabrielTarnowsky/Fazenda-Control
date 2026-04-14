@@ -41,7 +41,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  password_hash: string;
+  password_hash?: string;
+  salt?: string;
   createdAt: string;
 }
 
@@ -176,16 +177,77 @@ export const parseDateSafe = (dateStr: string | null | undefined) => {
   }
 };
 
-function loadUsers(): User[] {
+// --- SECURITY: Hashing with SHA-256 + Salt ---
+async function hashPassword(password: string, salt?: string): Promise<{ hash: string; salt: string }> {
+  const usedSalt = salt || crypto.randomUUID();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(usedSalt + password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return { hash: hashHex, salt: usedSalt };
+}
+
+// Validação de senha forte
+export function validatePasswordStrength(pass: string): string | null {
+  if (pass.length < 8) return "A senha deve ter no mínimo 8 caracteres";
+  if (!/[A-Z]/.test(pass)) return "A senha deve conter pelo menos uma letra maiúscula";
+  if (!/[0-9]/.test(pass)) return "A senha deve conter pelo menos um número";
+  return null; // Senha válida
+}
+
+// --- SESSION: Com expiração de 24h ---
+const SESSION_KEY = "bovi_session";
+const SESSION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+interface SessionData {
+  userId: string;
+  expiresAt: number;
+}
+
+function saveSession(userId: string) {
+  const session: SessionData = {
+    userId,
+    expiresAt: Date.now() + SESSION_EXPIRY_MS
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+function getSession(): string | null {
   try {
-    return JSON.parse(localStorage.getItem("bovi_users") || "[]");
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const session: SessionData = JSON.parse(raw);
+    if (Date.now() > session.expiresAt) {
+      localStorage.removeItem(SESSION_KEY);
+      return null; // Sessão expirada
+    }
+    return session.userId;
   } catch {
-    return [];
+    return null;
   }
 }
 
-function saveUsers(users: User[]) {
-  localStorage.setItem("bovi_users", JSON.stringify(users));
+// Cache de perfil do usuário (SEM password_hash)
+function loadUserProfile(): Omit<User, 'password_hash' | 'salt'> | null {
+  try {
+    const raw = localStorage.getItem("bovi_user_profile");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveUserProfile(user: any) {
+  // NUNCA salvar password_hash ou salt no cache local
+  const { password_hash, salt, ...safeProfile } = user;
+  localStorage.setItem("bovi_user_profile", JSON.stringify(safeProfile));
+}
+
+function clearUserProfile() {
+  localStorage.removeItem("bovi_user_profile");
+  // Limpar cache legado se existir
+  localStorage.removeItem("bovi_users");
 }
 
 // --- CLOUD-ONLY STORE ---
@@ -629,43 +691,99 @@ export const store = {
     await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
 
-  // Auth
+  // Auth — Seguro (SHA-256 + Salt + Sessão com expiração)
   auth: {
     signup: async (name: string, email: string, pass: string) => {
+      // Validação de senha forte
+      const passError = validatePasswordStrength(pass);
+      if (passError) throw new Error(passError);
+
+      // Gerar hash seguro com salt único
+      const { hash, salt } = await hashPassword(pass);
+      
       const { data, error } = await supabase.from('users').insert([{
         name,
-        email,
-        password_hash: btoa(pass)
+        email: email.trim().toLowerCase(),
+        password_hash: hash,
+        salt
       }]).select().single();
-      if (error) throw error;
-      const users = loadUsers();
-      users.push(data);
-      saveUsers(users);
+      if (error) {
+        if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+          throw new Error("Este email já está cadastrado");
+        }
+        throw error;
+      }
+      // Salvar perfil SEM hash
+      saveUserProfile(data);
       return data;
     },
     login: async (email: string, pass: string) => {
-      const hash = btoa(pass);
-      const { data, error } = await supabase.from('users').select('*').ilike('email', email.trim());
+      // Buscar APENAS id, name, email, salt e password_hash (não retornar para o client depois)
+      const { data, error } = await supabase.from('users')
+        .select('id, name, email, password_hash, salt')
+        .ilike('email', email.trim().toLowerCase());
+      
       if (error || !data || data.length === 0) throw new Error("Email não encontrado");
-      const user = data.find(u => u.password_hash === hash);
-      if (!user) throw new Error("Senha incorreta");
-      localStorage.setItem("bovi_session", user.id);
-      const users = loadUsers();
-      if (!users.find(u => u.id === user.id)) {
-        users.push(user);
-        saveUsers(users);
+      
+      const dbUser = data[0];
+      
+      // Compatibilidade: se não tem salt, é hash legado (Base64)
+      if (!dbUser.salt) {
+        const legacyHash = btoa(pass);
+        if (dbUser.password_hash !== legacyHash) throw new Error("Senha incorreta");
+        
+        // MIGRAÇÃO AUTOMÁTICA: atualizar para SHA-256 + salt
+        const { hash: newHash, salt: newSalt } = await hashPassword(pass);
+        await supabase.from('users').update({ 
+          password_hash: newHash, 
+          salt: newSalt 
+        }).eq('id', dbUser.id);
+      } else {
+        // Verificação SHA-256
+        const { hash } = await hashPassword(pass, dbUser.salt);
+        if (hash !== dbUser.password_hash) throw new Error("Senha incorreta");
       }
-      return user;
+      
+      // Criar sessão com expiração
+      saveSession(dbUser.id);
+      
+      // Cache de perfil SEM hash/salt
+      saveUserProfile(dbUser);
+      
+      return { id: dbUser.id, name: dbUser.name, email: dbUser.email };
     },
     logout: () => {
-      localStorage.removeItem("bovi_session");
+      localStorage.removeItem(SESSION_KEY);
+      clearUserProfile();
     },
     getCurrentUser: () => {
-      const userId = localStorage.getItem("bovi_session");
+      const userId = getSession();
       if (!userId) return null;
-      const users = loadUsers();
-      const user = users.find(u => u.id === userId);
-      return user || { id: userId, name: "Usuário", email: "", password_hash: "", createdAt: "" };
+      const profile = loadUserProfile();
+      if (profile && profile.id === userId) return profile as User;
+      return { id: userId, name: "Usuário", email: "", createdAt: "" } as User;
+    },
+    resetPassword: async (email: string, newPassword: string) => {
+      // Validação de senha forte
+      const passError = validatePasswordStrength(newPassword);
+      if (passError) throw new Error(passError);
+
+      // Verificar se o email existe
+      const { data, error } = await supabase.from('users')
+        .select('id')
+        .ilike('email', email.trim().toLowerCase());
+      
+      if (error || !data || data.length === 0) throw new Error("Email não encontrado");
+
+      // Gerar novo hash seguro
+      const { hash, salt } = await hashPassword(newPassword);
+
+      // Atualizar senha
+      const { error: updateError } = await supabase.from('users')
+        .update({ password_hash: hash, salt })
+        .eq('id', data[0].id);
+      
+      if (updateError) throw new Error("Erro ao redefinir senha");
     }
   },
 

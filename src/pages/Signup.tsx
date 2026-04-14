@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { store } from "@/lib/store";
+import { store, validatePasswordStrength } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -17,8 +17,9 @@ export default function Signup() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (password.length < 6) {
-      toast.error("A senha deve ter no mínimo 6 caracteres");
+    const passError = validatePasswordStrength(password);
+    if (passError) {
+      toast.error(passError);
       return;
     }
 
@@ -93,7 +94,7 @@ export default function Signup() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Senha (Mín. 6 dígitos)</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Senha (Mín. 8 dígitos, 1 maiúscula, 1 número)</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <Input 
