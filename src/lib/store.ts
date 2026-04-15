@@ -284,6 +284,35 @@ function getDataCache(key: string): any[] {
   }
 }
 
+// --- SYNC QUEUE: Persistent actions for offline writes ---
+const PENDING_ACTIONS_KEY = "bovi_pending_actions";
+
+function addPendingAction(action: { method: string, args: any[] }) {
+  try {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    const key = `${PENDING_ACTIONS_KEY}_${user.id}`;
+    const queue = JSON.parse(localStorage.getItem(key) || "[]");
+    queue.push({ ...action, timestamp: Date.now(), id: v4() });
+    localStorage.setItem(key, JSON.stringify(queue));
+    toast.info("Ação salva localmente. Sincronizando quando houver sinal...");
+  } catch (e) {
+    console.error("Error adding to sync queue:", e);
+  }
+}
+
+function getPendingActions(): any[] {
+  const user = store.auth.getCurrentUser();
+  if (!user) return [];
+  return JSON.parse(localStorage.getItem(`${PENDING_ACTIONS_KEY}_${user.id}`) || "[]");
+}
+
+function clearPendingActions() {
+  const user = store.auth.getCurrentUser();
+  if (!user) return;
+  localStorage.setItem(`${PENDING_ACTIONS_KEY}_${user.id}`, "[]");
+}
+
 // --- CLOUD-ONLY STORE ---
 
 export const store = {
@@ -291,6 +320,13 @@ export const store = {
   getAnimals: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
+    
+    // Check for offline status immediately
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.warn("Offline detected: using cache for animals");
+      return getDataCache('animals');
+    }
+
     try {
       const { data, error } = await supabase.from('animals').select('*').eq('user_id', user.id);
       if (error) throw error;
@@ -333,12 +369,20 @@ export const store = {
     // Map lote_id -> lot (lot exists in DB schema)
     if (a.lote_id) item.lot = a.lote_id;
 
-    const { data, error } = await supabase.from('animals').insert([item]).select().single();
-    if (error) {
-      toast.error("Erro ao salvar animal: " + error.message);
-      throw error;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      addPendingAction({ method: 'addAnimal', args: [a] });
+      // Return a temporary animal for UI fluidity
+      return { ...item, id: item.id };
     }
-    return data;
+
+    try {
+      const { data, error } = await supabase.from('animals').insert([item]).select().single();
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      addPendingAction({ method: 'addAnimal', args: [a] });
+      return { ...item, id: item.id };
+    }
   },
   updateAnimal: async (id: string, data: Partial<Animal>) => {
     const user = store.auth.getCurrentUser();
@@ -370,6 +414,11 @@ export const store = {
   getEvents: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return getDataCache('events');
+    }
+
     try {
       const { data, error } = await supabase.from('events').select('*').eq('user_id', user.id).order('date', { ascending: false });
       if (error) throw error;
@@ -481,6 +530,11 @@ export const store = {
   getFinancials: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return getDataCache('financials');
+    }
+
     try {
       const { data, error } = await supabase.from('financial').select('*').eq('user_id', user.id).neq('type', 'metadata').order('date', { ascending: false });
       if (error) throw error;
@@ -526,9 +580,20 @@ export const store = {
     };
 
     const sanitizedItems = items.map(sanitizeItem);
-    const { data, error } = await supabase.from('financial').insert(sanitizedItems).select();
-    if (error) throw error;
-    return data[0];
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      addPendingAction({ method: 'addFinancial', args: [f, installments] });
+      return sanitizedItems[0];
+    }
+
+    try {
+      const { data, error } = await supabase.from('financial').insert(sanitizedItems).select();
+      if (error) throw error;
+      return data[0];
+    } catch {
+      addPendingAction({ method: 'addFinancial', args: [f, installments] });
+      return sanitizedItems[0];
+    }
   },
   updateFinancial: async (id: string, data: Partial<Financial>) => {
     const user = store.auth.getCurrentUser();
@@ -550,6 +615,11 @@ export const store = {
   getInseminations: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return getDataCache('inseminations');
+    }
+
     try {
       const { data, error } = await supabase.from('insemination').select('*').eq('user_id', user.id).order('date', { ascending: false });
       if (error) throw error;
