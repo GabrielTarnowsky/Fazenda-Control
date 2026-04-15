@@ -14,7 +14,7 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t flex justify-around items-center h-16 shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-sidebar border-t flex justify-around items-center h-16 shadow-lg">
       {items.map((item) => {
         const active = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
         return (
