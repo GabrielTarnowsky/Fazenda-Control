@@ -274,8 +274,9 @@ function saveDataCache(key: string, data: any) {
 
 function getDataCache(key: string): any[] {
   try {
-    const user = store.auth.getCurrentUser();
-    if (!user) return [];
+    const rawUserProfile = localStorage.getItem("bovi_user_profile");
+    if (!rawUserProfile) return [];
+    const user = JSON.parse(rawUserProfile);
     const raw = localStorage.getItem(`${CACHE_PREFIX}${user.id}_${key}`);
     if (!raw) return [];
     return JSON.parse(raw).data || [];
@@ -289,8 +290,9 @@ const PENDING_ACTIONS_KEY = "bovi_pending_actions";
 
 function addPendingAction(action: { method: string, args: any[] }) {
   try {
-    const user = store.auth.getCurrentUser();
-    if (!user) return;
+    const rawUserProfile = localStorage.getItem("bovi_user_profile");
+    if (!rawUserProfile) return;
+    const user = JSON.parse(rawUserProfile);
     const key = `${PENDING_ACTIONS_KEY}_${user.id}`;
     const queue = JSON.parse(localStorage.getItem(key) || "[]");
     queue.push({ ...action, timestamp: Date.now(), id: v4() });
@@ -315,32 +317,69 @@ function clearPendingActions() {
 
 // --- CLOUD-ONLY STORE ---
 
-export const store = {
-  // Animals
-  getAnimals: async () => {
-    const user = store.auth.getCurrentUser();
-    if (!user) return [];
-    
-    // Check for offline status immediately
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.warn("Offline detected: using cache for animals");
-      return getDataCache('animals');
+// Auth functions first to be used by others
+const auth = {
+  signup: async (name: string, email: string, pass: string, farmName?: string) => {
+    const passError = validatePasswordStrength(pass);
+    if (passError) throw new Error(passError);
+    const { hash, salt } = await hashPassword(pass);
+    const { data, error } = await supabase.from('users').insert([{
+      name,
+      email: email.trim().toLowerCase(),
+      password_hash: hash,
+      salt,
+      farm_name: farmName ? sanitizeString(farmName) : null
+    }]).select().single();
+    if (error) {
+      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        throw new Error("Este email já está cadastrado");
+      }
+      throw error;
     }
-
-    try {
-      const { data, error } = await supabase.from('animals').select('*').eq('user_id', user.id);
-      if (error) throw error;
-      
-      const mapped = (data || []).map(a => ({ ...a, lote_id: a.lot }));
-      const sorted = mapped.sort((a, b) => b.tag.localeCompare(a.tag));
-      
-      saveDataCache('animals', sorted);
-      return sorted;
-    } catch (error) {
-      console.warn("Offline mode: fetching animals from cache");
-      return getDataCache('animals');
-    }
+    saveUserProfile(data);
+    return data;
   },
+  login: async (email: string, pass: string) => {
+    const { data, error } = await supabase.from('users').select('id, name, email, password_hash, salt, farm_name').ilike('email', email.trim().toLowerCase());
+    if (error || !data || data.length === 0) throw new Error("Email não encontrado");
+    const dbUser = data[0];
+    if (!dbUser.salt) {
+      const legacyHash = btoa(pass);
+      if (dbUser.password_hash !== legacyHash) throw new Error("Senha incorreta");
+      const { hash: newHash, salt: newSalt } = await hashPassword(pass);
+      await supabase.from('users').update({ password_hash: newHash, salt: newSalt }).eq('id', dbUser.id);
+    } else {
+      const { hash } = await hashPassword(pass, dbUser.salt);
+      if (hash !== dbUser.password_hash) throw new Error("Senha incorreta");
+    }
+    saveSession(dbUser.id);
+    saveUserProfile(dbUser);
+    return { id: dbUser.id, name: dbUser.name, email: dbUser.email };
+  },
+  logout: () => {
+    localStorage.removeItem(SESSION_KEY);
+    clearUserProfile();
+  },
+  getCurrentUser: () => {
+    const userId = getSession();
+    if (!userId) return null;
+    const profile = loadUserProfile();
+    if (profile && profile.id === userId) return profile as User;
+    return { id: userId, name: "Usuário", email: "", createdAt: "" } as User;
+  },
+  resetPassword: async (email: string, newPassword: string) => {
+    const passError = validatePasswordStrength(newPassword);
+    if (passError) throw new Error(passError);
+    const { data, error } = await supabase.from('users').select('id').ilike('email', email.trim().toLowerCase());
+    if (error || !data || data.length === 0) throw new Error("Email não encontrado");
+    const { hash, salt } = await hashPassword(newPassword);
+    const { error: updateError } = await supabase.from('users').update({ password_hash: hash, salt }).eq('id', data[0].id);
+    if (updateError) throw new Error("Erro ao redefinir senha");
+  }
+};
+
+export const store = {
+  auth,
   addAnimal: async (a: Omit<Animal, "id">) => {
     const user = store.auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
@@ -835,106 +874,9 @@ export const store = {
     await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
 
-  // Auth — Seguro (SHA-256 + Salt + Sessão com expiração)
-  auth: {
-    signup: async (name: string, email: string, pass: string, farmName?: string) => {
-      // Validação de senha forte
-      const passError = validatePasswordStrength(pass);
-      if (passError) throw new Error(passError);
-
-      // Gerar hash seguro com salt único
-      const { hash, salt } = await hashPassword(pass);
-      
-      const { data, error } = await supabase.from('users').insert([{
-        name,
-        email: email.trim().toLowerCase(),
-        password_hash: hash,
-        salt,
-        farm_name: farmName ? sanitizeString(farmName) : null
-      }]).select().single();
-      if (error) {
-        if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
-          throw new Error("Este email já está cadastrado");
-        }
-        throw error;
-      }
-      // Salvar perfil SEM hash
-      saveUserProfile(data);
-      return data;
-    },
-    login: async (email: string, pass: string) => {
-      // Buscar APENAS id, name, email, salt, password_hash e farm_name
-      const { data, error } = await supabase.from('users')
-        .select('id, name, email, password_hash, salt, farm_name')
-        .ilike('email', email.trim().toLowerCase());
-      
-      if (error || !data || data.length === 0) throw new Error("Email não encontrado");
-      
-      const dbUser = data[0];
-      
-      // Compatibilidade: se não tem salt, é hash legado (Base64)
-      if (!dbUser.salt) {
-        const legacyHash = btoa(pass);
-        if (dbUser.password_hash !== legacyHash) throw new Error("Senha incorreta");
-        
-        // MIGRAÇÃO AUTOMÁTICA: atualizar para SHA-256 + salt
-        const { hash: newHash, salt: newSalt } = await hashPassword(pass);
-        await supabase.from('users').update({ 
-          password_hash: newHash, 
-          salt: newSalt 
-        }).eq('id', dbUser.id);
-      } else {
-        // Verificação SHA-256
-        const { hash } = await hashPassword(pass, dbUser.salt);
-        if (hash !== dbUser.password_hash) throw new Error("Senha incorreta");
-      }
-      
-      // Criar sessão com expiração
-      saveSession(dbUser.id);
-      
-      // Cache de perfil SEM hash/salt
-      saveUserProfile(dbUser);
-      
-      return { id: dbUser.id, name: dbUser.name, email: dbUser.email };
-    },
-    logout: () => {
-      localStorage.removeItem(SESSION_KEY);
-      clearUserProfile();
-    },
-    getCurrentUser: () => {
-      const userId = getSession();
-      if (!userId) return null;
-      const profile = loadUserProfile();
-      if (profile && profile.id === userId) return profile as User;
-      return { id: userId, name: "Usuário", email: "", createdAt: "" } as User;
-    },
-    resetPassword: async (email: string, newPassword: string) => {
-      // Validação de senha forte
-      const passError = validatePasswordStrength(newPassword);
-      if (passError) throw new Error(passError);
-
-      // Verificar se o email existe
-      const { data, error } = await supabase.from('users')
-        .select('id')
-        .ilike('email', email.trim().toLowerCase());
-      
-      if (error || !data || data.length === 0) throw new Error("Email não encontrado");
-
-      // Gerar novo hash seguro
-      const { hash, salt } = await hashPassword(newPassword);
-
-      // Atualizar senha
-      const { error: updateError } = await supabase.from('users')
-        .update({ password_hash: hash, salt })
-        .eq('id', data[0].id);
-      
-      if (updateError) throw new Error("Erro ao redefinir senha");
-    }
-  },
-
   // Settings Methods
   getSettings: async (): Promise<Setting[]> => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
     
     // Tenta carregar do Supabase
