@@ -255,6 +255,35 @@ function clearUserProfile() {
   localStorage.removeItem("bovi_users");
 }
 
+// --- DATA CACHE: Persistence for offline usage ---
+const CACHE_PREFIX = "bovi_cache_";
+
+function saveDataCache(key: string, data: any) {
+  try {
+    const user = store.auth.getCurrentUser();
+    if (!user) return;
+    localStorage.setItem(`${CACHE_PREFIX}${user.id}_${key}`, JSON.stringify({
+      data,
+      timestamp: Date.now()
+    }));
+    localStorage.setItem("bovi_last_sync", new Date().toISOString());
+  } catch (e) {
+    console.error("Cache save error:", e);
+  }
+}
+
+function getDataCache(key: string): any[] {
+  try {
+    const user = store.auth.getCurrentUser();
+    if (!user) return [];
+    const raw = localStorage.getItem(`${CACHE_PREFIX}${user.id}_${key}`);
+    if (!raw) return [];
+    return JSON.parse(raw).data || [];
+  } catch {
+    return [];
+  }
+}
+
 // --- CLOUD-ONLY STORE ---
 
 export const store = {
@@ -262,14 +291,19 @@ export const store = {
   getAnimals: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
-    const { data, error } = await supabase.from('animals').select('*').eq('user_id', user.id);
-    if (error) {
-      console.error("Error fetching animals:", error.message);
-      return [];
+    try {
+      const { data, error } = await supabase.from('animals').select('*').eq('user_id', user.id);
+      if (error) throw error;
+      
+      const mapped = (data || []).map(a => ({ ...a, lote_id: a.lot }));
+      const sorted = mapped.sort((a, b) => b.tag.localeCompare(a.tag));
+      
+      saveDataCache('animals', sorted);
+      return sorted;
+    } catch (error) {
+      console.warn("Offline mode: fetching animals from cache");
+      return getDataCache('animals');
     }
-    // Map DB 'lot' back to frontend 'lote_id'
-    const mapped = (data || []).map(a => ({ ...a, lote_id: a.lot }));
-    return mapped.sort((a, b) => b.tag.localeCompare(a.tag));
   },
   addAnimal: async (a: Omit<Animal, "id">) => {
     const user = store.auth.getCurrentUser();
@@ -336,8 +370,14 @@ export const store = {
   getEvents: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
-    const { data } = await supabase.from('events').select('*').eq('user_id', user.id).order('date', { ascending: false });
-    return data || [];
+    try {
+      const { data, error } = await supabase.from('events').select('*').eq('user_id', user.id).order('date', { ascending: false });
+      if (error) throw error;
+      saveDataCache('events', data || []);
+      return data || [];
+    } catch {
+      return getDataCache('events');
+    }
   },
   getEvent: async (id: string) => {
     const user = store.auth.getCurrentUser();
@@ -441,8 +481,14 @@ export const store = {
   getFinancials: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
-    const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).neq('type', 'metadata').order('date', { ascending: false });
-    return data || [];
+    try {
+      const { data, error } = await supabase.from('financial').select('*').eq('user_id', user.id).neq('type', 'metadata').order('date', { ascending: false });
+      if (error) throw error;
+      saveDataCache('financials', data || []);
+      return data || [];
+    } catch {
+      return getDataCache('financials');
+    }
   },
   addFinancial: async (f: Omit<Financial, "id">, installments: number = 1) => {
     const user = store.auth.getCurrentUser();
@@ -504,8 +550,14 @@ export const store = {
   getInseminations: async () => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
-    const { data } = await supabase.from('insemination').select('*').eq('user_id', user.id).order('date', { ascending: false });
-    return data || [];
+    try {
+      const { data, error } = await supabase.from('insemination').select('*').eq('user_id', user.id).order('date', { ascending: false });
+      if (error) throw error;
+      saveDataCache('inseminations', data || []);
+      return data || [];
+    } catch {
+      return getDataCache('inseminations');
+    }
   },
   addInsemination: async (ins: Omit<Insemination, "id">) => {
     const user = store.auth.getCurrentUser();
@@ -553,9 +605,15 @@ export const store = {
   getIngredients: async (): Promise<Ingredient[]> => {
     const user = store.auth.getCurrentUser();
     if (!user) return [];
-    const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'ingredient');
-    if (!data) return [];
-    return data.map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
+    try {
+      const { data, error } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'ingredient');
+      if (error) throw error;
+      const mapped = (data || []).map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
+      saveDataCache('ingredients', mapped);
+      return mapped;
+    } catch {
+      return getDataCache('ingredients');
+    }
   },
   addIngredient: async (ing: Omit<Ingredient, "id">) => {
     const user = store.auth.getCurrentUser();
