@@ -2,13 +2,20 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { store, Animal } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3 } from "lucide-react";
+import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import WeighingReport from "@/components/WeighingReport";
 
 export default function LoteDetail() {
@@ -47,6 +54,19 @@ export default function LoteDetail() {
     lucroTotalVendas: 0
   });
 
+  const [bulkMode, setBulkMode] = useState<{
+    type: "vacina" | "status" | "lote" | "";
+    value: string;
+    date: string;
+    description: string;
+  }>({
+    type: "",
+    value: "",
+    date: new Date().toISOString().split("T")[0],
+    description: ""
+  });
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
   const [loading, setLoading] = useState(true);
 
   const handleQuickWeight = async (e: React.FormEvent) => {
@@ -82,6 +102,53 @@ export default function LoteDetail() {
     loadData();
     tagInputRef.current?.focus();
     setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  const handleBulkAction = async () => {
+    if (!bulkMode.type || !bulkMode.value) {
+      toast.error("Preencha todos os campos da ação");
+      return;
+    }
+
+    const activeAnimals = animals.filter(a => a.status === "ativo");
+    if (activeAnimals.length === 0) {
+      toast.error("Não há animais ativos no lote para realizar a ação");
+      return;
+    }
+
+    setIsBulkProcessing(true);
+    const total = activeAnimals.length;
+    let count = 0;
+
+    try {
+      for (const animal of activeAnimals) {
+        if (bulkMode.type === "vacina") {
+          await store.addEvent({
+            animal_id: animal.id,
+            type: "vacina",
+            date: bulkMode.date,
+            description: `${bulkMode.value}: ${bulkMode.description}`,
+            weight: 0,
+            value: 0
+          });
+        } else if (bulkMode.type === "status") {
+          await store.updateAnimal(animal.id, { status: bulkMode.value });
+        } else if (bulkMode.type === "lote") {
+          await store.updateAnimal(animal.id, { lote_id: bulkMode.value } as any);
+        }
+        count++;
+        if (count % 10 === 0) toast.info(`Processando... ${count}/${total}`, { id: "bulk-toast" });
+      }
+
+      toast.success(`Ação concluída com sucesso para ${total} animais!`, { id: "bulk-toast" });
+      setBulkMode({ ...bulkMode, type: "", value: "", description: "" });
+      loadData();
+    } catch (error) {
+      console.error("Bulk action error:", error);
+      toast.error("Ocorreu um erro parcial no manejo em massa");
+    } finally {
+      setIsBulkProcessing(false);
+    }
   };
 
   const loadData = async () => {
@@ -422,18 +489,24 @@ export default function LoteDetail() {
       </Card>
 
       <Tabs defaultValue="ativo" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-4 h-11 bg-muted/40 p-1 rounded-xl border">
+        <TabsList className="grid w-full grid-cols-3 mb-4 h-11 bg-muted/40 p-1 rounded-xl border">
           <TabsTrigger 
             value="ativo" 
             className="text-xs sm:text-sm font-bold uppercase transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
           >
-            Ativos no Lote
+            Ativos
+          </TabsTrigger>
+          <TabsTrigger 
+            value="bulk" 
+            className="text-xs sm:text-sm font-bold uppercase transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
+          >
+            Manejo em Massa
           </TabsTrigger>
           <TabsTrigger 
             value="outros" 
             className="text-xs sm:text-sm font-bold uppercase transition-all data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
           >
-            Histórico (Vendidos)
+            Histórico
           </TabsTrigger>
         </TabsList>
         
@@ -497,6 +570,105 @@ export default function LoteDetail() {
               );
             })}
           </div>
+        </TabsContent>
+
+        <TabsContent value="bulk">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" /> Manejo do Rebanho ({animals.filter(a => a.status === 'ativo').length} cabeças)
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">Aplique uma ação para todos os animais ativos deste lote de uma vez.</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="font-bold">O que deseja fazer?</Label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <Button 
+                      variant={bulkMode.type === "vacina" ? "default" : "outline"} 
+                      className="justify-start h-12"
+                      onClick={() => setBulkMode({ ...bulkMode, type: "vacina", value: "" })}
+                    >
+                      <Syringe className="mr-2 h-4 w-4" /> Registrar Vacinação Coletiva
+                    </Button>
+                    <Button 
+                      variant={bulkMode.type === "lote" ? "default" : "outline"}
+                      className="justify-start h-12"
+                      onClick={() => setBulkMode({ ...bulkMode, type: "lote", value: "" })}
+                    >
+                      <Truck className="mr-2 h-4 w-4" /> Mudar Todo o Lote de Pasto
+                    </Button>
+                    <Button 
+                      variant={bulkMode.type === "status" ? "default" : "outline"}
+                      className="justify-start h-12"
+                      onClick={() => setBulkMode({ ...bulkMode, type: "status", value: "" })}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" /> Alterar Status dos Animais
+                    </Button>
+                  </div>
+                </div>
+
+                {bulkMode.type && (
+                  <div className="space-y-4 p-4 bg-white rounded-xl border border-primary/10 animate-in fade-in slide-in-from-right-4">
+                    <div className="space-y-2">
+                      <Label className="font-bold">
+                        {bulkMode.type === "vacina" ? "Nome da Vacina" : 
+                         bulkMode.type === "lote" ? "Novo Lote/Pasto" : "Novo Status"}
+                      </Label>
+                      {bulkMode.type === "status" ? (
+                        <Select value={bulkMode.value} onValueChange={v => setBulkMode({ ...bulkMode, value: v })}>
+                          <SelectTrigger className="h-11"><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ativo">Ativo</SelectItem>
+                            <SelectItem value="vendido">Vendido</SelectItem>
+                            <SelectItem value="morto">Morto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input 
+                          placeholder={bulkMode.type === "vacina" ? "Ex: Febre Aftosa" : "Ex: Pasto Norte"} 
+                          value={bulkMode.value}
+                          onChange={e => setBulkMode({ ...bulkMode, value: e.target.value })}
+                          className="h-11"
+                        />
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase">Data</Label>
+                      <Input 
+                        type="date" 
+                        value={bulkMode.date}
+                        onChange={e => setBulkMode({ ...bulkMode, date: e.target.value })}
+                        className="h-11"
+                      />
+                    </div>
+
+                    {bulkMode.type === "vacina" && (
+                      <div className="space-y-2">
+                        <Label className="font-bold text-xs uppercase">Observação (Opcional)</Label>
+                        <Input 
+                          placeholder="Ex: Reforço anual" 
+                          value={bulkMode.description}
+                          onChange={e => setBulkMode({ ...bulkMode, description: e.target.value })}
+                          className="h-11"
+                        />
+                      </div>
+                    )}
+
+                    <Button 
+                      className="w-full h-12 font-black uppercase tracking-widest shadow-lg" 
+                      onClick={handleBulkAction}
+                      disabled={isBulkProcessing}
+                    >
+                      {isBulkProcessing ? "Processando..." : "Confirmar Ação Coletiva"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="outros">
