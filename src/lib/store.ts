@@ -380,6 +380,30 @@ const auth = {
 
 export const store = {
   auth,
+  
+  // Animals
+  getAnimals: async () => {
+    const user = auth.getCurrentUser();
+    if (!user) return [];
+    
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return getDataCache('animals');
+    }
+
+    try {
+      const { data, error } = await supabase.from('animals').select('*').eq('user_id', user.id);
+      if (error) throw error;
+      
+      const mapped = (data || []).map(a => ({ ...a, lote_id: a.lot }));
+      // Use fallback for tag in localeCompare to prevent JS crashes
+      const sorted = mapped.sort((a, b) => (b.tag || "").localeCompare(a.tag || ""));
+      
+      saveDataCache('animals', sorted);
+      return sorted;
+    } catch (error) {
+      return getDataCache('animals');
+    }
+  },
   addAnimal: async (a: Omit<Animal, "id">) => {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
