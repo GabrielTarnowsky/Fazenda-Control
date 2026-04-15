@@ -27,7 +27,7 @@ export default function AddAnimal() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     tag: "", sex: "Macho", breed: "Nelore", birth_date: "", weight: 0, categoria: "Bezerro",
-    origem: "Nascimento", data_compra: "", valor_compra: "", lote_id: "", preco_arroba: "",
+    origem: "Compra", data_compra: new Date().toISOString().split("T")[0], valor_compra: "", lote_id: "", preco_arroba: "",
     peso_entrada: "", peso_saida: "", matriz_id: "", payment_method: "Pix"
   });
 
