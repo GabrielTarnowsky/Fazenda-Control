@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster as Sonner, toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarLayout } from "./components/SidebarLayout";
@@ -39,10 +39,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    console.log("FazendaControl - Versão 1.4.0 (Security Hardening)");
+    console.log("FazendaControl - Versão 1.8.7 (PWA Auto-Sync)");
     store.sync().then(success => {
       if (success) console.log("Dados sincronizados com sucesso");
     });
+
+    const handleOnline = () => {
+      toast.success("Conexão restabelecida! Sincronizando dados offline...");
+      store.sync();
+    };
+
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
   }, []);
 
   return (

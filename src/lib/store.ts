@@ -407,13 +407,11 @@ export const store = {
   addAnimal: async (a: Omit<Animal, "id">) => {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
-    // Core fields that MUST exist in every schema
     const item: any = { 
-      id: v4(),
+      id: (a as any).id || v4(),
       tag: sanitizeString(a.tag),
       user_id: user.id,
     };
-    // Optional fields - now safe to include all since DB is upgraded
     const optionalFields: (keyof typeof a)[] = [
       'birth_date', 'sex', 'breed', 'weight', 'status',
       'categoria', 'origem', 'data_compra', 'valor_compra',
@@ -429,13 +427,13 @@ export const store = {
         item[f] = val;
       }
     });
-    // Map lote_id -> lot (lot exists in DB schema)
     if (a.lote_id) item.lot = a.lote_id;
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      addPendingAction({ method: 'addAnimal', args: [a] });
-      // Return a temporary animal for UI fluidity
-      return { ...item, id: item.id };
+      addPendingAction({ method: 'addAnimal', args: [item] }); // Pass the full item to keep the ID
+      const currentCache = getDataCache('animals');
+      saveDataCache('animals', [item, ...currentCache]);
+      return item;
     }
 
     try {
@@ -443,8 +441,10 @@ export const store = {
       if (error) throw error;
       return data;
     } catch (error) {
-      addPendingAction({ method: 'addAnimal', args: [a] });
-      return { ...item, id: item.id };
+      addPendingAction({ method: 'addAnimal', args: [item] });
+      const currentCache = getDataCache('animals');
+      saveDataCache('animals', [item, ...currentCache]);
+      return item;
     }
   },
   updateAnimal: async (id: string, data: Partial<Animal>) => {
@@ -575,7 +575,7 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { 
-      id: v4(),
+      id: (e as any).id || v4(),
       animal_id: e.animal_id,
       type: e.type,
       date: e.date,
@@ -585,8 +585,11 @@ export const store = {
     };
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      addPendingAction({ method: 'addEvent', args: [e] });
-      // Call nested updates directly so they are also queued
+      addPendingAction({ method: 'addEvent', args: [item] });
+      
+      const currentCache = getDataCache('events');
+      saveDataCache('events', [item, ...currentCache]);
+
       if (e.type === "pesagem" && e.weight) store.updateAnimal(e.animal_id, { weight: e.weight });
       if (e.type === "venda") store.updateAnimal(e.animal_id, { status: "vendido", peso_saida: e.weight });
       if (e.type === "morte") store.updateAnimal(e.animal_id, { status: "morto", peso_saida: e.weight });
@@ -603,7 +606,10 @@ export const store = {
       
       return data;
     } catch {
-      addPendingAction({ method: 'addEvent', args: [e] });
+      addPendingAction({ method: 'addEvent', args: [item] });
+      const currentCache = getDataCache('events');
+      saveDataCache('events', [item, ...currentCache]);
+
       if (e.type === "pesagem" && e.weight) store.updateAnimal(e.animal_id, { weight: e.weight });
       if (e.type === "venda") store.updateAnimal(e.animal_id, { status: "vendido", peso_saida: e.weight });
       if (e.type === "morte") store.updateAnimal(e.animal_id, { status: "morto", peso_saida: e.weight });
@@ -668,6 +674,8 @@ export const store = {
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       addPendingAction({ method: 'addFinancial', args: [f, installments] });
+      const currentCache = getDataCache('financials');
+      saveDataCache('financials', [...sanitizedItems, ...currentCache]);
       return sanitizedItems[0];
     }
 
@@ -677,6 +685,8 @@ export const store = {
       return data[0];
     } catch {
       addPendingAction({ method: 'addFinancial', args: [f, installments] });
+      const currentCache = getDataCache('financials');
+      saveDataCache('financials', [...sanitizedItems, ...currentCache]);
       return sanitizedItems[0];
     }
   },
@@ -974,6 +984,35 @@ export const store = {
   },
 
   // System
-  sync: async () => true,
+  sync: async () => {
+    const queue = getPendingActions();
+    if (queue.length === 0) return true;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+
+    let success = true;
+    for (const action of queue) {
+      try {
+        const method = (store as any)[action.method];
+        if (method) {
+          // Excluir a ação atual da fila para evitar duplicidade em caso de reload durante o loop
+          const remaining = getPendingActions().filter(a => a.id !== action.id);
+          const user = auth.getCurrentUser();
+          if (user) {
+            localStorage.setItem(`${PENDING_ACTIONS_KEY}_${user.id}`, JSON.stringify(remaining));
+          }
+          await method(...action.args);
+        }
+      } catch (e) {
+        success = false;
+        console.error("Failed to sync action", action, e);
+      }
+    }
+    
+    if (success) {
+      clearPendingActions();
+      toast.success("Dados sincronizados com a nuvem!");
+    }
+    return success;
+  },
   pushToCloud: async () => true
 };
