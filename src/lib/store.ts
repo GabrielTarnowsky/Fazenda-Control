@@ -260,7 +260,7 @@ const CACHE_PREFIX = "bovi_cache_";
 
 function saveDataCache(key: string, data: any) {
   try {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     localStorage.setItem(`${CACHE_PREFIX}${user.id}_${key}`, JSON.stringify({
       data,
@@ -381,7 +381,7 @@ const auth = {
 export const store = {
   auth,
   addAnimal: async (a: Omit<Animal, "id">) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     // Core fields that MUST exist in every schema
     const item: any = { 
@@ -424,26 +424,35 @@ export const store = {
     }
   },
   updateAnimal: async (id: string, data: Partial<Animal>) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     const sanitized: any = {};
-    // Update all columns now that schema is fully supported
     const allowed = ['tag', 'birth_date', 'sex', 'breed', 'weight', 'status', 'categoria', 'origem', 'data_compra', 'valor_compra', 'preco_arroba', 'peso_entrada', 'peso_saida', 'data_saida', 'valor_venda', 'matriz_id', 'lot'];
     allowed.forEach(col => {
       const val = col === 'lot' ? (data as any).lote_id : (data as any)[col];
       if (val != null && val !== '') sanitized[col] = val;
     });
-    const { error } = await supabase.from('animals').update(sanitized).eq('id', id).eq('user_id', user.id);
-    if (error) toast.error("Erro ao atualizar animal");
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      addPendingAction({ method: 'updateAnimal', args: [id, data] });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('animals').update(sanitized).eq('id', id).eq('user_id', user.id);
+      if (error) throw error;
+    } catch {
+      addPendingAction({ method: 'updateAnimal', args: [id, data] });
+    }
   },
   deleteAnimal: async (id: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     const { error } = await supabase.from('animals').delete().eq('id', id).eq('user_id', user.id);
     if (error) toast.error("Erro ao deletar animal");
   },
   getAnimal: async (id: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return null;
     const { data } = await supabase.from('animals').select('*').eq('id', id).eq('user_id', user.id).single();
     return data;
@@ -451,7 +460,7 @@ export const store = {
 
   // Events
   getEvents: async () => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -468,18 +477,18 @@ export const store = {
     }
   },
   getEvent: async (id: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return null;
     const { data } = await supabase.from('events').select('*').eq('id', id).eq('user_id', user.id).single();
     return data;
   },
   updateEvent: async (id: string, data: Partial<AnimalEvent>) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     await supabase.from('events').update(data).eq('id', id).eq('user_id', user.id);
   },
   deleteEvent: async (id: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     const event = await store.getEvent(id);
     if (event && (event.type === 'venda' || event.type === 'morte')) {
@@ -497,20 +506,20 @@ export const store = {
     await supabase.from('events').delete().eq('id', id).eq('user_id', user.id);
   },
   getEventsByAnimal: async (animalId: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
     const { data } = await supabase.from('events').select('*').eq('animal_id', animalId).eq('user_id', user.id).order('date', { ascending: false });
     return data || [];
   },
   getFeedingLogs: async (): Promise<FeedingLog[]> => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
     const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'feeding_log');
     if (!data) return [];
     return data.map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
   },
   addFeedingLog: async (log: Omit<FeedingLog, "id">) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { ...log, id: v4(), user_id: user.id };
     
@@ -539,7 +548,7 @@ export const store = {
     return item;
   },
   addEvent: async (e: Omit<AnimalEvent, "id">) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { 
       id: v4(),
@@ -547,27 +556,40 @@ export const store = {
       type: e.type,
       date: e.date,
       description: e.description,
-      value: e.type === "pesagem" ? e.weight : e.value, // Treat weight as value for weighing events
+      value: e.type === "pesagem" ? e.weight : e.value,
       user_id: user.id
     };
-    const { data, error } = await supabase.from('events').insert([item]).select().single();
-    if (error) throw error;
 
-    if (e.type === "pesagem" && e.weight) {
-      await store.updateAnimal(e.animal_id, { weight: e.weight });
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      addPendingAction({ method: 'addEvent', args: [e] });
+      // Call nested updates directly so they are also queued
+      if (e.type === "pesagem" && e.weight) store.updateAnimal(e.animal_id, { weight: e.weight });
+      if (e.type === "venda") store.updateAnimal(e.animal_id, { status: "vendido", peso_saida: e.weight });
+      if (e.type === "morte") store.updateAnimal(e.animal_id, { status: "morto", peso_saida: e.weight });
+      return item;
     }
-    if (e.type === "venda") {
-      await store.updateAnimal(e.animal_id, { status: "vendido", peso_saida: e.weight });
+
+    try {
+      const { data, error } = await supabase.from('events').insert([item]).select().single();
+      if (error) throw error;
+      
+      if (e.type === "pesagem" && e.weight) await store.updateAnimal(e.animal_id, { weight: e.weight });
+      if (e.type === "venda") await store.updateAnimal(e.animal_id, { status: "vendido", peso_saida: e.weight });
+      if (e.type === "morte") await store.updateAnimal(e.animal_id, { status: "morto", peso_saida: e.weight });
+      
+      return data;
+    } catch {
+      addPendingAction({ method: 'addEvent', args: [e] });
+      if (e.type === "pesagem" && e.weight) store.updateAnimal(e.animal_id, { weight: e.weight });
+      if (e.type === "venda") store.updateAnimal(e.animal_id, { status: "vendido", peso_saida: e.weight });
+      if (e.type === "morte") store.updateAnimal(e.animal_id, { status: "morto", peso_saida: e.weight });
+      return item;
     }
-    if (e.type === "morte") {
-      await store.updateAnimal(e.animal_id, { status: "morto", peso_saida: e.weight });
-    }
-    return data;
   },
 
   // Financial
   getFinancials: async () => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -584,7 +606,7 @@ export const store = {
     }
   },
   addFinancial: async (f: Omit<Financial, "id">, installments: number = 1) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const items: any[] = [];
     if (installments > 1) {
@@ -635,24 +657,24 @@ export const store = {
     }
   },
   updateFinancial: async (id: string, data: Partial<Financial>) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     await supabase.from('financial').update(data).eq('id', id).eq('user_id', user.id);
   },
   deleteFinancial: async (id: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
   clearFinancials: async () => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     await supabase.from('financial').delete().eq('user_id', user.id);
   },
 
   // Insemination / Health
   getInseminations: async () => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -669,7 +691,7 @@ export const store = {
     }
   },
   addInsemination: async (ins: Omit<Insemination, "id">) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { 
       id: v4(),
@@ -689,7 +711,7 @@ export const store = {
     return data;
   },
   addHealth: async (h: Omit<Health, "id">) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     // Using insemination table for health as per mapping
     const item = { 
@@ -705,14 +727,14 @@ export const store = {
     return data;
   },
   updateInsemination: async (id: string, data: Partial<Insemination>) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     await supabase.from('insemination').update(data).eq('id', id).eq('user_id', user.id);
   },
 
   // --- RATIONS & INGREDIENTS METADATA OVER FINANCIAL ---
   getIngredients: async (): Promise<Ingredient[]> => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
     try {
       const { data, error } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'ingredient');
@@ -725,7 +747,7 @@ export const store = {
     }
   },
   addIngredient: async (ing: Omit<Ingredient, "id">) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { ...ing, id: v4(), user_id: user.id };
     const fin = { id: item.id, type: 'metadata', category: 'ingredient', value: 0, date: new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
@@ -734,7 +756,7 @@ export const store = {
     return item;
   },
   updateIngredient: async (id: string, data: Partial<Ingredient>) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     const all = await store.getIngredients();
     const existing = all.find(i => i.id === id);
@@ -744,20 +766,20 @@ export const store = {
     await supabase.from('financial').update(finParams).eq('id', id).eq('user_id', user.id);
   },
   deleteIngredient: async (id: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
 
   getRations: async (): Promise<Ration[]> => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
     const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'ration');
     if (!data) return [];
     return data.map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
   },
   addRation: async (rat: Omit<Ration, "id">) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { ...rat, id: v4(), user_id: user.id };
     const fin = { id: item.id, type: 'metadata', category: 'ration', value: 0, date: new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
@@ -766,7 +788,7 @@ export const store = {
     return item;
   },
   updateRation: async (id: string, data: Partial<Ration>) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     const all = await store.getRations();
     const existing = all.find(r => r.id === id);
@@ -775,20 +797,20 @@ export const store = {
     await supabase.from('financial').update({ description: JSON.stringify(updated) }).eq('id', id).eq('user_id', user.id);
   },
   deleteRation: async (id: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
 
   getIngredientPurchases: async (): Promise<IngredientPurchase[]> => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return [];
     const { data } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'purchase');
     if (!data) return [];
     return data.map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
   },
   addIngredientPurchase: async (pur: Omit<IngredientPurchase, "id">) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { ...pur, id: v4(), user_id: user.id };
     const finMeta = { id: item.id, type: 'metadata', category: 'purchase', value: item.total_value || 0, date: item.date || new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
@@ -818,7 +840,7 @@ export const store = {
     return item;
   },
   updateIngredientPurchase: async (id: string, data: Partial<IngredientPurchase>) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     const all = await store.getIngredientPurchases();
     const existing = all.find(p => p.id === id);
@@ -855,7 +877,7 @@ export const store = {
     }
   },
   deleteIngredientPurchase: async (id: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
     
     // Tenta encontrar a despesa associada antes de deletar
@@ -888,7 +910,7 @@ export const store = {
   },
 
   updateSetting: async (key: string, value: string) => {
-    const user = store.auth.getCurrentUser();
+    const user = auth.getCurrentUser();
     if (!user) return;
 
     const { error } = await supabase.from('settings').upsert({
