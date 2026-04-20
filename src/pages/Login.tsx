@@ -69,6 +69,8 @@ export default function Login() {
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <Input 
                     type="email" 
+                    name="email"
+                    autoComplete="username email"
                     placeholder="seu@parceiro.com" 
                     className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-primary/50 transition-all rounded-xl"
                     value={email}
@@ -87,6 +89,8 @@ export default function Login() {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
                   <Input 
                     type="password" 
+                    name="password"
+                    autoComplete="current-password"
                     placeholder="••••••••" 
                     className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-primary/50 transition-all rounded-xl"
                     value={password}

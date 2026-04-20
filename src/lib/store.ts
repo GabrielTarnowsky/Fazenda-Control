@@ -201,9 +201,9 @@ export function validatePasswordStrength(pass: string): string | null {
   return null; // Senha válida
 }
 
-// --- SESSION: Com expiração de 24h ---
+// --- SESSION: Com expiração persistente ---
 const SESSION_KEY = "bovi_session";
-const SESSION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 horas
+const SESSION_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
 
 interface SessionData {
   userId: string;
