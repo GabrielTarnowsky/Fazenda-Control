@@ -848,6 +848,28 @@ export const store = {
     if (!user) return;
     await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
+  recalculateIngredientCosts: async () => {
+    const user = auth.getCurrentUser();
+    if (!user) return;
+    const ingredients = await store.getIngredients();
+    const purchases = await store.getIngredientPurchases();
+    
+    let updatedCount = 0;
+    for (const ing of ingredients) {
+      const ingPurchases = purchases.filter(p => p.ingredient_id === ing.id);
+      if (ingPurchases.length > 0) {
+        ingPurchases.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const latest = ingPurchases[0];
+        const cost = latest.cost_per_kg || (latest.total_value / latest.total_qty_kg);
+        
+        if (cost && cost > 0 && ing.cost_per_kg !== cost) {
+          await store.updateIngredient(ing.id, { cost_per_kg: cost });
+          updatedCount++;
+        }
+      }
+    }
+    return updatedCount;
+  },
 
   getRations: async (): Promise<Ration[]> => {
     const user = auth.getCurrentUser();

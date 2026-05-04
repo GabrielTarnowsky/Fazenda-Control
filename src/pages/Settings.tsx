@@ -267,6 +267,35 @@ export default function SettingsPage() {
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0" />
           </button>
+          
+          <div className="border-t border-muted/40 p-4">
+            <button 
+              onClick={async () => {
+                setSyncing(true);
+                try {
+                  const count = await store.recalculateIngredientCosts();
+                  if (count !== undefined) {
+                    toast.success(`${count} insumos foram atualizados com os preços de compras anteriores!`);
+                  }
+                } catch (e) {
+                  toast.error("Erro ao atualizar insumos.");
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+              disabled={syncing}
+              className="w-full flex items-center justify-between p-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 rounded-xl transition-colors active:scale-[0.99] disabled:opacity-60 border border-amber-500/20"
+            >
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <div className="text-left">
+                  <p className="font-bold text-xs">Corrigir Preços de Insumos Antigos</p>
+                  <p className="text-[10px] opacity-80">Atualiza insumos que estavam com preço R$ 0,00</p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 opacity-50 shrink-0" />
+            </button>
+          </div>
         </CardContent>
       </Card>
 
