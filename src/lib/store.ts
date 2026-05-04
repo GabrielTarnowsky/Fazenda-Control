@@ -322,41 +322,75 @@ const auth = {
   signup: async (name: string, email: string, pass: string, farmName?: string) => {
     const passError = validatePasswordStrength(pass);
     if (passError) throw new Error(passError);
-    const { hash, salt } = await hashPassword(pass);
-    const { data, error } = await supabase.from('users').insert([{
-      name,
+    
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
-      password_hash: hash,
-      salt,
-      farm_name: farmName ? sanitizeString(farmName) : null
-    }]).select().single();
-    if (error) {
-      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+      password: pass,
+      options: {
+        data: {
+          name,
+          farm_name: farmName ? sanitizeString(farmName) : null
+        }
+      }
+    });
+
+    if (authError) {
+      if (authError.message?.includes('already registered')) {
         throw new Error("Este email já está cadastrado");
       }
-      throw error;
+      throw authError;
     }
+    
+    if (!authData.user) throw new Error("Erro ao criar usuário");
+    
+    const { data, error } = await supabase.from('users').insert([{
+      id: authData.user.id,
+      name,
+      email: email.trim().toLowerCase(),
+      farm_name: farmName ? sanitizeString(farmName) : null
+    }]).select().single();
+
+    if (error) {
+      const profile = { id: authData.user.id, name, email: email.trim().toLowerCase(), farm_name: farmName };
+      saveUserProfile(profile);
+      saveSession(authData.user.id);
+      return profile;
+    }
+
     saveUserProfile(data);
+    saveSession(data.id);
     return data;
   },
   login: async (email: string, pass: string) => {
-    const { data, error } = await supabase.from('users').select('id, name, email, password_hash, salt, farm_name').ilike('email', email.trim().toLowerCase());
-    if (error || !data || data.length === 0) throw new Error("Email não encontrado");
-    const dbUser = data[0];
-    if (!dbUser.salt) {
-      const legacyHash = btoa(pass);
-      if (dbUser.password_hash !== legacyHash) throw new Error("Senha incorreta");
-      const { hash: newHash, salt: newSalt } = await hashPassword(pass);
-      await supabase.from('users').update({ password_hash: newHash, salt: newSalt }).eq('id', dbUser.id);
-    } else {
-      const { hash } = await hashPassword(pass, dbUser.salt);
-      if (hash !== dbUser.password_hash) throw new Error("Senha incorreta");
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: pass
+    });
+
+    if (authError) {
+      if (authError.message.includes('Invalid login credentials')) {
+        throw new Error("Email ou senha incorretos");
+      }
+      throw authError;
     }
-    saveSession(dbUser.id);
-    saveUserProfile(dbUser);
-    return { id: dbUser.id, name: dbUser.name, email: dbUser.email };
+
+    if (!authData.user) throw new Error("Erro no login");
+
+    const { data, error } = await supabase.from('users').select('id, name, email, farm_name').eq('id', authData.user.id).single();
+    
+    const profile = data || { 
+      id: authData.user.id, 
+      name: authData.user.user_metadata?.name || "Usuário", 
+      email: authData.user.email || email,
+      farm_name: authData.user.user_metadata?.farm_name
+    };
+
+    saveSession(authData.user.id);
+    saveUserProfile(profile);
+    return profile;
   },
-  logout: () => {
+  logout: async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem(SESSION_KEY);
     clearUserProfile();
   },
@@ -370,11 +404,21 @@ const auth = {
   resetPassword: async (email: string, newPassword: string) => {
     const passError = validatePasswordStrength(newPassword);
     if (passError) throw new Error(passError);
-    const { data, error } = await supabase.from('users').select('id').ilike('email', email.trim().toLowerCase());
-    if (error || !data || data.length === 0) throw new Error("Email não encontrado");
-    const { hash, salt } = await hashPassword(newPassword);
-    const { error: updateError } = await supabase.from('users').update({ password_hash: hash, salt }).eq('id', data[0].id);
-    if (updateError) throw new Error("Erro ao redefinir senha");
+    
+    // O Supabase Auth não permite redefinir a senha só com o email de forma síncrona por segurança.
+    // Vamos tentar atualizar o usuário atual, se ele estiver logado, ou enviar um email de reset.
+    const { data: sessionData } = await supabase.auth.getSession();
+    
+    if (sessionData.session) {
+      // Usuário logado alterando a senha
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw new Error("Erro ao atualizar senha");
+    } else {
+      // Usuário deslogado esqueceu a senha
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      if (error) throw new Error("Erro ao solicitar redefinição: " + error.message);
+      throw new Error("Por segurança, um link de redefinição foi enviado para seu email. Clique nele para redefinir.");
+    }
   }
 };
 
@@ -871,6 +915,16 @@ export const store = {
 
     const { error } = await supabase.from('financial').insert([finMeta, finExpense]);
     if (error) throw error;
+    
+    // Atualiza o custo por kg do insumo com a compra mais recente
+    if (item.ingredient_id && item.cost_per_kg) {
+      try {
+        await store.updateIngredient(item.ingredient_id, { cost_per_kg: item.cost_per_kg });
+      } catch (e) {
+        console.error("Erro ao atualizar custo do insumo:", e);
+      }
+    }
+
     return item;
   },
   updateIngredientPurchase: async (id: string, data: Partial<IngredientPurchase>) => {
