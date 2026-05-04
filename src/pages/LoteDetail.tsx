@@ -686,6 +686,19 @@ export default function LoteDetail() {
                   ? (vendaValue - custoAnimal - freteDesc)
                   : ((animal.weight / 15) * marketPrice - custoAnimal);
 
+               // Cálculo do GMD
+               let pesoEnt = animal.peso_entrada && animal.peso_entrada > 0 ? animal.peso_entrada : 0;
+               if (pesoEnt === 0) {
+                 const evs = events.filter(e => e.animal_id === animal.id && e.type === "pesagem").sort((ev1, ev2) => ev1.date.localeCompare(ev2.date));
+                 pesoEnt = evs.length > 0 ? evs[0].weight : (animal.origem === "Nascimento" ? 30 : animal.weight);
+               }
+               const dataEntrada = animal.data_compra || animal.birth_date;
+               const dataSaida = vendaOrMorte && vendaOrMorte.date ? vendaOrMorte.date : new Date().toISOString().split("T")[0];
+               const msDiff = new Date(dataSaida).getTime() - new Date(dataEntrada).getTime();
+               const days = Math.max(1, msDiff / (1000 * 3600 * 24));
+               const ganhoKg = displayWeight - pesoEnt;
+               const gmd = ganhoKg / days;
+
                return (
                  <div key={animal.id} onClick={() => navigate(`/animals/${animal.id}`)} className="bg-card rounded-2xl p-4 border flex flex-col cursor-pointer opacity-80 hover:opacity-100 transition-all shadow-sm border-muted/60">
                    <div className="flex items-center justify-between">
@@ -708,6 +721,7 @@ export default function LoteDetail() {
                    </div>
                    <div className="mt-3 pt-3 border-t border-muted/50 flex justify-between items-center text-[10px] font-black uppercase text-muted-foreground">
                       <span>Lucro Real: <span className={lucro > 0 ? "text-emerald-600" : "text-destructive"}>R$ {lucro.toFixed(0)}</span></span>
+                      <span className="text-blue-600">GMD: {gmd.toFixed(2)}</span>
                    </div>
                  </div>
                );

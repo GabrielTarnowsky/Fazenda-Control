@@ -77,6 +77,19 @@ export default function AnimalDetail() {
   
   const pesoEnt = animal.peso_entrada || (events.filter(e => e.type === "pesagem").sort((a,b) => a.date.localeCompare(b.date))[0]?.weight) || (animal.origem === 'Nascimento' ? 30 : animal.weight);
 
+  const dataEntrada = animal.data_compra || animal.birth_date;
+  let dFim = new Date().toISOString().split("T")[0];
+  if (animal.status === "vendido" || animal.status === "morto") {
+    if (saleEvent && saleEvent.date) dFim = saleEvent.date;
+  }
+  const msDiff = new Date(dFim).getTime() - new Date(dataEntrada).getTime();
+  const dias = Math.max(1, msDiff / (1000 * 3600 * 24));
+  
+  let pSai = animal.peso_saida || (saleEvent && saleEvent.weight > 0 ? saleEvent.weight : animal.weight);
+  const pSaiAdj = animal.status === "vendido" ? pSai * 2 : pSai;
+  const gKg = pSaiAdj - pesoEnt;
+  const gmd = gKg / dias;
+
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-4">
       <div className="flex items-center justify-between mb-2">
@@ -134,7 +147,7 @@ export default function AnimalDetail() {
       )}
 
       <div className="bg-card rounded-2xl p-4 border shadow-xl space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
            <div className="space-y-0.5">
              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Sexo</p>
              <p className="font-bold">{animal.sex}</p>
@@ -152,6 +165,14 @@ export default function AnimalDetail() {
            <div className="space-y-0.5">
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Preço do Kg/V</p>
               <p className="font-bold">R$ {animal.preco_arroba?.toFixed(2) || "—"}</p>
+           </div>
+           <div className="space-y-0.5">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tempo (Dias)</p>
+              <p className="font-bold">{dias.toFixed(0)}</p>
+           </div>
+           <div className="space-y-0.5 bg-blue-500/5 p-1.5 -m-1.5 rounded-lg border border-blue-500/10">
+              <p className="text-[10px] font-black text-blue-700/70 uppercase tracking-widest">GMD (kg/dia)</p>
+              <p className="text-lg font-black text-blue-700">{gmd.toFixed(2)}</p>
            </div>
         </div>
 
