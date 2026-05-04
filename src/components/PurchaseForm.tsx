@@ -83,7 +83,12 @@ export default function PurchaseForm({ onSuccess, onCancel }: PurchaseFormProps)
             <Input type="number" step="0.01" value={form.total_value || ""} onChange={e => setForm({ ...form, total_value: Number(e.target.value) })} placeholder="0.00" className="h-11 font-bold" />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs uppercase font-bold text-muted-foreground">Quantidade (kg)</Label>
+            <Label className="text-xs uppercase font-bold text-muted-foreground flex justify-between">
+              <span>Quantidade (kg)</span>
+              {form.total_value > 0 && form.total_qty_kg > 0 && (
+                <span className="text-primary ml-2">R$ {(form.total_value / form.total_qty_kg).toFixed(2)}/kg</span>
+              )}
+            </Label>
             <Input type="number" step="0.1" value={form.total_qty_kg || ""} onChange={e => setForm({ ...form, total_qty_kg: Number(e.target.value) })} placeholder="0" className="h-11 font-bold" />
           </div>
           <div className="space-y-2">
