@@ -334,7 +334,7 @@ export default function Rations() {
                             R$ {p.total_value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </td>
                           <td className="px-4 py-3 text-right">
-                             <Badge variant="outline" className="font-black text-primary">R$ {(p.unit_price || 0).toFixed(2)}/kg</Badge>
+                             <Badge variant="outline" className="font-black text-primary">R$ {(p.cost_per_kg || (p.total_value / p.total_qty_kg) || 0).toFixed(2)}/kg</Badge>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
