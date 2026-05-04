@@ -44,15 +44,15 @@ export default function Simulator() {
 
   const [form, setForm] = useState({
     name: "Nova Simulação",
-    quantity: 50,
-    initialWeight: 200, // kg
-    purchasePricePerHead: 2000, // R$
-    expectedGMD: 0.8, // kg/dia
-    days: 120, // dias
-    dailyCost: 4.50, // R$/dia
-    extraCost: 1500, // R$ (Frete, etc)
-    expectedSalePrice: 280, // R$
-    yieldPct: 52 // %
+    quantity: "50",
+    initialWeight: "200", // kg
+    purchasePricePerHead: "2000", // R$
+    expectedGMD: "0.8", // kg/dia
+    days: "120", // dias
+    dailyCost: "4.50", // R$/dia
+    extraCost: "1500", // R$ (Frete, etc)
+    expectedSalePrice: "280", // R$
+    yieldPct: "52" // %
   });
 
   // Carregar cotação do mercado atual se possível
@@ -60,7 +60,7 @@ export default function Simulator() {
     store.getSettings().then(settings => {
       const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
       if (price) {
-        setForm(prev => ({ ...prev, expectedSalePrice: Number(price) }));
+        setForm(prev => ({ ...prev, expectedSalePrice: price }));
       }
     });
 
@@ -76,7 +76,16 @@ export default function Simulator() {
     const newSim: SavedSimulation = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
-      ...form,
+      name: form.name,
+      quantity: Number(form.quantity) || 0,
+      initialWeight: Number(form.initialWeight) || 0,
+      purchasePricePerHead: Number(form.purchasePricePerHead) || 0,
+      expectedGMD: Number(form.expectedGMD) || 0,
+      days: Number(form.days) || 0,
+      dailyCost: Number(form.dailyCost) || 0,
+      extraCost: Number(form.extraCost) || 0,
+      expectedSalePrice: Number(form.expectedSalePrice) || 0,
+      yieldPct: Number(form.yieldPct) || 0,
       netProfit: results.netProfit,
       roi: results.roi
     };
@@ -97,25 +106,30 @@ export default function Simulator() {
   const loadSimulation = (sim: SavedSimulation) => {
     setForm({
       name: sim.name,
-      quantity: sim.quantity,
-      initialWeight: sim.initialWeight,
-      purchasePricePerHead: sim.purchasePricePerHead,
-      expectedGMD: sim.expectedGMD,
-      days: sim.days,
-      dailyCost: sim.dailyCost,
-      extraCost: sim.extraCost,
-      expectedSalePrice: sim.expectedSalePrice,
-      yieldPct: sim.yieldPct
+      quantity: sim.quantity.toString(),
+      initialWeight: sim.initialWeight.toString(),
+      purchasePricePerHead: sim.purchasePricePerHead.toString(),
+      expectedGMD: sim.expectedGMD.toString(),
+      days: sim.days.toString(),
+      dailyCost: sim.dailyCost.toString(),
+      extraCost: sim.extraCost.toString(),
+      expectedSalePrice: sim.expectedSalePrice.toString(),
+      yieldPct: sim.yieldPct.toString()
     });
     setShowSaved(false);
     toast.success("Simulação carregada");
   };
 
   const results = useMemo(() => {
-    const { 
-      quantity, initialWeight, purchasePricePerHead, expectedGMD, 
-      days, dailyCost, extraCost, expectedSalePrice, yieldPct 
-    } = form;
+    const quantity = Number(form.quantity) || 0;
+    const initialWeight = Number(form.initialWeight) || 0;
+    const purchasePricePerHead = Number(form.purchasePricePerHead) || 0;
+    const expectedGMD = Number(form.expectedGMD) || 0;
+    const days = Number(form.days) || 0;
+    const dailyCost = Number(form.dailyCost) || 0;
+    const extraCost = Number(form.extraCost) || 0;
+    const expectedSalePrice = Number(form.expectedSalePrice) || 0;
+    const yieldPct = Number(form.yieldPct) || 0;
 
     const yieldDecimal = yieldPct / 100;
     
@@ -240,11 +254,11 @@ export default function Simulator() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Qtd. Animais</Label>
-                      <Input type="number" value={form.quantity} onChange={e => setForm({...form, quantity: Number(e.target.value)})} className="h-11 font-black" />
+                      <Input type="number" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="h-11 font-black" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Peso Inicial (kg)</Label>
-                      <Input type="number" value={form.initialWeight} onChange={e => setForm({...form, initialWeight: Number(e.target.value)})} className="h-11 font-black" />
+                      <Input type="number" value={form.initialWeight} onChange={e => setForm({...form, initialWeight: e.target.value})} className="h-11 font-black" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -252,12 +266,12 @@ export default function Simulator() {
                       <Label className="text-xs font-bold text-muted-foreground">Valor por Cabeça</Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
-                        <Input type="number" value={form.purchasePricePerHead} onChange={e => setForm({...form, purchasePricePerHead: Number(e.target.value)})} className="h-11 font-black pl-8" />
+                        <Input type="number" value={form.purchasePricePerHead} onChange={e => setForm({...form, purchasePricePerHead: e.target.value})} className="h-11 font-black pl-8" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Rendimento (%)</Label>
-                      <Input type="number" value={form.yieldPct} onChange={e => setForm({...form, yieldPct: Number(e.target.value)})} className="h-11 font-black" />
+                      <Input type="number" value={form.yieldPct} onChange={e => setForm({...form, yieldPct: e.target.value})} className="h-11 font-black" />
                     </div>
                   </div>
                 </div>
@@ -269,11 +283,11 @@ export default function Simulator() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">GMD Esperado (kg)</Label>
-                      <Input type="number" step="0.1" value={form.expectedGMD} onChange={e => setForm({...form, expectedGMD: Number(e.target.value)})} className="h-11 font-black" />
+                      <Input type="number" step="0.1" value={form.expectedGMD} onChange={e => setForm({...form, expectedGMD: e.target.value})} className="h-11 font-black" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Ciclo (Dias)</Label>
-                      <Input type="number" value={form.days} onChange={e => setForm({...form, days: Number(e.target.value)})} className="h-11 font-black" />
+                      <Input type="number" value={form.days} onChange={e => setForm({...form, days: e.target.value})} className="h-11 font-black" />
                     </div>
                   </div>
                 </div>
@@ -287,14 +301,14 @@ export default function Simulator() {
                       <Label className="text-xs font-bold text-muted-foreground">Custo Diária (R$/cab)</Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
-                        <Input type="number" step="0.5" value={form.dailyCost} onChange={e => setForm({...form, dailyCost: Number(e.target.value)})} className="h-11 font-black pl-8" />
+                        <Input type="number" step="0.5" value={form.dailyCost} onChange={e => setForm({...form, dailyCost: e.target.value})} className="h-11 font-black pl-8" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Custos Extras (Total)</Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
-                        <Input type="number" value={form.extraCost} onChange={e => setForm({...form, extraCost: Number(e.target.value)})} className="h-11 font-black pl-8" />
+                        <Input type="number" value={form.extraCost} onChange={e => setForm({...form, extraCost: e.target.value})} className="h-11 font-black pl-8" />
                       </div>
                     </div>
                   </div>
@@ -302,7 +316,7 @@ export default function Simulator() {
                     <Label className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Preço da @ de Venda (Futuro)</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm">R$</span>
-                      <Input type="number" value={form.expectedSalePrice} onChange={e => setForm({...form, expectedSalePrice: Number(e.target.value)})} className="h-14 text-2xl font-black pl-9 border-emerald-500/30 bg-emerald-500/5 focus-visible:ring-emerald-500" />
+                      <Input type="number" value={form.expectedSalePrice} onChange={e => setForm({...form, expectedSalePrice: e.target.value})} className="h-14 text-2xl font-black pl-9 border-emerald-500/30 bg-emerald-500/5 focus-visible:ring-emerald-500" />
                     </div>
                   </div>
                 </div>
