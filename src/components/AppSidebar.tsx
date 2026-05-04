@@ -19,8 +19,8 @@ const navItems = [
   { title: "Lotes", url: "/lotes", icon: Target },
   { title: "Rações", url: "/rations", icon: Wheat },
   { title: "Reprodução", url: "/insemination", icon: Baby },
-  { title: "Relatórios", url: "/reports", icon: FileText },
   { title: "Simulador", url: "/simulator", icon: Calculator },
+  { title: "Relatórios", url: "/reports", icon: FileText },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
