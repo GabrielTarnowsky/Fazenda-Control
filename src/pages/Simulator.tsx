@@ -27,7 +27,7 @@ interface SavedSimulation {
   name: string;
   quantity: number;
   initialWeight: number;
-  purchasePricePerArroba: number;
+  purchasePricePerHead: number;
   expectedGMD: number;
   days: number;
   dailyCost: number;
@@ -46,7 +46,7 @@ export default function Simulator() {
     name: "Nova Simulação",
     quantity: 50,
     initialWeight: 200, // kg
-    purchasePricePerArroba: 250, // R$
+    purchasePricePerHead: 2000, // R$
     expectedGMD: 0.8, // kg/dia
     days: 120, // dias
     dailyCost: 4.50, // R$/dia
@@ -99,7 +99,7 @@ export default function Simulator() {
       name: sim.name,
       quantity: sim.quantity,
       initialWeight: sim.initialWeight,
-      purchasePricePerArroba: sim.purchasePricePerArroba,
+      purchasePricePerHead: sim.purchasePricePerHead,
       expectedGMD: sim.expectedGMD,
       days: sim.days,
       dailyCost: sim.dailyCost,
@@ -113,7 +113,7 @@ export default function Simulator() {
 
   const results = useMemo(() => {
     const { 
-      quantity, initialWeight, purchasePricePerArroba, expectedGMD, 
+      quantity, initialWeight, purchasePricePerHead, expectedGMD, 
       days, dailyCost, extraCost, expectedSalePrice, yieldPct 
     } = form;
 
@@ -127,8 +127,11 @@ export default function Simulator() {
     const finalWeight = initialWeight + totalGainKg;
     const finalArroba = (finalWeight * yieldDecimal) / 15;
 
+    // Valor pago por @ inicial
+    const paidPerArroba = initialArroba > 0 ? purchasePricePerHead / initialArroba : 0;
+
     // Investimentos e Custos
-    const totalPurchase = quantity * initialArroba * purchasePricePerArroba;
+    const totalPurchase = quantity * purchasePricePerHead;
     const totalMaintenance = (quantity * days * dailyCost) + extraCost;
     const totalInvestment = totalPurchase + totalMaintenance;
 
@@ -146,6 +149,7 @@ export default function Simulator() {
       initialArroba,
       finalWeight,
       finalArroba,
+      paidPerArroba,
       totalPurchase,
       totalMaintenance,
       totalInvestment,
@@ -245,10 +249,10 @@ export default function Simulator() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-muted-foreground">Valor de Compra da @</Label>
+                      <Label className="text-xs font-bold text-muted-foreground">Valor por Cabeça</Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
-                        <Input type="number" value={form.purchasePricePerArroba} onChange={e => setForm({...form, purchasePricePerArroba: Number(e.target.value)})} className="h-11 font-black pl-8" />
+                        <Input type="number" value={form.purchasePricePerHead} onChange={e => setForm({...form, purchasePricePerHead: Number(e.target.value)})} className="h-11 font-black pl-8" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
@@ -371,6 +375,10 @@ export default function Simulator() {
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-muted-foreground">Aquisição Gado</span>
                       <span className="font-black">R$ {results.totalPurchase.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-muted/30 px-2 py-1 -mx-2 rounded border border-muted/50">
+                      <span className="text-[10px] font-black uppercase text-muted-foreground">Valor pago por @</span>
+                      <span className="font-black text-xs">R$ {results.paidPerArroba.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-muted-foreground">Alimentação/Trato</span>
