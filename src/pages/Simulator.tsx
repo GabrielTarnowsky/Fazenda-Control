@@ -615,7 +615,6 @@ export default function Simulator() {
                   </CardContent>
                 </Card>
 
-              </div>
             </div>
           </div>
 
