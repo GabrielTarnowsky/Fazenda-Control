@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Plus, Wheat, ListFilter, TrendingUp, DollarSign, History, Utensils, Package, PackagePlus, Calendar, Pencil, Trash2, Check, X, ChevronDown, Zap, Droplets, Leaf, Gem, FlaskConical } from "lucide-react";
+import { Plus, Wheat, ListFilter, TrendingUp, DollarSign, History, Utensils, Package, PackagePlus, Calendar, Pencil, Trash2, Check, X, ChevronDown, Zap, Droplets, Leaf, Gem, FlaskConical, Activity } from "lucide-react";
 import PurchaseForm from "@/components/PurchaseForm";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
