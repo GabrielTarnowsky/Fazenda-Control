@@ -19,6 +19,7 @@ import {
   Activity,
   ArrowRight
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { store } from "@/lib/store";
 
 interface SavedSimulation {
@@ -34,6 +35,8 @@ interface SavedSimulation {
   extraCost: number;
   expectedSalePrice: number;
   yieldPct: number;
+  saleMethod: string;
+  targetMargin: number;
   netProfit: number;
   roi: number;
 }
@@ -44,22 +47,24 @@ export default function Simulator() {
 
   const [form, setForm] = useState({
     name: "Nova Simulação",
-    quantity: "",
-    initialWeight: "",
-    purchasePricePerHead: "",
-    expectedGMD: "",
-    days: "",
-    dailyCost: "",
-    extraCost: "",
-    expectedSalePrice: "",
-    yieldPct: "50"
+    quantity: "100",
+    initialWeight: "350",
+    purchasePricePerHead: "2800",
+    expectedGMD: "0.8",
+    days: "120",
+    dailyCost: "15",
+    extraCost: "0",
+    expectedSalePrice: "240",
+    yieldPct: "52",
+    saleMethod: "arroba",
+    targetMargin: ""
   });
 
   // Carregar cotação do mercado atual se possível
   useEffect(() => {
     store.getSettings().then(settings => {
       const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
-      if (price) {
+      if (price && !form.expectedSalePrice) {
         setForm(prev => ({ ...prev, expectedSalePrice: price }));
       }
     });
@@ -86,6 +91,8 @@ export default function Simulator() {
       extraCost: Number(form.extraCost) || 0,
       expectedSalePrice: Number(form.expectedSalePrice) || 0,
       yieldPct: Number(form.yieldPct) || 0,
+      saleMethod: form.saleMethod,
+      targetMargin: Number(form.targetMargin) || 0,
       netProfit: results.netProfit,
       roi: results.roi
     };
@@ -114,7 +121,9 @@ export default function Simulator() {
       dailyCost: sim.dailyCost.toString(),
       extraCost: sim.extraCost.toString(),
       expectedSalePrice: sim.expectedSalePrice.toString(),
-      yieldPct: sim.yieldPct.toString()
+      yieldPct: sim.yieldPct.toString(),
+      saleMethod: sim.saleMethod || "arroba",
+      targetMargin: (sim.targetMargin || "").toString()
     });
     setShowSaved(false);
     toast.success("Simulação carregada");
@@ -130,40 +139,59 @@ export default function Simulator() {
     const extraCost = Number(form.extraCost) || 0;
     const expectedSalePrice = Number(form.expectedSalePrice) || 0;
     const yieldPct = Number(form.yieldPct) || 0;
+    const targetMargin = Number(form.targetMargin) || 0;
 
     const yieldDecimal = yieldPct / 100;
     
-    // Peso inicial em @
-    const initialArroba = (initialWeight * yieldDecimal) / 15;
-    
-    // Peso Final
+    // Pesos
     const totalGainKg = expectedGMD * days;
     const finalWeight = initialWeight + totalGainKg;
     const finalArroba = (finalWeight * yieldDecimal) / 15;
-
-    // Valor pago por @ inicial
-    const paidPerArroba = initialArroba > 0 ? purchasePricePerHead / initialArroba : 0;
+    const finalCarcassKg = finalWeight * yieldDecimal;
 
     // Investimentos e Custos
     const totalPurchase = quantity * purchasePricePerHead;
     const totalMaintenance = (quantity * days * dailyCost) + extraCost;
     const totalInvestment = totalPurchase + totalMaintenance;
 
-    // Receita e Lucro
-    const grossRevenue = quantity * finalArroba * expectedSalePrice;
+    // Receita e Lucro baseados no método
+    let grossRevenue = 0;
+    let unitsPerHead = 0;
+    let unitLabel = "";
+
+    switch (form.saleMethod) {
+      case "kg_vivo":
+        unitsPerHead = finalWeight;
+        grossRevenue = quantity * finalWeight * expectedSalePrice;
+        unitLabel = "Kg Vivo";
+        break;
+      case "kg_carcaca":
+        unitsPerHead = finalCarcassKg;
+        grossRevenue = quantity * finalCarcassKg * expectedSalePrice;
+        unitLabel = "Kg Carcaça";
+        break;
+      default: // arroba
+        unitsPerHead = finalArroba;
+        grossRevenue = quantity * finalArroba * expectedSalePrice;
+        unitLabel = "Arroba (@)";
+    }
+
     const netProfit = grossRevenue - totalInvestment;
     const profitPerHead = quantity > 0 ? netProfit / quantity : 0;
     
     // Indicadores
     const roi = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0;
-    const totalProducedArrobas = quantity * ((totalGainKg * yieldDecimal) / 15);
-    const breakevenPrice = quantity > 0 && finalArroba > 0 ? (totalInvestment / quantity) / finalArroba : 0;
+    const breakevenPrice = (quantity > 0 && unitsPerHead > 0) ? (totalInvestment / quantity) / unitsPerHead : 0;
+
+    // Preço Sugerido para Margem Alvo
+    const suggestedPrice = (targetMargin > 0 && quantity > 0 && unitsPerHead > 0) 
+      ? (totalInvestment * (1 + targetMargin / 100) / quantity) / unitsPerHead 
+      : 0;
 
     return {
-      initialArroba,
       finalWeight,
       finalArroba,
-      paidPerArroba,
+      finalCarcassKg,
       totalPurchase,
       totalMaintenance,
       totalInvestment,
@@ -171,8 +199,10 @@ export default function Simulator() {
       netProfit,
       profitPerHead,
       roi,
-      totalProducedArrobas,
-      breakevenPrice
+      breakevenPrice,
+      suggestedPrice,
+      unitLabel,
+      unitsPerHead
     };
   }, [form]);
 
@@ -312,11 +342,36 @@ export default function Simulator() {
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-1.5 pt-2">
-                    <Label className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Preço da @ de Venda (Futuro)</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm">R$</span>
-                      <Input type="number" value={form.expectedSalePrice} onChange={e => setForm({...form, expectedSalePrice: e.target.value})} className="h-14 text-2xl font-black pl-9 border-emerald-500/30 bg-emerald-500/5 focus-visible:ring-emerald-500" />
+
+                  <div className="space-y-4 pt-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Método de Venda</Label>
+                        <Select value={form.saleMethod} onValueChange={v => setForm({...form, saleMethod: v})}>
+                          <SelectTrigger className="h-11 font-bold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="arroba">Por Arroba (@)</SelectItem>
+                            <SelectItem value="kg_vivo">Por Kg Vivo</SelectItem>
+                            <SelectItem value="kg_carcaca">Por Kg Carcaça</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Margem Alvo (%)</Label>
+                        <Input type="number" placeholder="Ex: 20" value={form.targetMargin} onChange={e => setForm({...form, targetMargin: e.target.value})} className="h-11 font-black" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
+                        Preço de Venda Esperado (Por {results.unitLabel})
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm">R$</span>
+                        <Input type="number" value={form.expectedSalePrice} onChange={e => setForm({...form, expectedSalePrice: e.target.value})} className="h-14 text-2xl font-black pl-9 border-emerald-500/30 bg-emerald-500/5 focus-visible:ring-emerald-500" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -360,20 +415,20 @@ export default function Simulator() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3 border-b pb-2">
                     <Scale className="h-4 w-4 text-primary" />
-                    <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Projeção de Peso</h3>
+                    <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Projeção de Saída</h3>
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-muted-foreground">Peso Inicial</span>
-                      <span className="font-black">{results.initialArroba.toFixed(1)} @ <span className="text-muted-foreground/50 text-[10px]">({form.initialWeight}kg)</span></span>
+                      <span className="text-xs font-bold text-muted-foreground">Peso Final (Vivo)</span>
+                      <span className="font-black">{results.finalWeight.toFixed(1)} kg</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-muted-foreground">Ganho no Ciclo</span>
-                      <span className="font-black text-emerald-600">+{((form.expectedGMD * form.days * (form.yieldPct/100)) / 15).toFixed(1)} @ <span className="text-muted-foreground/50 text-[10px]">+{(form.expectedGMD * form.days).toFixed(0)}kg</span></span>
+                      <span className="text-xs font-bold text-muted-foreground">Rendimento Carcaça</span>
+                      <span className="font-black">{results.finalCarcassKg.toFixed(1)} kg</span>
                     </div>
                     <div className="flex justify-between items-center bg-primary/5 p-2 rounded-lg">
-                      <span className="text-xs font-black uppercase">Peso Final/Cab</span>
-                      <span className="font-black text-primary text-lg">{results.finalArroba.toFixed(1)} @ <span className="text-muted-foreground/50 text-[10px] font-bold">({results.finalWeight.toFixed(0)}kg)</span></span>
+                      <span className="text-xs font-black uppercase">Peso em @</span>
+                      <span className="font-black text-primary text-lg">{results.finalArroba.toFixed(2)} @</span>
                     </div>
                   </div>
                 </CardContent>
@@ -383,47 +438,52 @@ export default function Simulator() {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3 border-b pb-2">
                     <DollarSign className="h-4 w-4 text-orange-500" />
-                    <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Estrutura de Custos</h3>
+                    <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Resumo Financeiro</h3>
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-muted-foreground">Aquisição Gado</span>
-                      <span className="font-black">R$ {results.totalPurchase.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-muted/30 px-2 py-1 -mx-2 rounded border border-muted/50">
-                      <span className="text-[10px] font-black uppercase text-muted-foreground">Valor pago por @</span>
-                      <span className="font-black text-xs">R$ {results.paidPerArroba.toFixed(2)}</span>
+                      <span className="text-xs font-bold text-muted-foreground">Investimento Total</span>
+                      <span className="font-black text-orange-700">R$ {results.totalInvestment.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-muted-foreground">Alimentação/Trato</span>
-                      <span className="font-black text-orange-600">R$ {(form.quantity * form.days * form.dailyCost).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
+                      <span className="text-xs font-bold text-muted-foreground">Receita Bruta</span>
+                      <span className="font-black text-emerald-600">R$ {results.grossRevenue.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-muted-foreground">Custos Extras</span>
-                      <span className="font-black">R$ {form.extraCost.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-orange-500/5 p-2 rounded-lg">
-                      <span className="text-xs font-black uppercase text-orange-700">Total Investido</span>
-                      <span className="font-black text-orange-700 text-lg">R$ {results.totalInvestment.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
+                    <div className="flex justify-between items-center bg-slate-100 p-2 rounded-lg">
+                      <span className="text-[10px] font-black uppercase text-slate-500">Custo Total / Cab</span>
+                      <span className="font-black text-slate-700">R$ {(results.totalInvestment / (Number(form.quantity) || 1)).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* ANALISE DE PREÇO */}
               <Card className="border-none shadow-lg bg-slate-900 text-white rounded-xl sm:col-span-2">
-                <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Activity className="h-4 w-4 text-blue-400" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ponto de Equilíbrio (Break-even)</p>
+                <CardContent className="p-5">
+                  <div className="grid sm:grid-cols-2 gap-8 items-center">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Activity className="h-4 w-4 text-blue-400" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ponto de Equilíbrio</p>
+                      </div>
+                      <p className="text-2xl font-black italic text-blue-400">
+                        R$ {results.breakevenPrice.toFixed(2)} <span className="text-xs not-italic text-slate-500">/ {results.unitLabel}</span>
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">Preço necessário para cobrir todos os custos.</p>
                     </div>
-                    <p className="text-xs text-slate-300 font-medium max-w-xs">Preço mínimo que a Arroba precisa ser vendida no final do ciclo para não dar prejuízo (pagar todos os custos).</p>
-                  </div>
-                  <div className="text-right bg-white/10 px-6 py-3 rounded-xl border border-white/10">
-                    <p className="text-2xl font-black italic text-blue-400">
-                      R$ {results.breakevenPrice.toFixed(2)}
-                    </p>
-                    <p className="text-[9px] uppercase font-bold text-slate-400">Por Arroba</p>
+
+                    {results.suggestedPrice > 0 && (
+                      <div className="border-l border-white/10 pl-8 animate-in slide-in-from-right-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <ArrowRight className="h-4 w-4 text-emerald-400" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Preço p/ Margem Alvo ({form.targetMargin}%)</p>
+                        </div>
+                        <p className="text-2xl font-black italic text-emerald-400">
+                          R$ {results.suggestedPrice.toFixed(2)} <span className="text-xs not-italic text-slate-500">/ {results.unitLabel}</span>
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-1">Valor ideal de venda para atingir seu objetivo.</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
