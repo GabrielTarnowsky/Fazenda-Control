@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { store, Ingredient, RationProduct } from "@/lib/store";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +8,16 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Plus, Trash2, Calculator } from "lucide-react";
 import { toast } from "sonner";
 
-// Extend RationProduct with a stable row key for React rendering
-interface ProductRow extends RationProduct {
-  _rowKey: string;
+// Cada linha do formulário — percentage como STRING para controle de input
+interface FormRow {
+  id: string; // chave estável para React
+  ingredient_id: string;
+  percentage: string; // STRING para evitar problemas com input controlado
 }
 
-let _rowCounter = 0;
-function nextRowKey() {
-  return `row_${Date.now()}_${++_rowCounter}`;
+let _counter = 0;
+function makeId() {
+  return `r_${Date.now()}_${++_counter}`;
 }
 
 export default function AddRation() {
@@ -23,7 +25,7 @@ export default function AddRation() {
   const navigate = useNavigate();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [name, setName] = useState("");
-  const [rows, setRows] = useState<ProductRow[]>([]);
+  const [rows, setRows] = useState<FormRow[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -35,9 +37,9 @@ export default function AddRation() {
         if (ration) {
           setName(ration.name);
           setRows((ration.products || []).map(p => ({
-            ...p,
-            percentage: Number(p.percentage) || 0,
-            _rowKey: nextRowKey()
+            id: makeId(),
+            ingredient_id: p.ingredient_id,
+            percentage: String(p.percentage || "")
           })));
         }
       }
@@ -45,25 +47,29 @@ export default function AddRation() {
     load();
   }, [id]);
 
+  // IDs dos ingredientes já usados
+  const usedIngredientIds = useMemo(() => {
+    return new Set(rows.map(r => r.ingredient_id));
+  }, [rows]);
+
+  // Ingredientes ainda disponíveis
+  const availableIngredients = useMemo(() => {
+    return ingredients.filter(ing => !usedIngredientIds.has(ing.id));
+  }, [ingredients, usedIngredientIds]);
+
   const totalPercentage = useMemo(() => {
-    return rows.reduce((acc, p) => acc + (Number(p.percentage) || 0), 0);
+    return rows.reduce((acc, r) => acc + (Number(r.percentage) || 0), 0);
   }, [rows]);
 
   const costPerKg = useMemo(() => {
-    return rows.reduce((acc, p) => {
-      const ing = ingredients.find(i => i.id === p.ingredient_id);
+    return rows.reduce((acc, r) => {
+      const ing = ingredients.find(i => i.id === r.ingredient_id);
       if (!ing) return acc;
-      return acc + (ing.cost_per_kg * ((Number(p.percentage) || 0) / 100));
+      return acc + (ing.cost_per_kg * ((Number(r.percentage) || 0) / 100));
     }, 0);
   }, [rows, ingredients]);
 
-  // Ingredientes que ainda não foram usados em nenhuma linha
-  const availableIngredients = useMemo(() => {
-    const usedIds = new Set(rows.map(r => r.ingredient_id));
-    return ingredients.filter(ing => !usedIds.has(ing.id));
-  }, [rows, ingredients]);
-
-  const handleAddIngredient = useCallback(() => {
+  function addRow() {
     if (ingredients.length === 0) {
       toast.error("Cadastre ingredientes primeiro!");
       return;
@@ -72,26 +78,25 @@ export default function AddRation() {
       toast.error("Todos os ingredientes já foram adicionados!");
       return;
     }
-    setRows(prev => [...prev, { 
-      ingredient_id: availableIngredients[0].id, 
-      percentage: 0, 
-      _rowKey: nextRowKey() 
-    }]);
-  }, [ingredients, availableIngredients]);
+    // Cria nova linha sem alterar as existentes
+    const newRow: FormRow = {
+      id: makeId(),
+      ingredient_id: availableIngredients[0].id,
+      percentage: ""
+    };
+    setRows(prev => [...prev, newRow]);
+  }
 
-  const handleUpdateProduct = useCallback((rowKey: string, field: keyof RationProduct, value: string | number) => {
-    setRows(prev => prev.map(row => {
-      if (row._rowKey !== rowKey) return row;
-      return { 
-        ...row, 
-        [field]: field === 'percentage' ? Number(value) : value 
-      };
+  function updateRow(rowId: string, field: "ingredient_id" | "percentage", value: string) {
+    setRows(prev => prev.map(r => {
+      if (r.id !== rowId) return r;
+      return { ...r, [field]: value };
     }));
-  }, []);
+  }
 
-  const handleRemoveProduct = useCallback((rowKey: string) => {
-    setRows(prev => prev.filter(row => row._rowKey !== rowKey));
-  }, []);
+  function removeRow(rowId: string) {
+    setRows(prev => prev.filter(r => r.id !== rowId));
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,8 +107,11 @@ export default function AddRation() {
       return;
     }
 
-    // Strip internal _rowKey before saving
-    const products: RationProduct[] = rows.map(({ _rowKey, ...rest }) => rest);
+    // Converte para o formato do banco (percentage como number)
+    const products: RationProduct[] = rows.map(r => ({
+      ingredient_id: r.ingredient_id,
+      percentage: Number(r.percentage) || 0
+    }));
 
     const rationData = {
       name,
@@ -125,6 +133,15 @@ export default function AddRation() {
       console.error(err);
     }
   };
+
+  // Para cada linha, calcular quais ingredientes mostrar no dropdown:
+  // o ingrediente atualmente selecionado + os que não foram usados por outras linhas
+  function getOptionsForRow(currentRowId: string, currentIngredientId: string) {
+    return ingredients.filter(ing => 
+      ing.id === currentIngredientId || 
+      !rows.some(r => r.id !== currentRowId && r.ingredient_id === ing.id)
+    );
+  }
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6">
@@ -154,49 +171,57 @@ export default function AddRation() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Composição da Mistura</CardTitle>
-            <Button type="button" size="sm" onClick={handleAddIngredient} className="gap-2" disabled={availableIngredients.length === 0}>
+            <Button 
+              type="button" 
+              size="sm" 
+              onClick={addRow} 
+              className="gap-2" 
+              disabled={availableIngredients.length === 0}
+            >
               <Plus className="h-4 w-4" /> Add Ingrediente {availableIngredients.length > 0 && `(${availableIngredients.length})`}
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            {rows.map((p) => (
-              <div key={p._rowKey} className="flex gap-3 items-end border-b pb-4 last:border-0 last:pb-0">
-                <div className="flex-1 space-y-1">
-                  <Label className="text-[10px] uppercase text-muted-foreground">Produto</Label>
-                  <select 
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-medium"
-                    value={p.ingredient_id}
-                    onChange={(e) => handleUpdateProduct(p._rowKey, "ingredient_id", e.target.value)}
+            {rows.map((row) => {
+              const options = getOptionsForRow(row.id, row.ingredient_id);
+              return (
+                <div key={row.id} className="flex gap-3 items-end border-b pb-4 last:border-0 last:pb-0">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Produto</Label>
+                    <select 
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-medium"
+                      value={row.ingredient_id}
+                      onChange={(e) => updateRow(row.id, "ingredient_id", e.target.value)}
+                    >
+                      {options.map(ing => (
+                        <option key={ing.id} value={ing.id}>
+                          {ing.name} (R$ {ing.cost_per_kg.toFixed(2)}/kg)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">%</Label>
+                    <input
+                      type="number"
+                      value={row.percentage}
+                      onChange={(e) => updateRow(row.id, "percentage", e.target.value)}
+                      placeholder="0"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-center font-bold ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-destructive h-10 w-10" 
+                    onClick={() => removeRow(row.id)}
                   >
-                    {/* Mostra o ingrediente atual desta linha + os ainda disponíveis */}
-                    {ingredients
-                      .filter(ing => ing.id === p.ingredient_id || !rows.some(r => r._rowKey !== p._rowKey && r.ingredient_id === ing.id))
-                      .map(ing => (
-                        <option key={ing.id} value={ing.id}>{ing.name} (R$ {ing.cost_per_kg.toFixed(2)}/kg)</option>
-                    ))}
-                  </select>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="w-24 space-y-1">
-                  <Label className="text-[10px] uppercase text-muted-foreground">Porcentagem %</Label>
-                  <Input 
-                    type="number" 
-                    value={p.percentage > 0 ? p.percentage : ""} 
-                    onChange={(e) => handleUpdateProduct(p._rowKey, "percentage", e.target.value)}
-                    placeholder="0"
-                    className="text-center font-bold"
-                  />
-                </div>
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-destructive h-10 w-10" 
-                  onClick={() => handleRemoveProduct(p._rowKey)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+              );
+            })}
 
             {rows.length === 0 && (
               <p className="text-center text-muted-foreground py-4 text-sm italic">Clique em adicionar para começar a misturar.</p>
