@@ -40,14 +40,14 @@
     --warning: 38 92% 50%;
     --info: 210 90% 50%;
 
-    --sidebar-background: 145 35% 92%;
-    --sidebar-foreground: 145 30% 15%;
-    --sidebar-primary: 147 60% 35%;
+    --sidebar-background: 160 50% 6%;
+    --sidebar-foreground: 160 10% 95%;
+    --sidebar-primary: 161 94% 30%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 25% 85%;
-    --sidebar-accent-foreground: 145 30% 10%;
-    --sidebar-border: 145 20% 85%;
-    --sidebar-ring: 147 60% 35%;
+    --sidebar-accent: 161 50% 15%;
+    --sidebar-accent-foreground: 161 90% 90%;
+    --sidebar-border: 160 30% 12%;
+    --sidebar-ring: 161 94% 30%;
   }
 
   .dark {
