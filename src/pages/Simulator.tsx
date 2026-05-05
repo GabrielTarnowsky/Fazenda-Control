@@ -52,7 +52,7 @@ export default function Simulator() {
     dailyCost: "",
     extraCost: "",
     expectedSalePrice: "",
-    yieldPct: ""
+    yieldPct: "50"
   });
 
   // Carregar cotação do mercado atual se possível
