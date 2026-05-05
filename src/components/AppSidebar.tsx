@@ -46,19 +46,19 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={isActive}
-                    className={`group relative h-11 px-4 rounded-xl transition-all duration-200 ${
+                    className={`group relative h-10 px-4 rounded-xl transition-all duration-200 ${
                       isActive 
-                        ? "bg-primary/10 text-primary" 
-                        : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        ? "bg-white text-emerald-900 shadow-sm ring-1 ring-black/5" 
+                        : "text-sidebar-foreground/70 hover:text-emerald-900 hover:bg-white/40"
                     }`}
                   >
                     <Link to={item.url} onClick={() => setOpenMobile(false)} className="flex items-center gap-3">
-                      <item.icon className={`h-5 w-5 transition-colors ${isActive ? "text-primary" : "group-hover:text-sidebar-foreground"}`} />
-                      <span className={`text-[14px] font-semibold ${isActive ? "font-bold" : ""}`}>
+                      <item.icon className={`h-4.5 w-4.5 transition-colors ${isActive ? "text-emerald-600" : "group-hover:text-emerald-800"}`} />
+                      <span className={`text-[13px] font-semibold ${isActive ? "font-bold text-emerald-900" : ""}`}>
                         {item.title}
                       </span>
                       {isActive && (
-                        <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-full" />
+                        <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-emerald-600 rounded-r-full" />
                       )}
                     </Link>
                   </SidebarMenuButton>
