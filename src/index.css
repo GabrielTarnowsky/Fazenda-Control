@@ -40,13 +40,13 @@
     --warning: 38 92% 50%;
     --info: 210 90% 50%;
 
-    --sidebar-background: 145 25% 95%;
-    --sidebar-foreground: 145 20% 20%;
+    --sidebar-background: 145 40% 88%;
+    --sidebar-foreground: 145 50% 15%;
     --sidebar-primary: 142 70% 30%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 30% 88%;
-    --sidebar-accent-foreground: 145 50% 15%;
-    --sidebar-border: 145 20% 88%;
+    --sidebar-accent: 145 40% 80%;
+    --sidebar-accent-foreground: 145 60% 10%;
+    --sidebar-border: 145 30% 80%;
     --sidebar-ring: 142 70% 35%;
   }
 

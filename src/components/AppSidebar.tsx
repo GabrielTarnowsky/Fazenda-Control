@@ -26,7 +26,7 @@ export function AppSidebar() {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <Sidebar className="border-r border-sidebar-border/60">
+    <Sidebar className="border-r border-sidebar-border/60 bg-sidebar">
       <SidebarContent className="flex flex-col h-full bg-sidebar">
         {/* Logo */}
         <div className="px-6 py-10 flex items-center gap-3">
