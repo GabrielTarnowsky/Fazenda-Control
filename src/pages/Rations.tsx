@@ -259,6 +259,20 @@ export default function Rations() {
                   typeBreakdown[type].items.push({ name: ing.name, pct, cost });
                 });
 
+                // Calcular totais nutricionais
+                const nutriTotals = (ration.products || []).reduce((acc, p) => {
+                  const ing = ingredients.find(i => i.id === p.ingredient_id);
+                  if (!ing) return acc;
+                  const pct = (Number(p.percentage) || 0) / 100;
+                  return {
+                    pb: acc.pb + ((ing.pb || 0) * pct),
+                    ndt: acc.ndt + ((ing.ndt || 0) * pct),
+                    fdn: acc.fdn + ((ing.fdn || 0) * pct),
+                    ca: acc.ca + (((ing as any).ca || 0) * pct),
+                    p: acc.p + (((ing as any).p || 0) * pct),
+                  };
+                }, { pb: 0, ndt: 0, fdn: 0, ca: 0, p: 0 });
+
                 const sortedTypes = Object.entries(typeBreakdown).sort((a, b) => b[1].pct - a[1].pct);
 
                 return (
@@ -299,6 +313,42 @@ export default function Rations() {
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* Análise Nutricional Consolidada */}
+                    <div className="bg-slate-900 text-white rounded-xl p-4 shadow-lg">
+                      <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-2">
+                        <Activity className="h-4 w-4 text-emerald-400" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-300">Análise Nutricional Total (Mistura)</h3>
+                      </div>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">Proteína</p>
+                          <p className="text-xl font-black text-blue-400">{nutriTotals.pb.toFixed(1)}%</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">Energia</p>
+                          <p className="text-xl font-black text-amber-400">{nutriTotals.ndt.toFixed(1)}%</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">Fibra</p>
+                          <p className="text-xl font-black text-emerald-400">{nutriTotals.fdn.toFixed(1)}%</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">Cálcio</p>
+                          <p className="text-xl font-black">{nutriTotals.ca.toFixed(2)}%</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">Fósforo</p>
+                          <p className="text-xl font-black">{nutriTotals.p.toFixed(2)}%</p>
+                        </div>
+                        <div className="text-center border-l border-white/10 pl-2">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase text-center">Ca:P</p>
+                          <p className="text-xl font-black text-amber-200">
+                            {nutriTotals.p > 0 ? (nutriTotals.ca / nutriTotals.p).toFixed(1) : '—'}:1
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Barra visual de composição */}

@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { toPng } from "html-to-image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,10 +18,20 @@ import {
   Trash2,
   ChevronRight,
   Activity,
-  ArrowRight
+  ArrowRight,
+  Download,
+  Loader2
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { store } from "@/lib/store";
+import { 
+  PieChart, 
+  Pie, 
+  Cell, 
+  ResponsiveContainer, 
+  Tooltip as RechartsTooltip,
+  Legend
+} from 'recharts';
 
 interface SavedSimulation {
   id: string;
@@ -42,8 +53,9 @@ interface SavedSimulation {
 }
 
 export default function Simulator() {
-  const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
   const [showSaved, setShowSaved] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     name: "Nova Simulação",
@@ -204,11 +216,78 @@ export default function Simulator() {
       breakevenPrice,
       suggestedPrice,
       unitLabel,
-      unitsPerHead
+      unitsPerHead,
+      // Dados para o Gráfico
+      chartData: [
+        { name: 'Compra', value: totalPurchase, color: '#f59e0b' },
+        { name: 'Manutenção', value: totalMaintenance, color: '#3b82f6' }
+      ],
+      // Análise de Sensibilidade (Variação de Preço e GMD)
+      sensitivity: {
+        priceVariations: [-10, -5, 0, 5, 10], // %
+        gmdVariations: [-10, 0, 10], // %
+        matrix: [-10, -5, 0, 5, 10].map(priceVar => {
+          return {
+            priceVar,
+            results: [-10, 0, 10].map(gmdVar => {
+              const varGMD = expectedGMD * (1 + gmdVar / 100);
+              const varPrice = expectedSalePrice * (1 + priceVar / 100);
+              
+              const vGain = varGMD * days;
+              const vFinalWeight = initialWeight + vGain;
+              const vCarcassKg = vFinalWeight * yieldDecimal;
+              const vArroba = vCarcassKg / 15;
+              
+              let vUnits = 0;
+              switch (form.saleMethod) {
+                case "kg_vivo": vUnits = vFinalWeight; break;
+                case "kg_carcaca": vUnits = vCarcassKg; break;
+                default: vUnits = vArroba;
+              }
+              
+              const vRevenue = quantity * vUnits * varPrice;
+              const vProfit = vRevenue - totalInvestment;
+              return { gmdVar, profit: vProfit };
+            })
+          };
+        })
+      }
     };
   }, [form]);
 
   const isProfitable = results.netProfit >= 0;
+
+  const exportReport = async () => {
+    if (!reportRef.current) return;
+    
+    setIsExporting(true);
+    const toastId = toast.loading("Gerando relatório...");
+    
+    try {
+      // Pequeno delay para garantir que o DOM esteja pronto e styles aplicados
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const dataUrl = await toPng(reportRef.current, {
+        quality: 0.95,
+        backgroundColor: "#ffffff",
+        style: {
+          display: "block", // Garantir que esteja visível para a captura
+        }
+      });
+      
+      const link = document.createElement("a");
+      link.download = `Relatorio-${form.name || "Simulacao"}-${new Date().toLocaleDateString("pt-BR")}.png`;
+      link.href = dataUrl;
+      link.click();
+      
+      toast.success("Relatório baixado com sucesso!", { id: toastId });
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("Erro ao gerar relatório. Tente novamente.", { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -224,8 +303,18 @@ export default function Simulator() {
           <p className="text-sm text-muted-foreground font-medium">Projete lucros e custos antes de comprar</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePrint} className="font-bold border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
-            <Save className="h-4 w-4 mr-2" /> Baixar Relatório
+          <Button 
+            variant="outline" 
+            onClick={exportReport} 
+            disabled={isExporting}
+            className="font-bold border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            Baixar Relatório
           </Button>
           <Button variant="outline" onClick={() => setShowSaved(!showSaved)} className="font-bold border-primary/20 bg-primary/5">
             <History className="h-4 w-4 mr-2" /> {showSaved ? "Voltar ao Simulador" : "Histórico"}
@@ -422,54 +511,80 @@ export default function Simulator() {
                 </CardContent>
               </Card>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+                {/* GRÁFICO DE CUSTOS */}
                 <Card className="border-none shadow-lg bg-card rounded-xl">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-3 border-b pb-2">
-                      <Scale className="h-4 w-4 text-primary" />
-                      <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Projeção de Saída</h3>
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Composição de Custos</h3>
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-muted-foreground">Peso Final (Vivo)</span>
-                        <span className="font-black">{results.finalWeight.toFixed(1)} kg</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-muted-foreground">Rendimento Carcaça</span>
-                        <span className="font-black">{results.finalCarcassKg.toFixed(1)} kg</span>
-                      </div>
-                      <div className="flex justify-between items-center bg-primary/5 p-2 rounded-lg">
-                        <span className="text-xs font-black uppercase">Peso em @</span>
-                        <span className="font-black text-primary text-lg">{results.finalArroba.toFixed(2)} @</span>
-                      </div>
+                    <div className="h-[200px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={results.chartData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {results.chartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip 
+                            formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR')}`}
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                          />
+                          <Legend verticalAlign="bottom" height={36}/>
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
                   </CardContent>
                 </Card>
 
+                {/* ANALISE DE SENSIBILIDADE */}
                 <Card className="border-none shadow-lg bg-card rounded-xl">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-3 border-b pb-2">
-                      <DollarSign className="h-4 w-4 text-orange-500" />
-                      <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Resumo Financeiro</h3>
+                      <Activity className="h-4 w-4 text-orange-500" />
+                      <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">Matriz de Risco (Lucro)</h3>
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-muted-foreground">Investimento Total</span>
-                        <span className="font-black text-orange-700">R$ {results.totalInvestment.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-muted-foreground">Receita Bruta</span>
-                        <span className="font-black text-emerald-600">R$ {results.grossRevenue.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
-                      </div>
-                      <div className="flex justify-between items-center bg-slate-100 p-2 rounded-lg">
-                        <span className="text-[10px] font-black uppercase text-slate-500">Custo Total / Cab</span>
-                        <span className="font-black text-slate-700">R$ {(results.totalInvestment / (Number(form.quantity) || 1)).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
-                      </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px] text-center border-collapse">
+                        <thead>
+                          <tr>
+                            <th className="p-1 border-b text-left text-muted-foreground">Preço vs GMD</th>
+                            <th className="p-1 border-b text-blue-500 font-black">-10% GMD</th>
+                            <th className="p-1 border-b font-black text-slate-900 italic">Base</th>
+                            <th className="p-1 border-b text-emerald-500 font-black">+10% GMD</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {results.sensitivity.matrix.map((row, i) => (
+                            <tr key={i} className={row.priceVar === 0 ? "bg-slate-50" : ""}>
+                              <td className={`p-1 text-left font-bold ${row.priceVar > 0 ? 'text-emerald-600' : row.priceVar < 0 ? 'text-destructive' : 'text-slate-900'}`}>
+                                {row.priceVar > 0 ? '+' : ''}{row.priceVar}% Preço
+                              </td>
+                              {row.results.map((res, j) => (
+                                <td key={j} className={`p-1 font-medium ${res.profit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                                  R$ {Math.abs(res.profit) >= 1000 ? `${(res.profit/1000).toFixed(1)}k` : res.profit.toFixed(0)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
+                    <p className="text-[9px] text-muted-foreground mt-3 italic text-center leading-tight">
+                      Simulação de lucro variando o Preço de Venda e o GMD dos animais.
+                    </p>
                   </CardContent>
                 </Card>
 
-                {/* ANALISE DE PREÇO */}
+                {/* ANALISE DE PREÇO (EXISTENTE MAS MOVIDA/REESTILIZADA) */}
                 <Card className="border-none shadow-lg bg-slate-900 text-white rounded-xl sm:col-span-2">
                   <CardContent className="p-5">
                     <div className="grid sm:grid-cols-2 gap-8 items-center">
@@ -504,8 +619,8 @@ export default function Simulator() {
             </div>
           </div>
 
-          {/* SEÇÃO DE RELATÓRIO (APENAS PARA IMPRESSÃO) */}
-          <div className="hidden print:block bg-white p-10 space-y-8">
+          {/* SEÇÃO DE RELATÓRIO (APENAS PARA IMPRESSÃO E CAPTURA) */}
+          <div ref={reportRef} className="hidden print:block bg-white p-10 space-y-8 w-[800px] mx-auto">
             <div className="flex justify-between items-start border-b-2 border-primary pb-6">
               <div>
                 <h1 className="text-4xl font-black tracking-tighter text-primary">{form.name}</h1>
@@ -582,6 +697,56 @@ export default function Simulator() {
                 <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Rentabilidade (ROI)</p>
                 <p className="text-3xl font-black text-emerald-600">{results.roi.toFixed(1)}%</p>
                 <p className="text-[10px] text-slate-400 mt-2 font-medium">Retorno sobre o capital total investido no ciclo.</p>
+              </div>
+            </div>
+
+            {/* NOVA SEÇÃO: ANALISE AVANÇADA NO RELATÓRIO */}
+            <div className="grid grid-cols-2 gap-8 pt-4">
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-900 tracking-widest border-b pb-2">Composição de Custos</h3>
+                <div className="flex items-center gap-6">
+                   <div className="w-32 h-32 border-8 border-amber-500 rounded-full flex-shrink-0 flex items-center justify-center">
+                      <div className="w-24 h-24 border-8 border-blue-500 rounded-full flex items-center justify-center text-[10px] font-black text-center leading-tight">
+                        CUSTO<br/>TOTAL
+                      </div>
+                   </div>
+                   <div className="space-y-2">
+                     <div className="flex items-center gap-2">
+                       <div className="w-3 h-3 bg-amber-500 rounded-sm"></div>
+                       <p className="text-[10px] font-bold">Compra: {(results.totalPurchase / results.totalInvestment * 100).toFixed(0)}%</p>
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+                       <p className="text-[10px] font-bold">Manutenção: {(results.totalMaintenance / results.totalInvestment * 100).toFixed(0)}%</p>
+                     </div>
+                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-900 tracking-widest border-b pb-2">Matriz de Sensibilidade (Lucro)</h3>
+                <table className="w-full text-[9px] text-center border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="p-1 text-left text-slate-400">Var. Preço</th>
+                      <th className="p-1 text-slate-900">-10% GMD</th>
+                      <th className="p-1 text-slate-900">Base</th>
+                      <th className="p-1 text-slate-900">+10% GMD</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.sensitivity.matrix.filter((_, idx) => idx % 2 === 0).map((row, i) => (
+                      <tr key={i} className="border-b border-slate-50 last:border-0">
+                        <td className="p-1 text-left font-bold text-slate-600">{row.priceVar > 0 ? '+' : ''}{row.priceVar}%</td>
+                        {row.results.map((res, j) => (
+                          <td key={j} className={`p-1 font-bold ${res.profit >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                            R$ {Math.abs(res.profit) >= 1000 ? `${(res.profit/1000).toFixed(1)}k` : res.profit.toFixed(0)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 

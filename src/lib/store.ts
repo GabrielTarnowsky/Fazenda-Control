@@ -113,6 +113,9 @@ export interface Ingredient {
   cost_per_kg: number;
   unit: string;
   stock?: number;
+  pb?: number;  // Proteína Bruta (%)
+  ndt?: number; // Nutrientes Digestíveis Totais (%)
+  fdn?: number; // Fibra Detergente Neutro (%)
   user_id?: string;
 }
 
