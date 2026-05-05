@@ -26,23 +26,23 @@ export function AppSidebar() {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <Sidebar className="border-r border-sidebar-border/50">
+    <Sidebar className="border-r border-sidebar-border/40 shadow-sm">
       <SidebarContent className="flex flex-col h-full bg-sidebar">
         {/* Logo Section */}
-        <div className="px-6 pt-10 pb-8 flex items-center gap-4 border-b border-sidebar-border/30">
-          <div className="h-11 w-11 rounded-xl bg-white p-1.5 shadow-2xl ring-1 ring-white/20 flex items-center justify-center overflow-hidden">
+        <div className="px-6 pt-10 pb-8 flex items-center gap-4 border-b border-sidebar-border/50">
+          <div className="h-11 w-11 rounded-xl bg-white p-1.5 shadow-md ring-1 ring-black/5 flex items-center justify-center overflow-hidden">
             <img src="/logo.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
           <div className="flex flex-col">
             <span className="font-black text-xl text-sidebar-foreground tracking-tight leading-none">FazendaControl</span>
-            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-[0.2em] mt-1.5 opacity-80">Gestão Pecuária</span>
+            <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-[0.15em] mt-1.5 opacity-70">Gestão Pecuária</span>
           </div>
         </div>
 
         {/* Navigation Section */}
         <div className="flex-1 px-3 py-6">
           <div className="px-4 mb-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-sidebar-foreground/30">Navegação</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sidebar-foreground/40">Navegação</p>
           </div>
           <SidebarMenu className="space-y-1">
             {navItems.map((item) => {
@@ -57,22 +57,22 @@ export function AppSidebar() {
                     <Link
                       to={item.url}
                       onClick={() => setOpenMobile(false)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                         isActive
-                          ? "bg-emerald-500/15 text-white shadow-lg ring-1 ring-emerald-500/40"
-                          : "text-sidebar-foreground/60 hover:text-white hover:bg-white/5"
+                          ? "bg-emerald-700 text-white shadow-lg shadow-emerald-900/10"
+                          : "text-sidebar-foreground/70 hover:text-emerald-900 hover:bg-emerald-500/10"
                       }`}
                     >
                       <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
-                        isActive ? "bg-emerald-500/30 shadow-inner" : "bg-white/5"
+                        isActive ? "bg-white/20 shadow-inner" : "bg-white/50"
                       }`}>
-                        <item.icon className={`h-4.5 w-4.5 ${isActive ? "text-emerald-300" : "text-current opacity-70"}`} />
+                        <item.icon className={`h-4.5 w-4.5 ${isActive ? "text-white" : "text-emerald-800/60"}`} />
                       </div>
                       <span className={`text-[15px] font-bold tracking-tight ${isActive ? "text-white" : ""}`}>
                         {item.title}
                       </span>
                       {isActive && (
-                        <div className="ml-auto h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+                        <div className="ml-auto h-2 w-2 rounded-full bg-white shadow-sm" />
                       )}
                     </Link>
                   </SidebarMenuButton>
@@ -83,10 +83,10 @@ export function AppSidebar() {
         </div>
 
         {/* Footer Section */}
-        <div className="px-6 py-6 border-t border-sidebar-border/30 bg-black/10">
+        <div className="px-6 py-6 border-t border-sidebar-border/50 bg-black/5">
           <div className="flex flex-col gap-1">
-            <p className="text-[10px] text-sidebar-foreground/20 font-black uppercase tracking-widest">Plataforma Oficial</p>
-            <p className="text-[10px] text-sidebar-foreground/40 font-medium italic">v1.4.2 · Fazenda Control</p>
+            <p className="text-[10px] text-sidebar-foreground/40 font-black uppercase tracking-widest">Plataforma Oficial</p>
+            <p className="text-[10px] text-sidebar-foreground/60 font-medium italic">v1.4.3 · Fazenda Control</p>
           </div>
         </div>
       </SidebarContent>
