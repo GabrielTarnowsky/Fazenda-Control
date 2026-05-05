@@ -33,10 +33,7 @@ export function AppSidebar() {
           <div className="h-9 w-9 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20 shadow-sm">
              <img src="/logo.png" alt="Logo" className="h-6 w-6 object-contain" />
           </div>
-          <div>
-            <span className="font-display font-black text-lg text-sidebar-foreground tracking-tight block leading-none">FazendaControl</span>
-            <span className="text-[9px] font-bold text-primary/60 uppercase tracking-[0.15em] mt-1.5">Administração</span>
-          </div>
+          <span className="font-display font-black text-xl text-sidebar-foreground tracking-tight leading-none">FazendaControl</span>
         </div>
 
         {/* Menu */}
@@ -69,13 +66,6 @@ export function AppSidebar() {
               );
             })}
           </SidebarMenu>
-        </div>
-
-        {/* User / Footer */}
-        <div className="p-4 mt-auto">
-          <div className="bg-sidebar-accent/30 rounded-2xl p-4 border border-sidebar-border/50">
-            <p className="text-[10px] font-black text-sidebar-foreground/40 uppercase tracking-widest text-center">Gestão Inteligente</p>
-          </div>
         </div>
       </SidebarContent>
     </Sidebar>
