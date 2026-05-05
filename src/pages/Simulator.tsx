@@ -206,6 +206,8 @@ export default function Simulator() {
     };
   }, [form]);
 
+  const isProfitable = results.netProfit >= 0;
+
   const handlePrint = () => {
     window.print();
   };
