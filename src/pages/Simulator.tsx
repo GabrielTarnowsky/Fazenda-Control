@@ -44,15 +44,15 @@ export default function Simulator() {
 
   const [form, setForm] = useState({
     name: "Nova Simulação",
-    quantity: "50",
-    initialWeight: "200", // kg
-    purchasePricePerHead: "2000", // R$
-    expectedGMD: "0.8", // kg/dia
-    days: "120", // dias
-    dailyCost: "4.50", // R$/dia
-    extraCost: "1500", // R$ (Frete, etc)
-    expectedSalePrice: "280", // R$
-    yieldPct: "52" // %
+    quantity: "",
+    initialWeight: "",
+    purchasePricePerHead: "",
+    expectedGMD: "",
+    days: "",
+    dailyCost: "",
+    extraCost: "",
+    expectedSalePrice: "",
+    yieldPct: ""
   });
 
   // Carregar cotação do mercado atual se possível
