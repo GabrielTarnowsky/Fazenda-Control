@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { store, Ingredient, RationProduct } from "@/lib/store";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,12 +8,22 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Plus, Trash2, Calculator } from "lucide-react";
 import { toast } from "sonner";
 
+// Extend RationProduct with a stable row key for React rendering
+interface ProductRow extends RationProduct {
+  _rowKey: string;
+}
+
+let _rowCounter = 0;
+function nextRowKey() {
+  return `row_${Date.now()}_${++_rowCounter}`;
+}
+
 export default function AddRation() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [name, setName] = useState("");
-  const [selectedProducts, setSelectedProducts] = useState<RationProduct[]>([]);
+  const [rows, setRows] = useState<ProductRow[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -24,7 +34,11 @@ export default function AddRation() {
         const ration = allRats.find(r => r.id === id);
         if (ration) {
           setName(ration.name);
-          setSelectedProducts(ration.products);
+          setRows((ration.products || []).map(p => ({
+            ...p,
+            percentage: Number(p.percentage) || 0,
+            _rowKey: nextRowKey()
+          })));
         }
       }
     };
@@ -32,58 +46,74 @@ export default function AddRation() {
   }, [id]);
 
   const totalPercentage = useMemo(() => {
-    return selectedProducts.reduce((acc, p) => acc + p.percentage, 0);
-  }, [selectedProducts]);
+    return rows.reduce((acc, p) => acc + (Number(p.percentage) || 0), 0);
+  }, [rows]);
 
   const costPerKg = useMemo(() => {
-    return selectedProducts.reduce((acc, p) => {
+    return rows.reduce((acc, p) => {
       const ing = ingredients.find(i => i.id === p.ingredient_id);
       if (!ing) return acc;
-      return acc + (ing.cost_per_kg * (p.percentage / 100));
+      return acc + (ing.cost_per_kg * ((Number(p.percentage) || 0) / 100));
     }, 0);
-  }, [selectedProducts, ingredients]);
+  }, [rows, ingredients]);
 
-  const handleAddIngredient = () => {
+  const handleAddIngredient = useCallback(() => {
     if (ingredients.length === 0) {
       toast.error("Cadastre ingredientes primeiro!");
       return;
     }
-    setSelectedProducts([...selectedProducts, { ingredient_id: ingredients[0].id, percentage: 0 }]);
-  };
+    setRows(prev => [...prev, { 
+      ingredient_id: ingredients[0].id, 
+      percentage: 0, 
+      _rowKey: nextRowKey() 
+    }]);
+  }, [ingredients]);
 
-  const handleUpdateProduct = (index: number, field: keyof RationProduct, value: string | number) => {
-    const newList = [...selectedProducts];
-    newList[index] = { ...newList[index], [field]: field === 'percentage' ? Number(value) : value };
-    setSelectedProducts(newList);
-  };
+  const handleUpdateProduct = useCallback((rowKey: string, field: keyof RationProduct, value: string | number) => {
+    setRows(prev => prev.map(row => {
+      if (row._rowKey !== rowKey) return row;
+      return { 
+        ...row, 
+        [field]: field === 'percentage' ? Number(value) : value 
+      };
+    }));
+  }, []);
 
-  const handleRemoveProduct = (index: number) => {
-    setSelectedProducts(selectedProducts.filter((_, i) => i !== index));
-  };
+  const handleRemoveProduct = useCallback((rowKey: string) => {
+    setRows(prev => prev.filter(row => row._rowKey !== rowKey));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) { toast.error("Informe o nome da ração"); return; }
-    if (selectedProducts.length === 0) { toast.error("Adicione ao menos um ingrediente"); return; }
+    if (rows.length === 0) { toast.error("Adicione ao menos um ingrediente"); return; }
     if (Math.abs(totalPercentage - 100) > 0.01) {
-      toast.error(`A soma deve ser 100% (Atual: ${totalPercentage}%)`);
+      toast.error(`A soma deve ser 100% (Atual: ${totalPercentage.toFixed(1)}%)`);
       return;
     }
 
+    // Strip internal _rowKey before saving
+    const products: RationProduct[] = rows.map(({ _rowKey, ...rest }) => rest);
+
     const rationData = {
       name,
-      products: selectedProducts,
+      products,
       cost_per_kg: costPerKg
     };
 
-    if (id) {
-      await store.updateRation(id, rationData);
-      toast.success("Ração atualizada!");
-    } else {
-      await store.addRation(rationData);
-      toast.success("Ração criada com sucesso!");
+    try {
+      if (id) {
+        await store.updateRation(id, rationData);
+        toast.success("Ração atualizada!");
+      } else {
+        await store.addRation(rationData);
+        toast.success("Ração criada com sucesso!");
+      }
+      navigate("/rations");
+    } catch (err) {
+      toast.error("Erro ao salvar ração");
+      console.error(err);
     }
-    navigate("/rations");
   };
 
   return (
@@ -119,14 +149,14 @@ export default function AddRation() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            {selectedProducts.map((p, idx) => (
-              <div key={idx} className="flex gap-3 items-end border-b pb-4 last:border-0 last:pb-0">
+            {rows.map((p) => (
+              <div key={p._rowKey} className="flex gap-3 items-end border-b pb-4 last:border-0 last:pb-0">
                 <div className="flex-1 space-y-1">
                   <Label className="text-[10px] uppercase text-muted-foreground">Produto</Label>
                   <select 
                     className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                     value={p.ingredient_id}
-                    onChange={(e) => handleUpdateProduct(idx, "ingredient_id", e.target.value)}
+                    onChange={(e) => handleUpdateProduct(p._rowKey, "ingredient_id", e.target.value)}
                   >
                     {ingredients.map(ing => (
                       <option key={ing.id} value={ing.id}>{ing.name} (R$ {ing.cost_per_kg.toFixed(2)}/kg)</option>
@@ -137,8 +167,8 @@ export default function AddRation() {
                   <Label className="text-[10px] uppercase text-muted-foreground">Porcentagem %</Label>
                   <Input 
                     type="number" 
-                    value={p.percentage || ""} 
-                    onChange={(e) => handleUpdateProduct(idx, "percentage", e.target.value)}
+                    value={p.percentage > 0 ? p.percentage : ""} 
+                    onChange={(e) => handleUpdateProduct(p._rowKey, "percentage", e.target.value)}
                     placeholder="0"
                     className="text-center font-bold"
                   />
@@ -148,14 +178,14 @@ export default function AddRation() {
                   variant="ghost" 
                   size="icon" 
                   className="text-destructive h-10 w-10" 
-                  onClick={() => handleRemoveProduct(idx)}
+                  onClick={() => handleRemoveProduct(p._rowKey)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
 
-            {selectedProducts.length === 0 && (
+            {rows.length === 0 && (
               <p className="text-center text-muted-foreground py-4 text-sm italic">Clique em adicionar para começar a misturar.</p>
             )}
           </CardContent>
@@ -180,7 +210,7 @@ export default function AddRation() {
             <div className="text-right">
               <p className="text-xs uppercase font-bold tracking-wider text-muted-foreground mb-1">Total da Mistura</p>
               <div className={`text-2xl font-black ${Math.abs(totalPercentage - 100) < 0.1 ? 'text-primary' : 'text-warning'}`}>
-                {totalPercentage}%
+                {totalPercentage.toFixed(1)}%
               </div>
               <p className="text-[10px] text-muted-foreground">Deve somar 100%</p>
             </div>
