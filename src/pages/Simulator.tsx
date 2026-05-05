@@ -47,15 +47,15 @@ export default function Simulator() {
 
   const [form, setForm] = useState({
     name: "Nova Simulação",
-    quantity: "100",
-    initialWeight: "350",
-    purchasePricePerHead: "2800",
-    expectedGMD: "0.8",
-    days: "120",
-    dailyCost: "15",
-    extraCost: "0",
-    expectedSalePrice: "240",
-    yieldPct: "52",
+    quantity: "",
+    initialWeight: "",
+    purchasePricePerHead: "",
+    expectedGMD: "",
+    days: "",
+    dailyCost: "",
+    extraCost: "",
+    expectedSalePrice: "",
+    yieldPct: "",
     saleMethod: "arroba",
     targetMargin: ""
   });
@@ -138,7 +138,7 @@ export default function Simulator() {
     const dailyCost = Number(form.dailyCost) || 0;
     const extraCost = Number(form.extraCost) || 0;
     const expectedSalePrice = Number(form.expectedSalePrice) || 0;
-    const yieldPct = Number(form.yieldPct) || 0;
+    const yieldPct = Number(form.yieldPct) || 50;
     const targetMargin = Number(form.targetMargin) || 0;
 
     const yieldDecimal = yieldPct / 100;
@@ -284,11 +284,11 @@ export default function Simulator() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Qtd. Animais</Label>
-                      <Input type="number" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="h-11 font-black" />
+                      <Input type="number" placeholder="100" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="h-11 font-black" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Peso Inicial (kg)</Label>
-                      <Input type="number" value={form.initialWeight} onChange={e => setForm({...form, initialWeight: e.target.value})} className="h-11 font-black" />
+                      <Input type="number" placeholder="350" value={form.initialWeight} onChange={e => setForm({...form, initialWeight: e.target.value})} className="h-11 font-black" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -296,12 +296,12 @@ export default function Simulator() {
                       <Label className="text-xs font-bold text-muted-foreground">Valor por Cabeça</Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
-                        <Input type="number" value={form.purchasePricePerHead} onChange={e => setForm({...form, purchasePricePerHead: e.target.value})} className="h-11 font-black pl-8" />
+                        <Input type="number" placeholder="2800" value={form.purchasePricePerHead} onChange={e => setForm({...form, purchasePricePerHead: e.target.value})} className="h-11 font-black pl-8" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Rendimento (%)</Label>
-                      <Input type="number" value={form.yieldPct} onChange={e => setForm({...form, yieldPct: e.target.value})} className="h-11 font-black" />
+                      <Input type="number" placeholder="50" value={form.yieldPct} onChange={e => setForm({...form, yieldPct: e.target.value})} className="h-11 font-black" />
                     </div>
                   </div>
                 </div>
@@ -313,11 +313,11 @@ export default function Simulator() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">GMD Esperado (kg)</Label>
-                      <Input type="number" step="0.1" value={form.expectedGMD} onChange={e => setForm({...form, expectedGMD: e.target.value})} className="h-11 font-black" />
+                      <Input type="number" step="0.1" placeholder="0.8" value={form.expectedGMD} onChange={e => setForm({...form, expectedGMD: e.target.value})} className="h-11 font-black" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Ciclo (Dias)</Label>
-                      <Input type="number" value={form.days} onChange={e => setForm({...form, days: e.target.value})} className="h-11 font-black" />
+                      <Input type="number" placeholder="120" value={form.days} onChange={e => setForm({...form, days: e.target.value})} className="h-11 font-black" />
                     </div>
                   </div>
                 </div>
@@ -331,14 +331,14 @@ export default function Simulator() {
                       <Label className="text-xs font-bold text-muted-foreground">Custo Diária (R$/cab)</Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
-                        <Input type="number" step="0.5" value={form.dailyCost} onChange={e => setForm({...form, dailyCost: e.target.value})} className="h-11 font-black pl-8" />
+                        <Input type="number" step="0.5" placeholder="15" value={form.dailyCost} onChange={e => setForm({...form, dailyCost: e.target.value})} className="h-11 font-black pl-8" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Custos Extras (Total)</Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">R$</span>
-                        <Input type="number" value={form.extraCost} onChange={e => setForm({...form, extraCost: e.target.value})} className="h-11 font-black pl-8" />
+                        <Input type="number" placeholder="0" value={form.extraCost} onChange={e => setForm({...form, extraCost: e.target.value})} className="h-11 font-black pl-8" />
                       </div>
                     </div>
                   </div>
