@@ -57,17 +57,27 @@ export default function AddRation() {
     }, 0);
   }, [rows, ingredients]);
 
+  // Ingredientes que ainda não foram usados em nenhuma linha
+  const availableIngredients = useMemo(() => {
+    const usedIds = new Set(rows.map(r => r.ingredient_id));
+    return ingredients.filter(ing => !usedIds.has(ing.id));
+  }, [rows, ingredients]);
+
   const handleAddIngredient = useCallback(() => {
     if (ingredients.length === 0) {
       toast.error("Cadastre ingredientes primeiro!");
       return;
     }
+    if (availableIngredients.length === 0) {
+      toast.error("Todos os ingredientes já foram adicionados!");
+      return;
+    }
     setRows(prev => [...prev, { 
-      ingredient_id: ingredients[0].id, 
+      ingredient_id: availableIngredients[0].id, 
       percentage: 0, 
       _rowKey: nextRowKey() 
     }]);
-  }, [ingredients]);
+  }, [ingredients, availableIngredients]);
 
   const handleUpdateProduct = useCallback((rowKey: string, field: keyof RationProduct, value: string | number) => {
     setRows(prev => prev.map(row => {
@@ -144,8 +154,8 @@ export default function AddRation() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Composição da Mistura</CardTitle>
-            <Button type="button" size="sm" onClick={handleAddIngredient} className="gap-2">
-              <Plus className="h-4 w-4" /> Add Ingrediente
+            <Button type="button" size="sm" onClick={handleAddIngredient} className="gap-2" disabled={availableIngredients.length === 0}>
+              <Plus className="h-4 w-4" /> Add Ingrediente {availableIngredients.length > 0 && `(${availableIngredients.length})`}
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -154,12 +164,15 @@ export default function AddRation() {
                 <div className="flex-1 space-y-1">
                   <Label className="text-[10px] uppercase text-muted-foreground">Produto</Label>
                   <select 
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                    className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-medium"
                     value={p.ingredient_id}
                     onChange={(e) => handleUpdateProduct(p._rowKey, "ingredient_id", e.target.value)}
                   >
-                    {ingredients.map(ing => (
-                      <option key={ing.id} value={ing.id}>{ing.name} (R$ {ing.cost_per_kg.toFixed(2)}/kg)</option>
+                    {/* Mostra o ingrediente atual desta linha + os ainda disponíveis */}
+                    {ingredients
+                      .filter(ing => ing.id === p.ingredient_id || !rows.some(r => r._rowKey !== p._rowKey && r.ingredient_id === ing.id))
+                      .map(ing => (
+                        <option key={ing.id} value={ing.id}>{ing.name} (R$ {ing.cost_per_kg.toFixed(2)}/kg)</option>
                     ))}
                   </select>
                 </div>
