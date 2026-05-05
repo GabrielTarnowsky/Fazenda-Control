@@ -289,6 +289,22 @@ export default function Rations() {
                         <Button size="sm" variant="outline" className="font-bold text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/rations/${ration.id}/edit`); }}>
                           <Pencil className="h-3 w-3 mr-1" /> Editar
                         </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="font-bold text-xs text-destructive border-destructive/30 hover:bg-destructive/10" 
+                          onClick={async (e) => { 
+                            e.stopPropagation(); 
+                            if (confirm(`Deseja excluir a ração "${ration.name}"?`)) {
+                              await store.deleteRation(ration.id);
+                              setSelectedRationId(null);
+                              loadData();
+                              toast.success("Ração excluída");
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Excluir
+                        </Button>
                       </div>
                     </div>
 
