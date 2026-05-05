@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Plus, Wheat, ListFilter, TrendingUp, DollarSign, History, Utensils, Package, PackagePlus, Calendar, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, Wheat, ListFilter, TrendingUp, DollarSign, History, Utensils, Package, PackagePlus, Calendar, Pencil, Trash2, Check, X, ChevronDown, Zap, Droplets, Leaf, Gem, FlaskConical } from "lucide-react";
 import PurchaseForm from "@/components/PurchaseForm";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ export default function Rations() {
   const [selectedYearMonth, setSelectedYearMonth] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<IngredientPurchase>>({});
+  const [selectedRationId, setSelectedRationId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const loadData = async () => {
@@ -196,24 +197,157 @@ export default function Rations() {
         <div className="flex items-center justify-between px-1">
           <h2 className="font-bold flex items-center gap-2 text-lg"><Wheat className="h-5 w-5 text-primary" /> Fórmulas de Ração</h2>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-4">
           {rations.length === 0 ? (
-            <p className="sm:col-span-4 text-sm text-center py-10 text-muted-foreground bg-muted/20 rounded-xl border border-dashed font-semibold italic">Sem formulações salvas.</p>
+            <p className="text-sm text-center py-10 text-muted-foreground bg-muted/20 rounded-xl border border-dashed font-semibold italic">Sem formulações salvas.</p>
           ) : (
-            rations.map(r => (
-              <Card key={r.id} className="hover:border-primary/40 transition-all cursor-pointer group" onClick={() => navigate(`/rations/${r.id}/edit`)}>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold">{r.name || "Inominada"}</h3>
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold">{(r.products || []).length} Insumos</p>
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {rations.map(r => {
+                  const isSelected = selectedRationId === r.id;
+                  return (
+                    <Card 
+                      key={r.id} 
+                      className={`transition-all cursor-pointer group ${
+                        isSelected ? 'border-primary ring-2 ring-primary/20 shadow-lg' : 'hover:border-primary/40'
+                      }`} 
+                      onClick={() => setSelectedRationId(isSelected ? null : r.id)}
+                    >
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold">{r.name || "Inominada"}</h3>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">{(r.products || []).length} Insumos</p>
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <div>
+                            <p className="text-lg font-black text-primary">R$ {(Number(r.cost_per_kg) || 0).toFixed(2)}</p>
+                            <p className="text-[9px] uppercase font-bold text-muted-foreground">p/ kg</p>
+                          </div>
+                          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isSelected ? 'rotate-180' : ''}`} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* DETALHE DA RAÇÃO SELECIONADA */}
+              {selectedRationId && (() => {
+                const ration = rations.find(r => r.id === selectedRationId);
+                if (!ration) return null;
+
+                // Agrupar ingredientes por tipo
+                const typeConfig: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+                  'Proteína': { label: 'Proteína', color: 'text-blue-600', bg: 'bg-blue-500/10 border-blue-500/20', icon: <Droplets className="h-5 w-5 text-blue-500" /> },
+                  'Energia':  { label: 'Energia', color: 'text-amber-600', bg: 'bg-amber-500/10 border-amber-500/20', icon: <Zap className="h-5 w-5 text-amber-500" /> },
+                  'Volumoso': { label: 'Volumoso / Fibra', color: 'text-green-600', bg: 'bg-green-500/10 border-green-500/20', icon: <Leaf className="h-5 w-5 text-green-500" /> },
+                  'Mineral':  { label: 'Mineral', color: 'text-slate-600', bg: 'bg-slate-500/10 border-slate-500/20', icon: <Gem className="h-5 w-5 text-slate-500" /> },
+                  'Núcleo':   { label: 'Núcleo / Premix', color: 'text-purple-600', bg: 'bg-purple-500/10 border-purple-500/20', icon: <FlaskConical className="h-5 w-5 text-purple-500" /> },
+                };
+
+                // Calcular totais por tipo
+                const typeBreakdown: Record<string, { pct: number; cost: number; items: { name: string; pct: number; cost: number }[] }> = {};
+                (ration.products || []).forEach(p => {
+                  const ing = ingredients.find(i => i.id === p.ingredient_id);
+                  if (!ing) return;
+                  const type = ing.type || 'Outros';
+                  if (!typeBreakdown[type]) typeBreakdown[type] = { pct: 0, cost: 0, items: [] };
+                  const pct = Number(p.percentage) || 0;
+                  const cost = ing.cost_per_kg * (pct / 100);
+                  typeBreakdown[type].pct += pct;
+                  typeBreakdown[type].cost += cost;
+                  typeBreakdown[type].items.push({ name: ing.name, pct, cost });
+                });
+
+                const sortedTypes = Object.entries(typeBreakdown).sort((a, b) => b[1].pct - a[1].pct);
+
+                return (
+                  <div className="animate-in slide-in-from-top-2 duration-300 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between bg-card rounded-xl border p-4 shadow-sm">
+                      <div>
+                        <h3 className="text-lg font-black">{ration.name}</h3>
+                        <p className="text-xs text-muted-foreground">Composição nutricional da mistura</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="font-bold text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/rations/${ration.id}/edit`); }}>
+                          <Pencil className="h-3 w-3 mr-1" /> Editar
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Cards de Composição por Tipo */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {sortedTypes.map(([type, data]) => {
+                        const config = typeConfig[type] || { label: type, color: 'text-gray-600', bg: 'bg-gray-500/10 border-gray-500/20', icon: <Wheat className="h-5 w-5 text-gray-500" /> };
+                        return (
+                          <div key={type} className={`rounded-2xl p-4 border ${config.bg} relative overflow-hidden`}>
+                            <div className="flex items-center gap-2 mb-3">
+                              {config.icon}
+                              <p className={`text-[10px] font-black uppercase tracking-widest ${config.color}`}>{config.label}</p>
+                            </div>
+                            <p className={`text-3xl font-black italic ${config.color}`}>{data.pct.toFixed(0)}%</p>
+                            <p className="text-[10px] text-muted-foreground font-bold mt-1">R$ {data.cost.toFixed(2)} /kg</p>
+                            <div className="mt-3 pt-2 border-t border-current/10 space-y-1">
+                              {data.items.map((item, i) => (
+                                <div key={i} className="flex justify-between text-[10px]">
+                                  <span className="text-muted-foreground truncate mr-2">{item.name}</span>
+                                  <span className="font-black whitespace-nowrap">{item.pct}%</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Barra visual de composição */}
+                    <div className="bg-card rounded-xl border p-4 shadow-sm">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Distribuição Visual</p>
+                      <div className="flex rounded-full overflow-hidden h-6">
+                        {sortedTypes.map(([type, data]) => {
+                          const colors: Record<string, string> = {
+                            'Proteína': 'bg-blue-500',
+                            'Energia': 'bg-amber-500',
+                            'Volumoso': 'bg-green-500',
+                            'Mineral': 'bg-slate-400',
+                            'Núcleo': 'bg-purple-500',
+                          };
+                          const bgColor = colors[type] || 'bg-gray-400';
+                          return (
+                            <div 
+                              key={type} 
+                              className={`${bgColor} flex items-center justify-center text-white text-[9px] font-black transition-all`} 
+                              style={{ width: `${data.pct}%` }}
+                              title={`${type}: ${data.pct.toFixed(0)}%`}
+                            >
+                              {data.pct >= 10 && `${data.pct.toFixed(0)}%`}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex flex-wrap gap-3 mt-3">
+                        {sortedTypes.map(([type, data]) => {
+                          const dotColors: Record<string, string> = {
+                            'Proteína': 'bg-blue-500',
+                            'Energia': 'bg-amber-500',
+                            'Volumoso': 'bg-green-500',
+                            'Mineral': 'bg-slate-400',
+                            'Núcleo': 'bg-purple-500',
+                          };
+                          return (
+                            <div key={type} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                              <div className={`h-2.5 w-2.5 rounded-full ${dotColors[type] || 'bg-gray-400'}`} />
+                              <span className="font-bold">{type} ({data.pct.toFixed(0)}%)</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-black text-primary">R$ {(Number(r.cost_per_kg) || 0).toFixed(2)}</p>
-                    <p className="text-[9px] uppercase font-bold text-muted-foreground">p/ kg</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                );
+              })()}
+            </>
           )}
         </div>
       </section>
