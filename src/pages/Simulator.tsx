@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { toPng } from "html-to-image";
+import { jsPDF } from "jspdf";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -258,32 +258,204 @@ export default function Simulator() {
   const isProfitable = results.netProfit >= 0;
 
   const exportReport = async () => {
-    if (!reportRef.current) return;
-    
     setIsExporting(true);
-    const toastId = toast.loading("Gerando relatório...");
+    const toastId = toast.loading("Gerando PDF profissional...");
     
     try {
-      // Pequeno delay para garantir que o DOM esteja pronto e styles aplicados
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const dataUrl = await toPng(reportRef.current, {
-        quality: 0.95,
-        backgroundColor: "#ffffff",
-        style: {
-          display: "block", // Garantir que esteja visível para a captura
-        }
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 18;
+      const contentWidth = pageWidth - margin * 2;
+      let y = 20;
+
+      // === HEADER ===
+      doc.setFillColor(6, 78, 59); // emerald-900
+      doc.rect(0, 0, pageWidth, 38, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text(form.name || "Simulação de Engorda", margin, 18);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("Relatório de Projeção de Engorda — Fazenda Control", margin, 26);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, margin, 32);
+      y = 48;
+
+      // === PARÂMETROS DO LOTE ===
+      doc.setTextColor(6, 78, 59);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("PARÂMETROS DO LOTE", margin, y);
+      y += 2;
+      doc.setDrawColor(6, 78, 59);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, margin + contentWidth, y);
+      y += 7;
+
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      const params = [
+        ["Quantidade de Animais", `${form.quantity || 0} cabeças`],
+        ["Peso Inicial Médio", `${form.initialWeight || 0} kg`],
+        ["GMD Esperado", `${form.expectedGMD || 0} kg/dia`],
+        ["Ciclo de Engorda", `${form.days || 0} dias`],
+        ["Rendimento de Carcaça", `${form.yieldPct || 50}%`],
+        ["Peso Final Projetado", `${results.finalWeight.toFixed(0)} kg`],
+      ];
+      params.forEach(([label, value]) => {
+        doc.setFont("helvetica", "normal");
+        doc.text(label, margin, y);
+        doc.setFont("helvetica", "bold");
+        doc.text(value, margin + contentWidth, y, { align: "right" });
+        y += 5.5;
       });
-      
-      const link = document.createElement("a");
-      link.download = `Relatorio-${form.name || "Simulacao"}-${new Date().toLocaleDateString("pt-BR")}.png`;
-      link.href = dataUrl;
-      link.click();
-      
-      toast.success("Relatório baixado com sucesso!", { id: toastId });
+      y += 5;
+
+      // === INVESTIMENTO E CUSTOS ===
+      doc.setTextColor(6, 78, 59);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("INVESTIMENTO E CUSTOS", margin, y);
+      y += 2;
+      doc.line(margin, y, margin + contentWidth, y);
+      y += 7;
+
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(9);
+      const costs = [
+        ["Valor por Cabeça", `R$ ${Number(form.purchasePricePerHead || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`],
+        ["Aquisição do Lote", `R$ ${results.totalPurchase.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`],
+        ["Custo Diária (R$/cab/dia)", `R$ ${Number(form.dailyCost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`],
+        ["Custo de Manutenção Total", `R$ ${results.totalMaintenance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`],
+        ["Custos Extras", `R$ ${Number(form.extraCost || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`],
+      ];
+      costs.forEach(([label, value]) => {
+        doc.setFont("helvetica", "normal");
+        doc.text(label, margin, y);
+        doc.setFont("helvetica", "bold");
+        doc.text(value, margin + contentWidth, y, { align: "right" });
+        y += 5.5;
+      });
+      y += 2;
+      // Total Investment line
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, y - 4, contentWidth, 8, "F");
+      doc.setTextColor(20, 20, 20);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("INVESTIMENTO TOTAL", margin + 2, y);
+      doc.text(`R$ ${results.totalInvestment.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, margin + contentWidth - 2, y, { align: "right" });
+      y += 12;
+
+      // === RESULTADO PROJETADO ===
+      const isProfit = results.netProfit >= 0;
+      doc.setFillColor(isProfit ? 6 : 185, isProfit ? 78 : 28, isProfit ? 59 : 28);
+      doc.rect(margin, y - 5, contentWidth, 30, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("RESULTADO PROJETADO", margin + 4, y);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text(`R$ ${results.netProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, margin + 4, y + 10);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Lucro por Cabeça: R$ ${results.profitPerHead.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`, margin + 4, y + 18);
+      // ROI on the right
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`ROI: ${results.roi.toFixed(1)}%`, margin + contentWidth - 4, y + 10, { align: "right" });
+      y += 35;
+
+      // === ANÁLISE DE PREÇO ===
+      doc.setTextColor(6, 78, 59);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("ANÁLISE DE PREÇO", margin, y);
+      y += 2;
+      doc.line(margin, y, margin + contentWidth, y);
+      y += 7;
+
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(9);
+      const priceData = [
+        ["Método de Venda", results.unitLabel],
+        ["Preço de Venda", `R$ ${Number(form.expectedSalePrice || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} / ${results.unitLabel}`],
+        ["Faturamento Bruto", `R$ ${results.grossRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`],
+        ["Ponto de Equilíbrio", `R$ ${results.breakevenPrice.toFixed(2)} / ${results.unitLabel}`],
+      ];
+      if (results.suggestedPrice > 0) {
+        priceData.push([`Preço p/ Margem ${form.targetMargin}%`, `R$ ${results.suggestedPrice.toFixed(2)} / ${results.unitLabel}`]);
+      }
+      priceData.forEach(([label, value]) => {
+        doc.setFont("helvetica", "normal");
+        doc.text(label, margin, y);
+        doc.setFont("helvetica", "bold");
+        doc.text(value, margin + contentWidth, y, { align: "right" });
+        y += 5.5;
+      });
+      y += 8;
+
+      // === MATRIZ DE SENSIBILIDADE ===
+      if (y > 220) { doc.addPage(); y = 20; }
+      doc.setTextColor(6, 78, 59);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("MATRIZ DE SENSIBILIDADE (LUCRO LÍQUIDO)", margin, y);
+      y += 2;
+      doc.line(margin, y, margin + contentWidth, y);
+      y += 7;
+
+      // Table header
+      const colW = contentWidth / 4;
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, y - 4, contentWidth, 7, "F");
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("Var. Preço", margin + 2, y);
+      doc.text("-10% GMD", margin + colW + colW / 2, y, { align: "center" });
+      doc.text("Base", margin + colW * 2 + colW / 2, y, { align: "center" });
+      doc.text("+10% GMD", margin + colW * 3 + colW / 2, y, { align: "center" });
+      y += 6;
+
+      doc.setFontSize(8);
+      results.sensitivity.matrix.forEach((row) => {
+        const isBase = row.priceVar === 0;
+        if (isBase) {
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, y - 3.5, contentWidth, 5.5, "F");
+        }
+        doc.setFont("helvetica", isBase ? "bold" : "normal");
+        doc.setTextColor(80, 80, 80);
+        doc.text(`${row.priceVar > 0 ? "+" : ""}${row.priceVar}%`, margin + 2, y);
+        row.results.forEach((res, j) => {
+          doc.setTextColor(res.profit >= 0 ? 16 : 185, res.profit >= 0 ? 120 : 28, res.profit >= 0 ? 80 : 28);
+          const val = Math.abs(res.profit) >= 1000 ? `R$ ${(res.profit / 1000).toFixed(1)}k` : `R$ ${res.profit.toFixed(0)}`;
+          doc.text(val, margin + colW * (j + 1) + colW / 2, y, { align: "center" });
+        });
+        y += 5.5;
+      });
+      y += 5;
+
+      // === FOOTER ===
+      const footerY = doc.internal.pageSize.getHeight() - 12;
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.3);
+      doc.line(margin, footerY - 3, margin + contentWidth, footerY - 3);
+      doc.setTextColor(160, 160, 160);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.text("Fazenda Control — Gestão Pecuária Inteligente", margin, footerY);
+      doc.text(`GMD: ${form.expectedGMD}kg | Rend.: ${form.yieldPct || 50}% | Simulação meramente projetiva`, margin + contentWidth, footerY, { align: "right" });
+
+      // === SAVE ===
+      doc.save(`Relatorio-${form.name || "Simulacao"}-${new Date().toLocaleDateString("pt-BR").replace(/\//g, "-")}.pdf`);
+      toast.success("PDF gerado com sucesso!", { id: toastId });
     } catch (err) {
-      console.error("Export error:", err);
-      toast.error("Erro ao gerar relatório. Tente novamente.", { id: toastId });
+      console.error("PDF export error:", err);
+      toast.error("Erro ao gerar PDF. Tente novamente.", { id: toastId });
     } finally {
       setIsExporting(false);
     }
