@@ -63,11 +63,13 @@ export default function Simulator() {
   // Carregar cotação do mercado atual se possível
   useEffect(() => {
     store.getSettings().then(settings => {
-      const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
-      if (price && !form.expectedSalePrice) {
-        setForm(prev => ({ ...prev, expectedSalePrice: price }));
+      if (Array.isArray(settings)) {
+        const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
+        if (price && !form.expectedSalePrice) {
+          setForm(prev => ({ ...prev, expectedSalePrice: price }));
+        }
       }
-    });
+    }).catch(err => console.error("Error loading settings:", err));
 
     const saved = localStorage.getItem("bovi_simulations");
     if (saved) {
@@ -79,7 +81,7 @@ export default function Simulator() {
 
   const saveSimulation = () => {
     const newSim: SavedSimulation = {
-      id: crypto.randomUUID(),
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
       date: new Date().toISOString(),
       name: form.name,
       quantity: Number(form.quantity) || 0,
@@ -214,25 +216,7 @@ export default function Simulator() {
 
   return (
     <div className="p-4 pb-24 animate-fade-in space-y-6 max-w-6xl mx-auto">
-      {/* CSS PARA IMPRESSÃO */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          .print-section, .print-section * { visibility: visible; }
-          .print-section { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            padding: 40px;
-            background: white !important;
-            color: black !important;
-          }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-
-      <div className="flex items-center justify-between no-print">
+      <div className="flex items-center justify-between print:hidden">
         <div>
           <h1 className="font-display text-2xl font-bold flex items-center gap-2">
             <Calculator className="h-6 w-6 text-primary" /> Simulador de Engorda
@@ -250,7 +234,7 @@ export default function Simulator() {
       </div>
 
       {showSaved ? (
-        <Card className="border-none shadow-xl bg-card rounded-2xl animate-in slide-in-from-right-4 no-print">
+        <Card className="border-none shadow-xl bg-card rounded-2xl animate-in slide-in-from-right-4 print:hidden">
           <CardHeader>
             <CardTitle>Simulações Salvas</CardTitle>
           </CardHeader>
@@ -288,7 +272,7 @@ export default function Simulator() {
         </Card>
       ) : (
         <>
-          <div className="grid lg:grid-cols-12 gap-6 items-start no-print">
+          <div className="grid lg:grid-cols-12 gap-6 items-start print:hidden">
             
             {/* LADO ESQUERDO: CONTROLES */}
             <div className="lg:col-span-5 space-y-4">
@@ -521,7 +505,7 @@ export default function Simulator() {
           </div>
 
           {/* SEÇÃO DE RELATÓRIO (APENAS PARA IMPRESSÃO) */}
-          <div className="hidden print-section bg-white p-10 space-y-8">
+          <div className="hidden print:block bg-white p-10 space-y-8">
             <div className="flex justify-between items-start border-b-2 border-primary pb-6">
               <div>
                 <h1 className="text-4xl font-black tracking-tighter text-primary">{form.name}</h1>
