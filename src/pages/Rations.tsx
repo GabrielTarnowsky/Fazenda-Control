@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Plus, Wheat, ListFilter, TrendingUp, DollarSign, History, Utensils, Package, PackagePlus, Calendar, Pencil, Trash2, Check, X, ChevronDown, Zap, Droplets, Leaf, Gem, FlaskConical, Activity } from "lucide-react";
+import { getEffectiveNutri } from "@/lib/nutriReference";
 import PurchaseForm from "@/components/PurchaseForm";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -259,17 +260,18 @@ export default function Rations() {
                   typeBreakdown[type].items.push({ name: ing.name, pct, cost });
                 });
 
-                // Calcular totais nutricionais
+                // Calcular totais nutricionais (com fallback pela tabela de referência)
                 const nutriTotals = (ration.products || []).reduce((acc, p) => {
                   const ing = ingredients.find(i => i.id === p.ingredient_id);
                   if (!ing) return acc;
+                  const nutri = getEffectiveNutri(ing);
                   const pct = (Number(p.percentage) || 0) / 100;
                   return {
-                    pb: acc.pb + ((ing.pb || 0) * pct),
-                    ndt: acc.ndt + ((ing.ndt || 0) * pct),
-                    fdn: acc.fdn + ((ing.fdn || 0) * pct),
-                    ca: acc.ca + (((ing as any).ca || 0) * pct),
-                    p: acc.p + (((ing as any).p || 0) * pct),
+                    pb: acc.pb + (nutri.pb * pct),
+                    ndt: acc.ndt + (nutri.ndt * pct),
+                    fdn: acc.fdn + (nutri.fdn * pct),
+                    ca: acc.ca + (nutri.ca * pct),
+                    p: acc.p + (nutri.p * pct),
                   };
                 }, { pb: 0, ndt: 0, fdn: 0, ca: 0, p: 0 });
 
@@ -393,6 +395,26 @@ export default function Rations() {
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* Botão Excluir Ração */}
+                    <div className="flex justify-end pt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="font-bold text-xs text-destructive border-destructive/30 hover:bg-destructive/10" 
+                        onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          if (confirm(`Deseja excluir a ração "${ration.name}"?`)) {
+                            await store.deleteRation(ration.id);
+                            setSelectedRationId(null);
+                            loadData();
+                            toast.success("Ração excluída");
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" /> Excluir Ração
+                      </Button>
                     </div>
                   </div>
                 );

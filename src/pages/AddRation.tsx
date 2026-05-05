@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Plus, Trash2, Calculator } from "lucide-react";
+import { getEffectiveNutri } from "@/lib/nutriReference";
 import { toast } from "sonner";
 
 // Cada linha do formulário — percentage como STRING para controle de input
@@ -65,13 +66,14 @@ export default function AddRation() {
     return rows.reduce((acc, r) => {
       const ing = ingredients.find(i => i.id === r.ingredient_id);
       if (!ing) return acc;
+      const nutri = getEffectiveNutri(ing);
       const pct = (Number(r.percentage) || 0) / 100;
       return {
-        pb: acc.pb + ((ing.pb || 0) * pct),
-        ndt: acc.ndt + ((ing.ndt || 0) * pct),
-        fdn: acc.fdn + ((ing.fdn || 0) * pct),
-        ca: acc.ca + (((ing as any).ca || 0) * pct),
-        p: acc.p + (((ing as any).p || 0) * pct),
+        pb: acc.pb + (nutri.pb * pct),
+        ndt: acc.ndt + (nutri.ndt * pct),
+        fdn: acc.fdn + (nutri.fdn * pct),
+        ca: acc.ca + (nutri.ca * pct),
+        p: acc.p + (nutri.p * pct),
       };
     }, { pb: 0, ndt: 0, fdn: 0, ca: 0, p: 0 });
   }, [rows, ingredients]);
