@@ -1255,8 +1255,7 @@ export const store = {
     const profile = {
       id: user.id,
       email: user.email,
-      name: user.name || "Gabriel Tarnowsky",
-      updated_at: new Date().toISOString()
+      name: user.name || "Gabriel Tarnowsky"
     };
     
     const { error: profileError } = await supabase.from('users').upsert(profile);
