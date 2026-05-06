@@ -48,17 +48,17 @@ export function AppSidebar() {
                     isActive={isActive}
                     className={`group relative h-10 px-4 rounded-xl transition-all duration-200 ${
                       isActive 
-                        ? "bg-white text-emerald-900 shadow-sm ring-1 ring-black/5" 
-                        : "text-sidebar-foreground/70 hover:text-emerald-900 hover:bg-white/40"
+                        ? "bg-white text-zinc-900 shadow-sm ring-1 ring-black/5" 
+                        : "text-sidebar-foreground/70 hover:text-zinc-900 hover:bg-white/40"
                     }`}
                   >
                     <Link to={item.url} onClick={() => setOpenMobile(false)} className="flex items-center gap-3">
-                      <item.icon className={`h-4.5 w-4.5 transition-colors ${isActive ? "text-emerald-600" : "group-hover:text-emerald-800"}`} />
-                      <span className={`text-[13px] font-semibold ${isActive ? "font-bold text-emerald-900" : ""}`}>
+                      <item.icon className={`h-4.5 w-4.5 transition-colors ${isActive ? "text-blue-600" : "group-hover:text-zinc-800"}`} />
+                      <span className={`text-[13px] font-semibold ${isActive ? "font-bold text-zinc-900" : ""}`}>
                         {item.title}
                       </span>
                       {isActive && (
-                        <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-emerald-600 rounded-r-full" />
+                        <div className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-blue-600 rounded-r-full" />
                       )}
                     </Link>
                   </SidebarMenuButton>
