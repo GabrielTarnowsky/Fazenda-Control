@@ -1249,62 +1249,49 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Usuário não identificado");
 
-    toast.loading("Varrendo memória local e nuvem...");
+    toast.loading("Iniciando Busca Forense (Modo Raio-X)...");
 
-    let totalRecovered = 0;
-
-    // 1. BUSCA NA NUVEM (ÓRFÃOS)
-    try {
-      const { data: orphaned } = await supabase.from('animals').select('user_id').neq('user_id', user.id);
-      if (orphaned && orphaned.length > 0) {
-        const oldIds = Array.from(new Set(orphaned.map(o => o.user_id)));
-        const tables = ['animals', 'events', 'financial', 'insemination', 'settings', 'rainfall'];
-        for (const oldId of oldIds) {
-          if (!oldId) continue;
-          for (const table of tables) {
-            const { data } = await supabase.from(table).update({ user_id: user.id }).eq('user_id', oldId).select();
-            if (data) totalRecovered += data.length;
-          }
-        }
-      }
-    } catch (e) {}
-
-    // 2. BUSCA NA MEMÓRIA LOCAL (DEEP SCAN)
-    const possibleKeys = ['animals', 'events', 'financials', 'bovi_animals', 'bovi_events', 'bovi_financials', 'bovi_cache_animals', 'bovi_cache_events', 'bovi_cache_financials'];
-    const tableMapping: Record<string, string> = {
-      'animals': 'animals', 'bovi_animals': 'animals', 'bovi_cache_animals': 'animals',
-      'events': 'events', 'bovi_events': 'events', 'bovi_cache_events': 'events',
-      'financials': 'financial', 'bovi_financials': 'financial', 'bovi_cache_financials': 'financial'
-    };
-
-    for (const key of possibleKeys) {
-      try {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        const parsed = JSON.parse(raw);
-        const dataArray = Array.isArray(parsed) ? parsed : (parsed.data || []);
-        
-        const targetTable = tableMapping[key];
-        if (targetTable && dataArray.length > 0) {
-          for (const item of dataArray) {
-            const { error } = await supabase.from(targetTable).upsert({ ...item, user_id: user.id, id: item.id || v4() });
-            if (!error) totalRecovered++;
-          }
-          localStorage.removeItem(key); // Limpar para não duplicar
-        }
-      } catch (e) {}
+    // 1. BUSCA TOTAL SEM FILTROS
+    const { data: allData, error } = await supabase.from('animals').select('user_id');
+    
+    if (error) {
+      toast.error("Erro crítico ao acessar a tabela de animais.");
+      return;
     }
 
-    // 3. Reset e Feedback
-    localStorage.removeItem('bovi_cache_animals');
-    localStorage.removeItem('bovi_cache_events');
-    localStorage.removeItem('bovi_cache_financials');
+    if (!allData || allData.length === 0) {
+      toast.error("O banco de dados de animais está TOTALMENTE VAZIO na nuvem.");
+      return;
+    }
+
+    // 2. Identificar quem são os "donos" das vacas no banco
+    const ownerIds = Array.from(new Set(allData.map(a => a.user_id)));
+    const otherOwners = ownerIds.filter(id => id !== user.id);
+
+    if (otherOwners.length === 0) {
+      toast.info(`O banco tem ${allData.length} animais, mas todos já pertencem a você.`);
+      return;
+    }
+
+    // 3. MIGRAR TUDO DE TODOS OS OUTROS
+    toast.loading(`Encontrados animais de ${otherOwners.length} IDs diferentes. Resgatando...`);
+    
+    let totalRecovered = 0;
+    const tables = ['animals', 'events', 'financial', 'insemination', 'settings', 'rainfall'];
+
+    for (const oldId of otherOwners) {
+      if (!oldId) continue;
+      for (const table of tables) {
+        const { data } = await supabase.from(table).update({ user_id: user.id }).eq('user_id', oldId).select();
+        if (data) totalRecovered += data.length;
+      }
+    }
 
     if (totalRecovered > 0) {
-      toast.success(`${totalRecovered} registros resgatados da memória!`);
+      toast.success(`MÁGICA! ${totalRecovered} registros recuperados de outros perfis.`);
       setTimeout(() => window.location.reload(), 2000);
     } else {
-      toast.info("Nenhum dado encontrado na memória local ou nuvem.");
+      toast.error("Falha ao migrar os registros encontrados.");
     }
 
     return totalRecovered;
