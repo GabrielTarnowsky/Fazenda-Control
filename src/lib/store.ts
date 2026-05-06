@@ -1249,65 +1249,62 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Usuário não identificado");
 
-    toast.loading("Iniciando Escaneamento de Baixo Nível...");
+    toast.loading("Varrendo memória local e nuvem...");
 
-    // 1. TESTE DE EXISTÊNCIA: Tentar pegar QUALQUER coisa da tabela 'animals'
-    const { data: testData, error: testError } = await supabase
-      .from('animals')
-      .select('*')
-      .limit(1);
-
-    if (testError) {
-      console.error("Erro na tabela 'animals':", testError);
-      toast.error(`Erro na tabela animals: ${testError.message}`);
-      return;
-    }
-
-    // 2. Se a tabela 'animals' existe, vamos buscar tudo que NÃO é do usuário atual
-    const { data: orphaned, error: searchError } = await supabase
-      .from('animals')
-      .select('id, user_id, tag')
-      .neq('user_id', user.id);
-
-    if (searchError) {
-      toast.error(`Erro na busca: ${searchError.message}`);
-      return;
-    }
-
-    if (!orphaned || orphaned.length === 0) {
-      toast.info("O banco de dados de animais parece estar vazio para outros IDs.");
-      console.log("Nenhum animal órfão encontrado.");
-      return;
-    }
-
-    // 3. Se achamos órfãos, vamos migrar
-    const oldIds = Array.from(new Set(orphaned.map(o => o.user_id)));
     let totalRecovered = 0;
-    const tables = ['animals', 'events', 'financial', 'insemination', 'settings', 'rainfall'];
 
-    for (const oldId of oldIds) {
-      if (!oldId) continue;
-      for (const table of tables) {
-        try {
-          const { data } = await supabase
-            .from(table)
-            .update({ user_id: user.id })
-            .eq('user_id', oldId)
-            .select();
-          if (data) totalRecovered += data.length;
-        } catch (e) {}
+    // 1. BUSCA NA NUVEM (ÓRFÃOS)
+    try {
+      const { data: orphaned } = await supabase.from('animals').select('user_id').neq('user_id', user.id);
+      if (orphaned && orphaned.length > 0) {
+        const oldIds = Array.from(new Set(orphaned.map(o => o.user_id)));
+        const tables = ['animals', 'events', 'financial', 'insemination', 'settings', 'rainfall'];
+        for (const oldId of oldIds) {
+          if (!oldId) continue;
+          for (const table of tables) {
+            const { data } = await supabase.from(table).update({ user_id: user.id }).eq('user_id', oldId).select();
+            if (data) totalRecovered += data.length;
+          }
+        }
       }
+    } catch (e) {}
+
+    // 2. BUSCA NA MEMÓRIA LOCAL (DEEP SCAN)
+    const possibleKeys = ['animals', 'events', 'financials', 'bovi_animals', 'bovi_events', 'bovi_financials', 'bovi_cache_animals', 'bovi_cache_events', 'bovi_cache_financials'];
+    const tableMapping: Record<string, string> = {
+      'animals': 'animals', 'bovi_animals': 'animals', 'bovi_cache_animals': 'animals',
+      'events': 'events', 'bovi_events': 'events', 'bovi_cache_events': 'events',
+      'financials': 'financial', 'bovi_financials': 'financial', 'bovi_cache_financials': 'financial'
+    };
+
+    for (const key of possibleKeys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        const dataArray = Array.isArray(parsed) ? parsed : (parsed.data || []);
+        
+        const targetTable = tableMapping[key];
+        if (targetTable && dataArray.length > 0) {
+          for (const item of dataArray) {
+            const { error } = await supabase.from(targetTable).upsert({ ...item, user_id: user.id, id: item.id || v4() });
+            if (!error) totalRecovered++;
+          }
+          localStorage.removeItem(key); // Limpar para não duplicar
+        }
+      } catch (e) {}
     }
 
+    // 3. Reset e Feedback
     localStorage.removeItem('bovi_cache_animals');
     localStorage.removeItem('bovi_cache_events');
     localStorage.removeItem('bovi_cache_financials');
 
     if (totalRecovered > 0) {
-      toast.success(`Sucesso! ${totalRecovered} registros recuperados.`);
+      toast.success(`${totalRecovered} registros resgatados da memória!`);
       setTimeout(() => window.location.reload(), 2000);
     } else {
-      toast.info("Migração concluída, mas nenhum dado foi alterado.");
+      toast.info("Nenhum dado encontrado na memória local ou nuvem.");
     }
 
     return totalRecovered;
