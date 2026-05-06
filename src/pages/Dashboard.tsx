@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
-import { store, Animal, Financial, AnimalEvent, parseDateSafe } from "@/lib/store";
+import { store, Animal, Financial, AnimalEvent, parseDateSafe, Rainfall } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
-import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight, Cloud, Database, RefreshCw, Upload, Download } from "lucide-react";
+import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight, Cloud, Database, RefreshCw, Upload, Download, CloudRain, Droplets } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,31 +10,62 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import PurchaseForm from "@/components/PurchaseForm";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function Dashboard() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [financials, setFinancials] = useState<Financial[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [events, setEvents] = useState<AnimalEvent[]>([]);
+  const [rainfall, setRainfall] = useState<Rainfall[]>([]);
   const [showPurchase, setShowPurchase] = useState(false);
+  const [showRainfallDialog, setShowRainfallDialog] = useState(false);
+  const [newRainfall, setNewRainfall] = useState({ mm: "", date: new Date().toISOString().split("T")[0] });
   
   const navigate = useNavigate();
 
+  const loadData = async () => {
+    const [animalsData, financialsData, ingredientsData, eventsData, rainfallData] = await Promise.all([
+      store.getAnimals(),
+      store.getFinancials(),
+      store.getIngredients(),
+      store.getEvents(),
+      store.getRainfall()
+    ]);
+    setAnimals(animalsData);
+    setFinancials(financialsData);
+    setIngredients(ingredientsData);
+    setEvents(eventsData);
+    setRainfall(rainfallData);
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      const [animalsData, financialsData, ingredientsData, eventsData] = await Promise.all([
-        store.getAnimals(),
-        store.getFinancials(),
-        store.getIngredients(),
-        store.getEvents()
-      ]);
-      setAnimals(animalsData);
-      setFinancials(financialsData);
-      setIngredients(ingredientsData);
-      setEvents(eventsData);
-    };
     loadData();
   }, []);
+
+  const handleAddRainfall = async () => {
+    if (!newRainfall.mm || parseFloat(newRainfall.mm) <= 0) {
+      toast.error("Informe a quantidade de chuva em mm");
+      return;
+    }
+    try {
+      await store.addRainfall(parseFloat(newRainfall.mm), newRainfall.date);
+      toast.success("Pluviometria registrada!");
+      setShowRainfallDialog(false);
+      setNewRainfall({ mm: "", date: new Date().toISOString().split("T")[0] });
+      loadData();
+    } catch (e) {
+      toast.error("Erro ao registrar chuva");
+    }
+  };
 
   const user = store.auth.getCurrentUser();
   const lastSync = localStorage.getItem("bovi_last_sync");
@@ -51,6 +82,28 @@ export default function Dashboard() {
     }, 0);
   }, [activeAnimals]);
 
+  // Rainfall calculations
+  const rainfallStats = useMemo(() => {
+    const now = new Date();
+    const currentMonthStr = now.toISOString().substring(0, 7);
+    
+    // Start of week (Sunday)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfWeekStr = startOfWeek.toISOString().split("T")[0];
+
+    const monthly = rainfall
+      .filter(r => r.date.startsWith(currentMonthStr))
+      .reduce((sum, r) => sum + r.mm, 0);
+
+    const weekly = rainfall
+      .filter(r => r.date >= startOfWeekStr)
+      .reduce((sum, r) => sum + r.mm, 0);
+
+    return { monthly, weekly };
+  }, [rainfall]);
+
   // Consider current month for "Gasto Mensal"
   const currentMonth = new Date().toISOString().substring(0, 7);
   const monthlyExpenses = financials
@@ -61,9 +114,8 @@ export default function Dashboard() {
   const totalExpense = financials.filter(f => f.type === "despesa").reduce((sum, f) => sum + f.value, 0);
   const profit = totalRevenue - totalExpense;
 
-  // Transformation for Monthly Production (@ Produzidas) - Nova Solicitação
+  // Transformation for Monthly Production (@ Produzidas)
   const productionData = useMemo(() => {
-    // 1. Get all months in range (last 6)
     const months: string[] = [];
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
@@ -82,8 +134,6 @@ export default function Dashboard() {
       const entryDate = a.data_compra || a.birth_date || "2000-01-01";
 
       months.forEach((m, idx) => {
-        // Find last weight in or before month M
-        // Find last weight before month M
         const lastInM = animalEvents.filter(e => e.date.startsWith(m)).reverse()[0];
         const lastBeforeM = animalEvents.filter(e => e.date < m).reverse()[0];
 
@@ -101,7 +151,6 @@ export default function Dashboard() {
         if (lastBeforeM) {
           weightStart = lastBeforeM.weight;
         } else if (entryDate < m) {
-          // If entry was before this month, start weight is entry weight if no weights yet
           weightStart = entryWeight;
         }
 
@@ -114,7 +163,6 @@ export default function Dashboard() {
     return result.map(r => ({ ...r, value: Number(r.value.toFixed(1)) }));
   }, [activeAnimals, events]);
 
-  // Transformation for Herd Composition (Donut Chart)
   const herdComposition = useMemo(() => {
     const counts: Record<string, number> = {};
     activeAnimals.forEach(a => {
@@ -124,11 +172,8 @@ export default function Dashboard() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [activeAnimals]);
 
-  // Transformation for Lot Performance (GMD)
   const lotPerformance = useMemo(() => {
     const lotesMap: Record<string, { totalGmd: number, count: number }> = {};
-    
-    // Incluir animais vendidos nos cálculos de performance do lote
     const allRelevantAnimals = animals.filter(a => a.status === "ativo" || a.status === "vendido");
     
     allRelevantAnimals.forEach(a => {
@@ -137,13 +182,8 @@ export default function Dashboard() {
       if (!dataEnt) return;
       
       const pEnt = a.peso_entrada || 30;
-      // Se vendido, usa Peso Morto * 2. Se ativo, usa o peso atual.
       const pSaida = a.status === "vendido" ? (a.peso_saida || a.weight) * 2 : a.weight;
-      
       const gain = pSaida - pEnt;
-      const dataFim = a.status === "vendido" ? (new Date().toISOString().split("T")[0]) : new Date().toISOString().split("T")[0]; 
-      // Idealmente pegaríamos a data exata da venda, mas por enquanto usamos a data atual como fim do período de ganho se não houver data de saída salva
-      
       const days = Math.max(1, (new Date().getTime() - parseDateSafe(dataEnt).getTime()) / (1000 * 3600 * 24));
       const gmd = gain / days;
 
@@ -161,10 +201,8 @@ export default function Dashboard() {
       .sort((a,b) => b.gmd - a.gmd);
   }, [animals]);
 
-  // Colors for Pie Chart
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#6366f1'];
 
-  // Consolidação Mensal de Gastos (Jan-Dez do ano atual)
   const monthlyConsolidated = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const months = Array.from({ length: 12 }, (_, i) => {
@@ -187,7 +225,7 @@ export default function Dashboard() {
       });
     
     return Array.from(map.entries())
-      .sort((a,b) => a[0].localeCompare(b[0])) // Ordem cronológica Jan -> Dez
+      .sort((a,b) => a[0].localeCompare(b[0]))
       .map(([month, data]) => ({
         month,
         ...data
@@ -292,6 +330,84 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Rain Rainfall Card */}
+      <div className="grid gap-4 md:grid-cols-1">
+        <Card className="bg-blue-500/5 border-blue-500/20 overflow-hidden relative">
+          <div className="absolute right-0 top-0 p-8 opacity-10">
+            <CloudRain className="h-24 w-24 text-blue-500" />
+          </div>
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-inner">
+                  <CloudRain className="h-7 w-7 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black italic uppercase text-blue-900 leading-none">Pluviometria</h3>
+                  <p className="text-xs text-blue-600/60 font-bold mt-1">Registros de chuva na fazenda</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-8">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-500/50">Nesta Semana</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-black italic text-blue-700 leading-none">{rainfallStats.weekly}</span>
+                    <span className="text-sm font-bold text-blue-500 uppercase">mm</span>
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-500/50">Neste Mês</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-black italic text-blue-700 leading-none">{rainfallStats.monthly}</span>
+                    <span className="text-sm font-bold text-blue-500 uppercase">mm</span>
+                  </div>
+                </div>
+              </div>
+
+              <Dialog open={showRainfallDialog} onOpenChange={setShowRainfallDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20">
+                    <Droplets className="mr-2 h-4 w-4" /> Registrar Chuva
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Registrar Pluviometria</DialogTitle>
+                    <DialogDescription>Informe a quantidade de chuva em milímetros.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="mm">Chuva (mm)</Label>
+                      <Input 
+                        id="mm" 
+                        type="number" 
+                        placeholder="Ex: 15" 
+                        value={newRainfall.mm}
+                        onChange={(e) => setNewRainfall({ ...newRainfall, mm: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="date">Data</Label>
+                      <Input 
+                        id="date" 
+                        type="date" 
+                        value={newRainfall.date}
+                        onChange={(e) => setNewRainfall({ ...newRainfall, date: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowRainfallDialog(false)}>Cancelar</Button>
+                    <Button onClick={handleAddRainfall} className="bg-blue-600 hover:bg-blue-700">Salvar Registro</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         {/* Expenses Chart -> Agora @ Produzidas */}
         <Card className="lg:col-span-4 rounded-xl shadow-sm border-border/50">
@@ -383,7 +499,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* PERFORMANCE POR LOTE - SURPRESA */}
+        {/* PERFORMANCE POR LOTE */}
         <Card className="lg:col-span-4 rounded-xl shadow-sm border-border/50">
           <CardHeader>
             <CardTitle className="text-lg flex items-center justify-between">
@@ -409,7 +525,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* COMPOSIÇÃO DO REBANHO - SURPRESA */}
+        {/* COMPOSIÇÃO DO REBANHO */}
         <Card className="lg:col-span-3 rounded-xl shadow-sm border-border/50">
            <CardHeader>
               <CardTitle className="text-lg">Composição do Rebanho</CardTitle>
@@ -444,7 +560,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-       {/* Gastos Mensais - Design Moderno */}
+       {/* Gastos Mensais */}
        <Card className="rounded-2xl shadow-xl border-none bg-slate-900 text-white overflow-hidden">
          <CardHeader className="bg-slate-800/50 border-b border-white/5 pb-4">
            <CardTitle className="text-lg font-black italic uppercase tracking-wider flex items-center justify-between">

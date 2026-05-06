@@ -157,6 +157,20 @@ export interface FeedingLog {
   lote_id: string;
 }
 
+export interface Rainfall {
+  id: string;
+  date: string;
+  mm: number;
+  user_id?: string;
+}
+
+export interface Rainfall {
+  id: string;
+  date: string;
+  mm: number;
+  user_id?: string;
+}
+
 // --- HELPERS ---
 
 export const formatDateDisplay = (dateStr: string) => {
@@ -1012,6 +1026,44 @@ export const store = {
     }, { onConflict: 'user_id,key' });
 
     if (error) console.error("Error saving setting:", error);
+  },
+
+  // Rainfall Methods
+  getRainfall: async (): Promise<Rainfall[]> => {
+    const user = auth.getCurrentUser();
+    if (!user) return [];
+    try {
+      const { data, error } = await supabase.from('financial').select('*').eq('user_id', user.id).eq('type', 'metadata').eq('category', 'rainfall');
+      if (error) throw error;
+      const mapped = (data || []).map(d => { try { return JSON.parse(d.description); } catch { return null; } }).filter(Boolean);
+      return mapped.sort((a, b) => b.date.localeCompare(a.date));
+    } catch {
+      return [];
+    }
+  },
+
+  addRainfall: async (mm: number, date: string) => {
+    const user = auth.getCurrentUser();
+    if (!user) throw new Error("Não autenticado");
+    const item: Rainfall = { id: v4(), date, mm, user_id: user.id };
+    const fin = { 
+      id: item.id, 
+      type: 'metadata', 
+      category: 'rainfall', 
+      value: mm, 
+      date: date, 
+      description: JSON.stringify(item), 
+      user_id: user.id 
+    };
+    const { error } = await supabase.from('financial').insert([fin]);
+    if (error) throw error;
+    return item;
+  },
+
+  deleteRainfall: async (id: string) => {
+    const user = auth.getCurrentUser();
+    if (!user) return;
+    await supabase.from('financial').delete().eq('id', id).eq('user_id', user.id);
   },
 
   // Market Price Robot (Scraper)
