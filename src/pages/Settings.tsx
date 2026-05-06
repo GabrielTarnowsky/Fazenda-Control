@@ -474,6 +474,36 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Data Recovery Section */}
+      <Card className="border-none shadow-xl bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl overflow-hidden mt-8">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-black italic flex items-center gap-2 text-amber-700">
+            <RotateCcw className="h-4 w-4" /> RECUPERAÇÃO DE DADOS
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 pt-0">
+          <p className="text-xs text-amber-600 font-medium mb-4">
+            Se você entrou na conta e seus animais não aparecem, clique no botão abaixo para tentar vincular seus dados antigos a esta nova conta.
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              const loadingToast = toast.loading("Buscando seus dados antigos...");
+              try {
+                const count = await store.recoverLegacyData();
+                toast.success(`${count} registros recuperados com sucesso!`, { id: loadingToast });
+                setTimeout(() => window.location.reload(), 1500);
+              } catch (err: any) {
+                toast.error(err.message, { id: loadingToast });
+              }
+            }}
+            className="w-full border-amber-200 text-amber-700 hover:bg-amber-100 font-black italic uppercase text-xs"
+          >
+            Vincular Animais e Histórico
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Logout Section */}
       {!showLogoutConfirm ? (
         <Button 

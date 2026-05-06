@@ -1112,6 +1112,56 @@ export const store = {
   },
 
   // System
+  recoverLegacyData: async () => {
+    const user = auth.getCurrentUser();
+    if (!user || !user.email) throw new Error("Usuário não identificado");
+
+    // 1. Buscar todos os registros do usuário na tabela pública 'users' por e-mail
+    const { data: legacyUsers, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', user.email.trim().toLowerCase());
+
+    if (userError || !legacyUsers || legacyUsers.length === 0) {
+      throw new Error("Nenhum dado antigo encontrado para este e-mail.");
+    }
+
+    // 2. Identificar IDs que são diferentes do ID atual
+    const oldIds = legacyUsers
+      .map(u => u.id)
+      .filter(id => id !== user.id);
+
+    if (oldIds.length === 0) {
+      // Tentar buscar na tabela de animais se existe algum com user_id diferente mas que o usuário sabe que é dele
+      // (Pode acontecer se o ID no Auth mudou mas a tabela users não foi atualizada)
+      throw new Error("Seus dados já parecem estar vinculados a esta conta.");
+    }
+
+    let recoveredCount = 0;
+    const tables = ['animals', 'financials', 'events', 'rainfall', 'health', 'settings'];
+
+    for (const oldId of oldIds) {
+      for (const table of tables) {
+        try {
+          const { error: updateError, data } = await supabase
+            .from(table)
+            .update({ user_id: user.id })
+            .eq('user_id', oldId)
+            .select();
+          
+          if (!updateError && data) recoveredCount += data.length;
+        } catch (e) {
+          console.error(`Erro ao recuperar tabela ${table}:`, e);
+        }
+      }
+    }
+
+    if (recoveredCount === 0) {
+      throw new Error("Encontramos sua conta antiga, mas não havia dados vinculados a ela.");
+    }
+
+    return recoveredCount;
+  },
   sync: async () => {
     const queue = getPendingActions();
     if (queue.length === 0) return true;
