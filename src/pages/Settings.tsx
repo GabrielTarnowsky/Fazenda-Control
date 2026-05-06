@@ -33,33 +33,72 @@ export default function SettingsPage() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('bovi_theme') || 'light');
 
+  // Location Settings
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
+  const [useAutoRainfall, setUseAutoRainfall] = useState(false);
+
   const [counts, setCounts] = useState({ animals: 0, events: 0, financials: 0 });
 
   useEffect(() => {
-    const fetchCounts = async () => {
+    const fetchData = async () => {
       try {
-        const [a, e, f] = await Promise.all([
+        const [a, e, f, settings] = await Promise.all([
           store.getAnimals(),
           store.getEvents(),
-          store.getFinancials()
+          store.getFinancials(),
+          store.getSettings()
         ]);
         setCounts({ animals: a.length, events: e.length, financials: f.length });
+        
+        const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
+        if (price) setMarketPrice(price);
+
+        const savedLat = settings.find(s => s.key === 'farm_lat')?.value;
+        const savedLng = settings.find(s => s.key === 'farm_lng')?.value;
+        const savedAuto = settings.find(s => s.key === 'use_auto_rainfall')?.value;
+
+        if (savedLat) setLat(savedLat);
+        if (savedLng) setLng(savedLng);
+        if (savedAuto) setUseAutoRainfall(savedAuto === 'true');
+
       } catch (err) {
-        console.error("Count err:", err);
+        console.error("Fetch err:", err);
       }
     };
-    fetchCounts();
-
-    // Load market price from settings
-    store.getSettings().then(settings => {
-      const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
-      if (price) setMarketPrice(price);
-    });
+    fetchData();
   }, []);
 
   const handleUpdatePrice = async (val: string) => {
     setMarketPrice(val);
     await store.updateSetting('preco_arroba_pi', val);
+  };
+
+  const handleSaveLocation = async () => {
+    await Promise.all([
+      store.updateSetting('farm_lat', lat),
+      store.updateSetting('farm_lng', lng),
+      store.updateSetting('use_auto_rainfall', useAutoRainfall.toString())
+    ]);
+    toast.success("Configurações de localização salvas!");
+  };
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocalização não suportada pelo seu navegador.");
+      return;
+    }
+    toast.info("Obtendo localização...");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude.toFixed(6));
+        setLng(pos.coords.longitude.toFixed(6));
+        toast.success("Localização detectada!");
+      },
+      (err) => {
+        toast.error("Erro ao obter localização. Verifique as permissões.");
+      }
+    );
   };
 
   const syncMarket = async () => {
@@ -111,11 +150,6 @@ export default function SettingsPage() {
     }
     toast.success(`Modo ${newTheme === 'dark' ? 'Escuro' : 'Claro'} ativado!`);
   };
-
-  // Count local data for info
-  const animalCount = counts.animals;
-  const eventCount = counts.events;
-  const financialCount = counts.financials;
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6 max-w-2xl mx-auto">
@@ -176,6 +210,79 @@ export default function SettingsPage() {
               <Moon className="h-5 w-5" />
               <span className="text-[10px] font-black uppercase italic">Escuro</span>
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Localização e Clima */}
+      <Card className="border-none shadow-xl bg-card overflow-hidden rounded-2xl">
+        <CardHeader className="pb-3 bg-blue-500/5 border-b border-blue-500/10">
+          <CardTitle className="text-sm font-black uppercase tracking-wider text-blue-600 flex items-center gap-2">
+            <CloudRain className="h-4 w-4" /> Localização e Clima
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-bold">Pluviometria Automática</Label>
+              <p className="text-[10px] text-muted-foreground font-medium">Buscar dados de chuva automaticamente via satélite</p>
+            </div>
+            <Switch 
+              checked={useAutoRainfall}
+              onCheckedChange={setUseAutoRainfall}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="lat" className="text-xs font-bold uppercase text-muted-foreground">Latitude</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
+                <Input 
+                  id="lat" 
+                  value={lat} 
+                  onChange={(e) => setLat(e.target.value)}
+                  placeholder="-5.0892" 
+                  className="pl-9 font-mono text-xs"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lng" className="text-xs font-bold uppercase text-muted-foreground">Longitude</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
+                <Input 
+                  id="lng" 
+                  value={lng} 
+                  onChange={(e) => setLng(e.target.value)}
+                  placeholder="-42.8016" 
+                  className="pl-9 font-mono text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={detectLocation}
+              className="flex-1 font-bold text-xs rounded-xl h-12"
+            >
+              <MapPin className="h-4 w-4 mr-2 text-blue-600" /> Detectar Minha Posição
+            </Button>
+            <Button 
+              onClick={handleSaveLocation}
+              className="flex-1 font-black italic uppercase text-xs rounded-xl h-12 shadow-lg shadow-primary/20"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" /> Salvar Local
+            </Button>
+          </div>
+
+          <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 flex items-start gap-3">
+             <Cloud className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+             <p className="text-[10px] text-blue-600/70 leading-relaxed font-medium italic">
+               A chuva automática utiliza dados do serviço Open-Meteo com base nas coordenadas da sua fazenda.
+             </p>
           </div>
         </CardContent>
       </Card>

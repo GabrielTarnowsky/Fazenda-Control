@@ -1078,8 +1078,6 @@ export const store = {
       const html = data.contents;
 
       // Na Scot, o valor geralmente está em tabelas. 
-      // Procuramos por "Teresina" ou "Piauí" e o primeiro valor monetário após.
-      // Tentamos capturar o valor "a prazo" ou "à vista" (Geralmente 330-350 na Scot hoje)
       const match = html.match(/(?:Teresina|Piauí).*?(\d{3}(?:,\d{2})?)/i);
       
       if (match && match[1]) {
@@ -1089,6 +1087,25 @@ export const store = {
     } catch (err) {
       console.error("Market fetch failed:", err);
       return null;
+    }
+  },
+
+  fetchRainfallAuto: async (lat: number, lng: number, startDate: string, endDate: string): Promise<any[]> => {
+    try {
+      // O Open-Meteo Historical API é gratuito e não requer chave
+      const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${startDate}&end_date=${endDate}&daily=precipitation_sum&timezone=auto`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.daily && data.daily.time) {
+        return data.daily.time.map((time: string, index: number) => ({
+          date: time,
+          mm: data.daily.precipitation_sum[index] || 0
+        }));
+      }
+      return [];
+    } catch (err) {
+      console.error("Auto rainfall fetch failed:", err);
+      return [];
     }
   },
 

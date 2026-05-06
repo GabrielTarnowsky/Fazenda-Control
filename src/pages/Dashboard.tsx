@@ -26,6 +26,8 @@ export default function Dashboard() {
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [events, setEvents] = useState<AnimalEvent[]>([]);
   const [rainfall, setRainfall] = useState<Rainfall[]>([]);
+  const [autoRainfall, setAutoRainfall] = useState<any[]>([]);
+  const [isAutoEnabled, setIsAutoEnabled] = useState(false);
   const [showPurchase, setShowPurchase] = useState(false);
   const [showRainfallDialog, setShowRainfallDialog] = useState(false);
   const [newRainfall, setNewRainfall] = useState({ mm: "", date: new Date().toISOString().split("T")[0] });
@@ -33,18 +35,36 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const loadData = async () => {
-    const [animalsData, financialsData, ingredientsData, eventsData, rainfallData] = await Promise.all([
+    const [animalsData, financialsData, ingredientsData, eventsData, rainfallData, settings] = await Promise.all([
       store.getAnimals(),
       store.getFinancials(),
       store.getIngredients(),
       store.getEvents(),
-      store.getRainfall()
+      store.getRainfall(),
+      store.getSettings()
     ]);
     setAnimals(animalsData);
     setFinancials(financialsData);
     setIngredients(ingredientsData);
     setEvents(eventsData);
     setRainfall(rainfallData);
+
+    // Check for auto rainfall
+    const useAuto = settings.find(s => s.key === 'use_auto_rainfall')?.value === 'true';
+    const lat = settings.find(s => s.key === 'farm_lat')?.value;
+    const lng = settings.find(s => s.key === 'farm_lng')?.value;
+
+    if (useAuto && lat && lng) {
+      setIsAutoEnabled(true);
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      const today = now.toISOString().split("T")[0];
+      
+      const autoData = await store.fetchRainfallAuto(parseFloat(lat), parseFloat(lng), startOfMonth, today);
+      setAutoRainfall(autoData);
+    } else {
+      setIsAutoEnabled(false);
+    }
   };
 
   useEffect(() => {
@@ -87,22 +107,28 @@ export default function Dashboard() {
     const now = new Date();
     const currentMonthStr = now.toISOString().substring(0, 7);
     
-    // Start of week (Sunday)
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
     const startOfWeekStr = startOfWeek.toISOString().split("T")[0];
 
-    const monthly = rainfall
-      .filter(r => r.date.startsWith(currentMonthStr))
-      .reduce((sum, r) => sum + r.mm, 0);
+    // Se auto habilitado, usa autoData. Se não, usa manual.
+    // Ou melhor: soma ambos? Geralmente o usuário quer um ou outro.
+    // Vamos priorizar o Auto se habilitado para evitar duplicidade visual, mas permitir manual se o usuário quiser registrar algo específico.
+    
+    let monthly = 0;
+    let weekly = 0;
 
-    const weekly = rainfall
-      .filter(r => r.date >= startOfWeekStr)
-      .reduce((sum, r) => sum + r.mm, 0);
+    if (isAutoEnabled && autoRainfall.length > 0) {
+      monthly = autoRainfall.reduce((sum, r) => sum + r.mm, 0);
+      weekly = autoRainfall.filter(r => r.date >= startOfWeekStr).reduce((sum, r) => sum + r.mm, 0);
+    } else {
+      monthly = rainfall.filter(r => r.date.startsWith(currentMonthStr)).reduce((sum, r) => sum + r.mm, 0);
+      weekly = rainfall.filter(r => r.date >= startOfWeekStr).reduce((sum, r) => sum + r.mm, 0);
+    }
 
-    return { monthly, weekly };
-  }, [rainfall]);
+    return { monthly: monthly.toFixed(1), weekly: weekly.toFixed(1) };
+  }, [rainfall, autoRainfall, isAutoEnabled]);
 
   // Consider current month for "Gasto Mensal"
   const currentMonth = new Date().toISOString().substring(0, 7);
@@ -344,7 +370,14 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h3 className="text-lg font-black italic uppercase text-blue-900 leading-none">Pluviometria</h3>
-                  <p className="text-xs text-blue-600/60 font-bold mt-1">Registros de chuva na fazenda</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-xs text-blue-600/60 font-bold">Chuva na fazenda</p>
+                    {isAutoEnabled && (
+                      <Badge className="bg-blue-600/10 text-blue-600 border-blue-600/20 text-[9px] font-black uppercase tracking-tighter h-4">
+                        Automático via Satélite
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
 
