@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { 
   Settings as SettingsIcon, 
   LogOut, 
@@ -20,7 +23,9 @@ import {
   CheckCircle,
   TrendingUp,
   Sun,
-  Moon
+  Moon,
+  MapPin,
+  CloudRain
 } from "lucide-react";
 
 
@@ -150,6 +155,11 @@ export default function SettingsPage() {
     }
     toast.success(`Modo ${newTheme === 'dark' ? 'Escuro' : 'Claro'} ativado!`);
   };
+
+  // Count local data for info
+  const animalCount = counts.animals;
+  const eventCount = counts.events;
+  const financialCount = counts.financials;
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6 max-w-2xl mx-auto">
