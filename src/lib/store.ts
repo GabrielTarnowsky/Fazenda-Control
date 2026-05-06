@@ -381,29 +381,57 @@ const auth = {
     return data;
   },
   checkSession: async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error || !session) {
-      localStorage.removeItem(SESSION_KEY);
-      localStorage.removeItem("bovi_user_profile");
-      return null;
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session) return null;
+
+      const userId = session.user.id;
+      saveSession(userId);
+
+      // Refresh profile from DB or Metadata
+      const { data: profileData } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+      
+      const profile = profileData || { 
+        id: userId, 
+        name: session.user.user_metadata?.name || "Usuário", 
+        email: session.user.email || "",
+        farm_name: session.user.user_metadata?.farm_name,
+        cpf: session.user.user_metadata?.cpf
+      };
+
+      saveUserProfile(profile);
+
+      // AUTO-RECOVERY: Se o usuário entrar e estiver logado, tentamos vincular dados antigos em silêncio
+      // Isso resolve o problema de "conta zerada" após migração/login
+      auth.recoverLegacyDataSilent(profile).catch(() => {});
+
+      return profile;
+    } catch (e) {
+      console.error("Silent session check failed", e);
+      return auth.getCurrentUser(); // Fallback para o que temos no cache
     }
-
-    const userId = session.user.id;
-    saveSession(userId);
-
-    // Refresh profile from DB or Metadata
-    const { data: profileData } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+  },
+  recoverLegacyDataSilent: async (user: User) => {
+    if (!user || !user.email) return;
     
-    const profile = profileData || { 
-      id: userId, 
-      name: session.user.user_metadata?.name || "Usuário", 
-      email: session.user.email || "",
-      farm_name: session.user.user_metadata?.farm_name,
-      cpf: session.user.user_metadata?.cpf
-    };
+    // Buscar outros IDs com o mesmo email
+    const { data: legacyUsers } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', user.email.trim().toLowerCase());
 
-    saveUserProfile(profile);
-    return profile;
+    const oldIds = (legacyUsers || [])
+      .map(u => u.id)
+      .filter(id => id !== user.id);
+
+    if (oldIds.length === 0) return;
+
+    const tables = ['animals', 'financials', 'events', 'rainfall', 'health', 'settings'];
+    for (const oldId of oldIds) {
+      for (const table of tables) {
+        await supabase.from(table).update({ user_id: user.id }).eq('user_id', oldId).catch(() => {});
+      }
+    }
   },
   getCurrentUser: () => {
     const userId = getSession();
