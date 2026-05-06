@@ -1140,6 +1140,45 @@ export const store = {
     let recoveredCount = 0;
     const tables = ['animals', 'financials', 'events', 'rainfall', 'health', 'settings'];
 
+    // 3. BUSCA PROFUNDA: Procurar no LocalStorage por dados que ainda não subiram (sem ID no prefixo)
+    const legacyKeys = [
+      ...tables,
+      ...tables.map(t => `bovi_${t}`),
+      ...tables.map(t => `bovi_cache_${t}`)
+    ];
+
+    for (const key of legacyKeys) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        
+        let localData = [];
+        try {
+          const parsed = JSON.parse(raw);
+          localData = Array.isArray(parsed) ? parsed : (parsed.data || []);
+        } catch { continue; }
+
+        if (localData.length > 0) {
+          // Encontramos dados locais! Vamos subir para o Supabase
+          const table = key.replace('bovi_cache_', '').replace('bovi_', '');
+          if (!tables.includes(table)) continue;
+
+          for (const item of localData) {
+            const { error: uploadError } = await supabase
+              .from(table)
+              .upsert({ ...item, user_id: user.id, id: item.id || v4() });
+            
+            if (!uploadError) recoveredCount++;
+          }
+          // Limpar o cache antigo para não duplicar no futuro
+          localStorage.removeItem(key);
+        }
+      } catch (e) {
+        console.error(`Erro na busca profunda (key: ${key}):`, e);
+      }
+    }
+
+    // 4. Buscar em IDs vinculados ao e-mail (como feito antes)
     for (const oldId of oldIds) {
       for (const table of tables) {
         try {
@@ -1157,7 +1196,7 @@ export const store = {
     }
 
     if (recoveredCount === 0) {
-      throw new Error("Encontramos sua conta antiga, mas não havia dados vinculados a ela.");
+      throw new Error("Não encontramos nenhum dado antigo neste aparelho ou vinculado ao seu e-mail.");
     }
 
     return recoveredCount;
