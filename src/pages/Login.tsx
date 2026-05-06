@@ -3,9 +3,9 @@ import { useNavigate, Link } from "react-router-dom";
 import { store } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Beef, LogIn, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { Beef, LogIn, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -26,54 +26,59 @@ export default function Login() {
     
     try {
       await store.auth.login(email, password);
-      toast.success("Bem-vindo! Sincronizando seus dados...");
+      const user = store.auth.getCurrentUser();
       
-      // CRITICAL: Sync data from Supabase AFTER login on new device
+      toast.success(`Bem-vindo de volta, ${user?.name || 'Produtor'}!`);
+      
+      // Auto-sync after login
       await store.sync();
       
-      toast.success("Dados sincronizados com sucesso!");
+      // Attempt auto-recovery of legacy data if empty
+      try {
+        const animals = await store.getAnimals();
+        if (animals.length === 0) {
+          await store.recoverLegacyData().catch(() => {});
+        }
+      } catch (e) {}
+
       navigate("/");
     } catch (error: any) {
-      toast.error(error.message || "Email ou senha inválidos");
+      toast.error(error.message || "Credenciais inválidas. Verifique os dados.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 relative overflow-hidden p-4">
-      {/* Background Decor */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[120px]"></div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#0a0c10] relative overflow-hidden p-4 font-sans">
+      {/* Dynamic Background Elements */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[150px] animate-pulse"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-emerald-600/10 rounded-full blur-[150px]"></div>
+      
+      {/* Grid Pattern Overlay */}
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
 
-      <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in duration-500">
-        <div className="text-center mb-6">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-sm bg-white mb-3 border border-white/10 overflow-hidden shadow-2xl">
-            <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
+      <div className="w-full max-w-[440px] relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="text-center mb-10">
+          <div className="inline-flex h-20 w-20 items-center justify-center rounded-[2rem] bg-white shadow-[0_0_40px_rgba(255,255,255,0.1)] mb-6 border border-white/20 p-4">
+            <img src="/logo.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
-          <h1 className="text-4xl font-display font-black text-white tracking-tighter italic">FAZENDA CONTROL</h1>
-          <p className="text-slate-400 mt-2 font-medium">Gestão de Peucária Inteligente</p>
+          <h1 className="text-5xl font-black text-white tracking-tighter italic leading-none">FAZENDA<span className="text-blue-500">CONTROL</span></h1>
+          <p className="text-slate-400 mt-4 font-medium tracking-wide uppercase text-[10px]">Ecossistema de Gestão de Precisão</p>
         </div>
 
-        <Card className="border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden rounded-3xl">
-          <div className="h-2 w-full bg-gradient-to-r from-primary via-emerald-500 to-blue-500"></div>
-          <CardHeader className="pt-8 text-center">
-            <CardTitle className="text-2xl font-black text-white italic flex items-center justify-center gap-2">
-              LOGIN <LogIn className="h-5 w-5 text-primary" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4 px-8 pb-8">
-            <form onSubmit={handleLogin} className="space-y-5">
+        <Card className="border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] overflow-hidden rounded-[2.5rem]">
+          <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-400"></div>
+          <CardContent className="pt-10 px-10 pb-10">
+            <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">E-mail Corporativo</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] ml-1">Identificação</label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                   <Input 
                     type="email" 
-                    name="email"
-                    autoComplete="username email"
-                    placeholder="seu@parceiro.com" 
-                    className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-primary/50 transition-all rounded-xl"
+                    placeholder="E-mail de acesso" 
+                    className="pl-12 h-14 bg-white/[0.03] border-white/5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all rounded-2xl text-base"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
@@ -83,17 +88,15 @@ export default function Login() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center ml-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sua Senha</label>
-                  <Link to="/forgot-password" title="Redefinir Senha" className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter">Esqueci a senha</Link>
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">Chave de Segurança</label>
+                  <Link to="/forgot-password" size="sm" className="text-[10px] font-bold text-blue-500 hover:text-blue-400 transition-colors uppercase tracking-tighter">Esqueceu?</Link>
                 </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                   <Input 
                     type={showPassword ? "text" : "password"} 
-                    name="password"
-                    autoComplete="current-password"
-                    placeholder="••••••••" 
-                    className="pl-10 pr-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-primary/50 transition-all rounded-xl"
+                    placeholder="Sua senha secreta" 
+                    className="pl-12 pr-12 h-14 bg-white/[0.03] border-white/5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all rounded-2xl text-base"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required
@@ -101,7 +104,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-300 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors p-1"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -110,35 +113,44 @@ export default function Login() {
 
               <Button 
                 type="submit" 
-                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-black italic text-lg rounded-xl shadow-lg shadow-primary/20 group transition-all"
+                className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-black italic text-lg rounded-2xl shadow-xl shadow-blue-600/20 group transition-all duration-300 active:scale-[0.98]"
                 disabled={loading}
               >
-                {loading ? "SINCRONIZANDO..." : "ENTRAR NO SISTEMA"} 
-                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                {loading ? (
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                ) : (
+                  <span className="flex items-center">
+                    ENTRAR NO SISTEMA <ArrowRight className="ml-3 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </span>
+                )}
               </Button>
             </form>
 
-            <div className="mt-8 flex items-center gap-4">
-              <div className="flex-1 h-[1px] bg-white/10"></div>
-              <span className="text-[10px] font-black text-slate-500 uppercase">Segurança Ativa</span>
-              <div className="flex-1 h-[1px] bg-white/10"></div>
-            </div>
-
-            <div className="mt-6 flex flex-col items-center gap-2">
-              <p className="text-sm text-slate-400">Não possui conta ainda?</p>
-              <Link to="/signup">
-                <Button variant="ghost" className="text-primary font-bold hover:bg-primary/10 hover:text-primary transition-all">
-                  CRIAR CONTA AGORA
-                </Button>
+            <div className="mt-10 flex flex-col items-center gap-6">
+              <div className="flex items-center gap-4 w-full">
+                <div className="flex-1 h-[1px] bg-white/5"></div>
+                <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Ambiente Criptografado</span>
+                <div className="flex-1 h-[1px] bg-white/5"></div>
+              </div>
+              
+              <Link to="/signup" className="group">
+                <p className="text-sm text-slate-400 group-hover:text-white transition-colors">
+                  Novo por aqui? <span className="text-blue-500 font-black italic ml-1 underline-offset-4 group-hover:underline">Crie sua conta</span>
+                </p>
               </Link>
             </div>
           </CardContent>
-          <CardFooter className="bg-white/5 border-t border-white/5 py-4 justify-center">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
-              <ShieldCheck className="h-3 w-3 text-primary" /> AMBIENTE 100% SEGURO
-            </div>
-          </CardFooter>
         </Card>
+        
+        <div className="mt-8 flex justify-center items-center gap-4 text-[10px] font-black text-slate-600 tracking-widest uppercase">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/5">
+            <ShieldCheck className="h-3 w-3 text-blue-500" />
+            <span>SSL SECURE</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/5">
+            <span>V 1.4.0</span>
+          </div>
+        </div>
       </div>
     </div>
   );
