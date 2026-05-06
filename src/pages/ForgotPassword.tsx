@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { store, validatePasswordStrength } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -131,32 +132,52 @@ export default function ForgotPassword() {
                       required
                     />
                   </div>
-                  {method === "cpf" && (
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-widest ml-1">Seu CPF (Apenas números)</label>
-                      <Input 
-                        placeholder="000.000.000-00" 
-                        className="h-12 bg-white/[0.03] border-white/5 text-white rounded-xl focus:border-emerald-500/50"
-                        value={cpf}
-                        onChange={e => setCpf(e.target.value)}
-                        required
-                      />
-                    </div>
-                  )}
                 </div>
-                {method === "email" && (
-                  <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-                    <p className="text-[10px] text-blue-400/80 leading-relaxed font-medium">
-                      Um link de redefinição será enviado para o seu e-mail. Caso o link não abra, volte e tente o método por CPF.
-                    </p>
-                  </div>
-                )}
+
+                <div className="p-5 bg-blue-600/5 border border-blue-500/10 rounded-2xl space-y-4">
+                  <p className="text-[10px] text-blue-400 leading-relaxed font-bold uppercase tracking-wider">Dificuldade com o Link do E-mail?</p>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    Se o link do e-mail der erro ao clicar, **copie o endereço do link** no e-mail e cole abaixo:
+                  </p>
+                  <Input 
+                    placeholder="Cole o link do e-mail aqui..." 
+                    className="h-10 bg-black/20 border-white/5 text-[10px] text-blue-300 rounded-lg"
+                    onChange={async (e) => {
+                      const url = e.target.value;
+                      if (url.includes("access_token=")) {
+                        toast.loading("Validando link de segurança...");
+                        try {
+                          const hash = url.split('#')[1];
+                          const params = new URLSearchParams(hash);
+                          const access_token = params.get('access_token');
+                          const refresh_token = params.get('refresh_token');
+                          
+                          if (access_token && refresh_token) {
+                            const { error } = await supabase.auth.setSession({
+                              access_token,
+                              refresh_token
+                            });
+                            if (!error) {
+                              toast.success("Link validado! Defina sua nova senha.");
+                              setStep(3);
+                            } else {
+                              toast.error("Link expirado ou inválido.");
+                            }
+                          }
+                        } catch (err) {
+                          toast.error("Formato de link inválido.");
+                        }
+                      }
+                    }}
+                  />
+                </div>
+
                 <Button 
                   type="submit" 
-                  className={`w-full h-14 ${method === 'cpf' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'} text-white font-black italic rounded-2xl shadow-xl transition-all`}
+                  className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-black italic rounded-2xl shadow-xl transition-all"
                   disabled={loading}
                 >
-                  {loading ? <Loader2 className="animate-spin h-6 w-6" /> : (method === 'cpf' ? "VALIDAR E PROSSEGUIR" : "ENVIAR E-MAIL")}
+                  {loading ? <Loader2 className="animate-spin h-6 w-6" /> : "REENVIAR E-MAIL DE ACESSO"}
                 </Button>
                 <button type="button" onClick={() => setStep(1)} className="w-full text-[10px] text-slate-500 uppercase font-black hover:text-white transition-colors">Voltar</button>
               </form>

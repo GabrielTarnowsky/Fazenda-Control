@@ -539,25 +539,38 @@ const auth = {
     if (profile && profile.id === userId) return profile as User;
     return { id: userId, name: "Usuário", email: "", createdAt: "" } as User;
   },
-  resetPassword: async (email: string, newPassword: string) => {
-    const passError = validatePasswordStrength(newPassword);
-    if (passError) throw new Error(passError);
+  resetPassword: async (email: string, newPassword?: string) => {
+    // Só validamos a força da senha se ela for realmente fornecida (passo final)
+    if (newPassword && newPassword.length > 0) {
+      const passError = validatePasswordStrength(newPassword);
+      if (passError) throw new Error(passError);
+    }
+
+    const user = auth.getCurrentUser();
+    // Se o usuário já está logado (tentando mudar a senha por dentro do app)
+    if (user && user.id && newPassword) {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) throw error;
+      return true;
+    } 
     
-    // O Supabase Auth não permite redefinir a senha só com o email de forma síncrona por segurança.
-    // Vamos tentar atualizar o usuário atual, se ele estiver logado, ou enviar um email de reset.
-    const { data: sessionData } = await supabase.auth.getSession();
-    
-    if (sessionData.session) {
-      // Usuário logado alterando a senha
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw new Error("Erro ao atualizar senha");
-    } else {
+    // Se não houver senha, estamos apenas pedindo o e-mail de recuperação
+    if (!newPassword) {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
         redirectTo: `${window.location.origin}/forgot-password`,
       });
-      if (error) throw new Error("Erro ao solicitar redefinição: " + error.message);
-      throw new Error("Por segurança, um link de redefinição foi enviado para seu e-mail. Clique nele para redefinir.");
+      if (error) throw error;
+      return true;
     }
+
+    // Se chegamos aqui com uma nova senha mas sem estar logado (passo final da recuperação)
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    if (error) throw error;
+    return true;
   }
 };
 
