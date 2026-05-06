@@ -195,6 +195,22 @@ export default function Login() {
               >
                 Acesso de Emergência (Master Key)
               </button>
+
+              <button 
+                type="button"
+                onClick={async () => {
+                  if (confirm("Isso vai buscar todos os animais órfãos no banco de dados e vincular à sua conta. Deseja continuar?")) {
+                    try {
+                      await store.recoverLegacyData();
+                    } catch (e) {
+                      toast.error("Você precisa estar logado para resgatar dados.");
+                    }
+                  }
+                }}
+                className="text-[9px] font-black text-emerald-600 hover:text-emerald-500 transition-colors uppercase tracking-[0.3em] mt-4 border border-emerald-500/20 px-4 py-2 rounded-full bg-emerald-500/5"
+              >
+                Resgatar Meus Dados (Forçado)
+              </button>
             </div>
           </CardContent>
         </Card>

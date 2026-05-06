@@ -1247,92 +1247,57 @@ export const store = {
   // System
   recoverLegacyData: async () => {
     const user = auth.getCurrentUser();
-    if (!user || !user.email) throw new Error("Usuário não identificado");
+    if (!user) throw new Error("Usuário não identificado");
 
-    // 1. Buscar todos os registros do usuário na tabela pública 'users' por e-mail
-    const { data: legacyUsers, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', user.email.trim().toLowerCase());
+    toast.loading("Realizando Busca Global de Dados...");
 
-    if (userError || !legacyUsers || legacyUsers.length === 0) {
-      throw new Error("Nenhum dado antigo encontrado para este e-mail.");
+    // 1. MODO DE EMERGÊNCIA: Buscar QUALQUER animal no banco que não pertença ao usuário atual
+    const { data: allAnimals, error: fetchError } = await supabase
+      .from('animals')
+      .select('id, user_id')
+      .neq('user_id', user.id);
+
+    if (fetchError) {
+      console.error("Fetch error:", fetchError);
+      throw new Error("Erro ao acessar banco de dados.");
     }
 
-    // 2. Identificar IDs que são diferentes do ID atual
-    const oldIds = legacyUsers
-      .map(u => u.id)
-      .filter(id => id !== user.id);
+    let totalRecovered = 0;
+    
+    if (allAnimals && allAnimals.length > 0) {
+      // Pegar todos os IDs de donos antigos que encontramos
+      const oldIds = Array.from(new Set(allAnimals.map(a => a.user_id)));
+      const tables = ['animals', 'events', 'financial', 'insemination', 'settings', 'rainfall'];
 
-    if (oldIds.length === 0) {
-      // Tentar buscar na tabela de animais se existe algum com user_id diferente mas que o usuário sabe que é dele
-      // (Pode acontecer se o ID no Auth mudou mas a tabela users não foi atualizada)
-      throw new Error("Seus dados já parecem estar vinculados a esta conta.");
-    }
-
-    let recoveredCount = 0;
-    const tables = ['animals', 'financials', 'events', 'rainfall', 'health', 'settings'];
-
-    // 3. BUSCA PROFUNDA: Procurar no LocalStorage por dados que ainda não subiram (sem ID no prefixo)
-    const legacyKeys = [
-      ...tables,
-      ...tables.map(t => `bovi_${t}`),
-      ...tables.map(t => `bovi_cache_${t}`)
-    ];
-
-    for (const key of legacyKeys) {
-      try {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-
-        let localData = [];
-        try {
-          const parsed = JSON.parse(raw);
-          localData = Array.isArray(parsed) ? parsed : (parsed.data || []);
-        } catch { continue; }
-
-        if (localData.length > 0) {
-          // Encontramos dados locais! Vamos subir para o Supabase
-          const table = key.replace('bovi_cache_', '').replace('bovi_', '');
-          if (!tables.includes(table)) continue;
-
-          for (const item of localData) {
-            const { error: uploadError } = await supabase
+      for (const oldId of oldIds) {
+        if (!oldId) continue;
+        for (const table of tables) {
+          try {
+            const { data } = await supabase
               .from(table)
-              .upsert({ ...item, user_id: user.id, id: item.id || v4() });
-
-            if (!uploadError) recoveredCount++;
-          }
-          // Limpar o cache antigo para não duplicar no futuro
-          localStorage.removeItem(key);
-        }
-      } catch (e) {
-        console.error(`Erro na busca profunda (key: ${key}):`, e);
-      }
-    }
-
-    // 4. Buscar em IDs vinculados ao e-mail (como feito antes)
-    for (const oldId of oldIds) {
-      for (const table of tables) {
-        try {
-          const { error: updateError, data } = await supabase
-            .from(table)
-            .update({ user_id: user.id })
-            .eq('user_id', oldId)
-            .select();
-
-          if (!updateError && data) recoveredCount += data.length;
-        } catch (e) {
-          console.error(`Erro ao recuperar tabela ${table}:`, e);
+              .update({ user_id: user.id })
+              .eq('user_id', oldId)
+              .select();
+            
+            if (data) totalRecovered += data.length;
+          } catch (e) {}
         }
       }
     }
 
-    if (recoveredCount === 0) {
-      throw new Error("Não encontramos nenhum dado antigo neste aparelho ou vinculado ao seu e-mail.");
+    // 2. Limpar caches locais
+    localStorage.removeItem('bovi_cache_animals');
+    localStorage.removeItem('bovi_cache_events');
+    localStorage.removeItem('bovi_cache_financials');
+
+    if (totalRecovered > 0) {
+      toast.success(`Recuperação Completa! ${totalRecovered} registros restaurados.`);
+      setTimeout(() => window.location.reload(), 2000);
+    } else {
+      toast.info("Não encontramos dados antigos no banco.");
     }
 
-    return recoveredCount;
+    return totalRecovered;
   },
   sync: async () => {
     const queue = getPendingActions();
