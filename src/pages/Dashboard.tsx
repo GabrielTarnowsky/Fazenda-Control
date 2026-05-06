@@ -356,86 +356,100 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Rain Rainfall Card */}
-      <div className="grid gap-4 md:grid-cols-1">
-        <Card className="bg-blue-500/5 border-blue-500/20 overflow-hidden relative">
-          <div className="absolute right-0 top-0 p-8 opacity-10">
-            <CloudRain className="h-24 w-24 text-blue-500" />
-          </div>
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-inner">
-                  <CloudRain className="h-7 w-7 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black italic uppercase text-blue-900 leading-none">Pluviometria</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-blue-600/60 font-bold">Chuva na fazenda</p>
-                    {isAutoEnabled && (
-                      <Badge className="bg-blue-600/10 text-blue-600 border-blue-600/20 text-[9px] font-black uppercase tracking-tighter h-4">
-                        Automático via Satélite
-                      </Badge>
-                    )}
+      {/* Pluviometria Section */}
+      <div className="animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+        <Card className="border-none shadow-2xl shadow-blue-500/5 bg-gradient-to-br from-white via-blue-50/30 to-blue-100/20 overflow-hidden group">
+          <CardContent className="p-0">
+            <div className="flex flex-col md:flex-row items-stretch">
+              {/* Main Info */}
+              <div className="p-6 flex-1 flex flex-col justify-between border-b md:border-b-0 md:border-r border-blue-100/50">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20 transform group-hover:scale-110 transition-transform duration-500">
+                      <CloudRain className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-[0.2em] text-blue-900/40">Pluviometria</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-black italic text-blue-900 tracking-tight">Clima da Fazenda</span>
+                        {isAutoEnabled && (
+                          <Badge className="bg-blue-600 text-white border-none text-[8px] font-black uppercase px-2 h-4 animate-pulse">
+                            Auto
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  
+                  <Dialog open={showRainfallDialog} onOpenChange={setShowRainfallDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white transition-all">
+                        <Droplets className="h-5 w-5" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="rounded-[2rem]">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-black italic">Registrar Chuva</DialogTitle>
+                        <DialogDescription className="font-medium text-muted-foreground">Adicione um registro manual de precipitação.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-6 py-6">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quantidade (mm)</Label>
+                          <Input 
+                            type="number" 
+                            value={newRainfall.mm} 
+                            onChange={(e) => setNewRainfall({...newRainfall, mm: e.target.value})}
+                            placeholder="Ex: 25" 
+                            className="h-14 rounded-2xl border-none bg-muted/50 text-xl font-black italic focus-visible:ring-blue-500"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Data da Ocorrência</Label>
+                          <Input 
+                            type="date" 
+                            value={newRainfall.date} 
+                            onChange={(e) => setNewRainfall({...newRainfall, date: e.target.value})}
+                            className="h-14 rounded-2xl border-none bg-muted/50 font-bold focus-visible:ring-blue-500"
+                          />
+                        </div>
+                        <Button onClick={handleAddRainfall} className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black italic uppercase shadow-xl shadow-blue-600/20">
+                          Salvar Registro
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-2">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="h-2 w-12 rounded-full bg-blue-600/10 overflow-hidden">
+                        <div className="h-full bg-blue-600 w-2/3 rounded-full animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-black uppercase text-blue-600/40 ml-2 tracking-widest italic">Monitoramento Ativo</span>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-8">
-                <div className="flex flex-col">
+              {/* Stats Area */}
+              <div className="p-6 md:w-80 bg-blue-600/5 flex flex-col gap-4">
+                <div className="p-4 rounded-3xl bg-white/50 backdrop-blur-sm border border-white shadow-sm group/stat hover:scale-105 transition-transform">
                   <span className="text-[10px] font-black uppercase tracking-widest text-blue-500/50">Nesta Semana</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black italic text-blue-700 leading-none">{rainfallStats.weekly}</span>
-                    <span className="text-sm font-bold text-blue-500 uppercase">mm</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-4xl font-black italic text-blue-600 leading-none">{rainfallStats.weekly}</span>
+                    <span className="text-sm font-bold text-blue-400 uppercase">mm</span>
                   </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-500/50">Neste Mês</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black italic text-blue-700 leading-none">{rainfallStats.monthly}</span>
-                    <span className="text-sm font-bold text-blue-500 uppercase">mm</span>
+
+                <div className="p-4 rounded-3xl bg-white/50 backdrop-blur-sm border border-white shadow-sm group/stat hover:scale-105 transition-transform">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-500/50">Acumulado do Mês</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-4xl font-black italic text-blue-700 leading-none">{rainfallStats.monthly}</span>
+                    <span className="text-sm font-bold text-blue-400 uppercase">mm</span>
                   </div>
                 </div>
               </div>
-
-              <Dialog open={showRainfallDialog} onOpenChange={setShowRainfallDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20">
-                    <Droplets className="mr-2 h-4 w-4" /> Registrar Chuva
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Registrar Pluviometria</DialogTitle>
-                    <DialogDescription>Informe a quantidade de chuva em milímetros.</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="mm">Chuva (mm)</Label>
-                      <Input 
-                        id="mm" 
-                        type="number" 
-                        placeholder="Ex: 15" 
-                        value={newRainfall.mm}
-                        onChange={(e) => setNewRainfall({ ...newRainfall, mm: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Data</Label>
-                      <Input 
-                        id="date" 
-                        type="date" 
-                        value={newRainfall.date}
-                        onChange={(e) => setNewRainfall({ ...newRainfall, date: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowRainfallDialog(false)}>Cancelar</Button>
-                    <Button onClick={handleAddRainfall} className="bg-blue-600 hover:bg-blue-700">Salvar Registro</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </div>
           </CardContent>
         </Card>
