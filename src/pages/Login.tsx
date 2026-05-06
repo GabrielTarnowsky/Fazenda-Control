@@ -147,30 +147,45 @@ export default function Login() {
                   const masterKey = prompt("Digite a Chave de Mestre (GABRIEL-FAZENDA-2026):");
 
                   if (masterKey?.trim().toUpperCase() === "GABRIEL-FAZENDA-2026" && emailInput) {
-                    const toastId = toast.loading("Validando Acesso de Mestre...");
                     const email = emailInput.trim().toLowerCase();
+                    const toastId = toast.loading("Rastreando seu rebanho no banco de dados...");
 
                     try {
-                      // Buscar usuário pelo E-mail
-                      const { data, error } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
-
-                      if (data || email === "cesarogabriel4@gmail.com") {
-                        const profile = data || {
-                          id: "gabriel-bypass-id",
-                          name: "Gabriel Tarnowsky",
-                          email: email,
-                          createdAt: new Date().toISOString()
-                        };
-
-                        localStorage.setItem('bovi_session', profile.id);
-                        localStorage.setItem('bovi_profile', JSON.stringify(profile));
-                        toast.success("Acesso de Mestre Autorizado! Bem-vindo de volta.", { id: toastId });
-                        setTimeout(() => window.location.href = "/", 1000);
-                      } else {
-                        toast.error(`E-mail ${email} não localizado.`, { id: toastId });
+                      // 1. Buscar todos os IDs possíveis para este e-mail
+                      const { data: userRecords } = await supabase.from('users').select('id, name, email').eq('email', email);
+                      
+                      if (!userRecords || userRecords.length === 0) {
+                         toast.error("Nenhum registro encontrado para este e-mail.", { id: toastId });
+                         return;
                       }
+
+                      let bestId = userRecords[0].id;
+                      let maxAnimals = -1;
+                      let bestProfile = userRecords[0];
+
+                      // 2. Descobrir qual ID tem o seu rebanho real
+                      for (const rec of userRecords) {
+                        const { count } = await supabase
+                          .from('animals')
+                          .select('*', { count: 'exact', head: true })
+                          .eq('user_id', rec.id);
+                        
+                        if ((count || 0) > maxAnimals) {
+                          maxAnimals = count || 0;
+                          bestId = rec.id;
+                          bestProfile = rec;
+                        }
+                      }
+
+                      // 3. Logar na conta com mais dados
+                      localStorage.setItem('bovi_session', bestId);
+                      localStorage.setItem('bovi_profile', JSON.stringify(bestProfile));
+                      
+                      toast.success(`Sucesso! Encontramos seu rebanho (${maxAnimals} animais). Entrando...`, { id: toastId });
+                      setTimeout(() => window.location.href = "/", 1000);
+
                     } catch (err) {
-                      toast.error("Erro na conexão.", { id: toastId });
+                      toast.error("Erro na busca profunda.", { id: toastId });
                     }
                   } else {
                     toast.error("Dados incorretos.");
