@@ -1249,12 +1249,27 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Usuário não identificado");
 
-    toast.loading("Iniciando Clonagem Forense...");
+    toast.loading("Registrando perfil e clonando dados...");
 
-    // 1. BUSCA TOTAL DE ANIMAIS (QUALQUER DONO)
-    const { data: allAnimals, error } = await supabase.from('animals').select('*');
+    // 1. GARANTIR QUE O USUÁRIO EXISTE NA TABELA 'users' (Satisfazer Foreign Key)
+    const profile = {
+      id: user.id,
+      email: user.email,
+      name: user.name || "Gabriel Tarnowsky",
+      updated_at: new Date().toISOString()
+    };
     
-    if (error || !allAnimals || allAnimals.length === 0) {
+    const { error: profileError } = await supabase.from('users').upsert(profile);
+    
+    if (profileError) {
+      toast.error(`Erro ao registrar perfil: ${profileError.message}`);
+      return;
+    }
+
+    // 2. BUSCA TOTAL DE ANIMAIS (QUALQUER DONO)
+    const { data: allAnimals, error: fetchError } = await supabase.from('animals').select('*');
+    
+    if (fetchError || !allAnimals || allAnimals.length === 0) {
       toast.error("Nenhum animal encontrado no banco.");
       return;
     }
@@ -1266,7 +1281,7 @@ export const store = {
       return;
     }
 
-    // 2. MODO CLONE: Pegar tudo das outras tabelas e re-inserir para o Gabriel
+    // 3. MODO CLONE: Pegar tudo das outras tabelas e re-inserir para o Gabriel
     let totalCloned = 0;
     let lastError = "";
     const tables = ['animals', 'events', 'financial', 'insemination', 'settings', 'rainfall'];
@@ -1279,10 +1294,9 @@ export const store = {
           const { data: sourceData } = await supabase.from(table).select('*').eq('user_id', oldId);
           
           if (sourceData && sourceData.length > 0) {
-            // Removendo IDs originais para evitar conflitos de chave primária
             const copies = sourceData.map(item => {
               const clone = { ...item, user_id: user.id };
-              delete (clone as any).id; // Deixar o banco gerar novo ID
+              delete (clone as any).id;
               return clone;
             });
             
@@ -1292,7 +1306,6 @@ export const store = {
               totalCloned += copies.length;
             } else {
               lastError = insertError.message;
-              console.error(`Erro na tabela ${table}:`, insertError);
             }
           }
         } catch (e: any) {
