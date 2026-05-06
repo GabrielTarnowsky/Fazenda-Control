@@ -360,7 +360,7 @@ export default function Dashboard() {
       <div className="animate-fade-in-up" style={{ animationDelay: '150ms' }}>
         <Card 
           onClick={() => navigate('/rainfall')}
-          className="border-none shadow-2xl shadow-blue-500/5 bg-gradient-to-br from-white via-blue-50/30 to-blue-100/20 overflow-hidden group cursor-pointer hover:scale-[1.01] transition-all duration-300 active:scale-[0.99]"
+          className="border-none shadow-2xl shadow-blue-500/5 bg-gradient-to-br from-slate-50/80 via-blue-50/30 to-blue-100/20 overflow-hidden group cursor-pointer hover:scale-[1.01] transition-all duration-300 active:scale-[0.99]"
         >
           <CardContent className="p-0">
             <div className="flex flex-col md:flex-row items-stretch">
@@ -436,7 +436,7 @@ export default function Dashboard() {
               </div>
 
               {/* Stats Area */}
-              <div className="p-6 md:w-80 bg-blue-600/5 flex flex-col gap-4">
+              <div className="p-6 md:w-80 bg-slate-100/50 flex flex-col gap-4">
                 <div className="p-4 rounded-3xl bg-white/50 backdrop-blur-sm border border-white shadow-sm group/stat hover:scale-105 transition-transform">
                   <span className="text-[10px] font-black uppercase tracking-widest text-blue-500/50">Nesta Semana</span>
                   <div className="flex items-baseline gap-2 mt-1">
