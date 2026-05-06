@@ -145,6 +145,11 @@ export default function SettingsPage() {
     navigate("/login", { replace: true });
   };
 
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [updatingPass, setUpdatingPass] = useState(false);
+  const [showPassFields, setShowPassFields] = useState(false);
+
   const toggleTheme = (newTheme: 'light' | 'dark') => {
     setTheme(newTheme);
     localStorage.setItem('bovi_theme', newTheme);
@@ -154,6 +159,30 @@ export default function SettingsPage() {
       document.documentElement.classList.remove('dark');
     }
     toast.success(`Modo ${newTheme === 'dark' ? 'Escuro' : 'Claro'} ativado!`);
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!newPass || newPass.length < 6) {
+      toast.error("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+    if (newPass !== confirmPass) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
+
+    setUpdatingPass(true);
+    try {
+      await store.auth.resetPassword(user?.email || "", newPass);
+      toast.success("Senha atualizada com sucesso!");
+      setNewPass("");
+      setConfirmPass("");
+      setShowPassFields(false);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar senha");
+    } finally {
+      setUpdatingPass(false);
+    }
   };
 
   // Count local data for info
@@ -187,11 +216,51 @@ export default function SettingsPage() {
                 <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground truncate">{user?.email || "—"}</p>
               </div>
-              <Badge variant="outline" className="mt-2 text-[9px] font-black uppercase tracking-widest border-primary/30 text-primary bg-primary/5">
-                <Shield className="h-3 w-3 mr-1" /> Conta Ativa
-              </Badge>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-primary/30 text-primary bg-primary/5">
+                  <Shield className="h-3 w-3 mr-1" /> Conta Ativa
+                </Badge>
+                <button 
+                  onClick={() => setShowPassFields(!showPassFields)}
+                  className="text-[10px] font-black uppercase text-primary hover:underline ml-2"
+                >
+                  {showPassFields ? "Cancelar" : "Alterar Senha"}
+                </button>
+              </div>
             </div>
           </div>
+
+          {showPassFields && (
+            <div className="mt-6 p-4 bg-white/50 rounded-2xl border border-primary/10 space-y-4 animate-in slide-in-from-top-2 duration-300">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nova Senha</Label>
+                <Input 
+                  type="password" 
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="h-10 rounded-xl bg-white border-primary/10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Confirmar Senha</Label>
+                <Input 
+                  type="password" 
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  placeholder="Repita a nova senha"
+                  className="h-10 rounded-xl bg-white border-primary/10"
+                />
+              </div>
+              <Button 
+                onClick={handleUpdatePassword}
+                disabled={updatingPass}
+                className="w-full h-10 rounded-xl bg-primary text-white font-black italic uppercase text-xs"
+              >
+                {updatingPass ? "Atualizando..." : "Confirmar Nova Senha"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
       
