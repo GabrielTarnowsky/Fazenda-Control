@@ -25,7 +25,7 @@ export function SidebarLayout({ children }: { children?: React.ReactNode }) {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background overflow-hidden font-sans">
         <AppSidebar />
-        <main className="flex-1 overflow-y-auto w-full p-4 md:p-8 pt-16 md:pt-8 bg-background/50">
+        <main className="flex-1 overflow-y-auto w-full p-4 md:p-8 pt-16 md:pt-8 bg-background">
           <div className="md:hidden flex items-center justify-between fixed top-0 left-0 right-0 p-4 bg-sidebar border-b z-20 shadow-sm">
              <div className="flex items-center gap-2">
                 <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-border/50">
