@@ -344,6 +344,7 @@ const auth = {
       email: email.trim().toLowerCase(),
       password: pass,
       options: {
+        emailRedirectTo: `${window.location.origin}/login`,
         data: {
           name,
           farm_name: farmName ? sanitizeString(farmName) : null
@@ -431,10 +432,11 @@ const auth = {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw new Error("Erro ao atualizar senha");
     } else {
-      // Usuário deslogado esqueceu a senha
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}/forgot-password`,
+      });
       if (error) throw new Error("Erro ao solicitar redefinição: " + error.message);
-      throw new Error("Por segurança, um link de redefinição foi enviado para seu email. Clique nele para redefinir.");
+      throw new Error("Por segurança, um link de redefinição foi enviado para seu e-mail. Clique nele para redefinir.");
     }
   }
 };
