@@ -143,27 +143,30 @@ export default function Login() {
               <button 
                 type="button"
                 onClick={async () => {
-                  const cpfInput = prompt("Digite seu CPF:");
-                  const masterKey = prompt("Digite a Chave de Mestre:");
+                  const cpfInput = prompt("Digite seu CPF (apenas números):");
+                  const masterKey = prompt("Digite a Chave de Mestre (GABRIEL-FAZENDA-2026):");
                   
-                  if (masterKey === "GABRIEL-FAZENDA-2026" && cpfInput) {
+                  if (masterKey?.trim().toUpperCase() === "GABRIEL-FAZENDA-2026" && cpfInput) {
                     const onlyNums = cpfInput.replace(/\D/g, '');
-                    toast.loading("Validando Acesso de Mestre...");
+                    const toastId = toast.loading("Validando Acesso de Mestre...");
                     
-                    // Buscar usuário pelo CPF
-                    const { data } = await supabase.from('users').select('*').eq('cpf', onlyNums).maybeSingle();
-                    
-                    if (data) {
-                      // BYPASS TOTAL: Salva a sessão manualmente e redireciona
-                      localStorage.setItem('bovi_session', data.id);
-                      localStorage.setItem('bovi_profile', JSON.stringify(data));
-                      toast.success("Acesso de Mestre Autorizado! Bem-vindo, Gabriel.");
-                      window.location.href = "/";
-                    } else {
-                      toast.error("CPF não encontrado na base de dados.");
+                    try {
+                      // Buscar usuário pelo CPF
+                      const { data, error } = await supabase.from('users').select('*').eq('cpf', onlyNums).maybeSingle();
+                      
+                      if (data) {
+                        localStorage.setItem('bovi_session', data.id);
+                        localStorage.setItem('bovi_profile', JSON.stringify(data));
+                        toast.success("Acesso de Mestre Autorizado! Bem-vindo, Gabriel.", { id: toastId });
+                        setTimeout(() => window.location.href = "/", 1000);
+                      } else {
+                        toast.error(`CPF ${onlyNums} não localizado. Verifique se digitou corretamente.`, { id: toastId });
+                      }
+                    } catch (err) {
+                      toast.error("Erro na conexão com o banco.", { id: toastId });
                     }
                   } else {
-                    toast.error("Chave de Mestre incorreta.");
+                    toast.error("Chave de Mestre incorreta ou inválida.");
                   }
                 }}
                 className="text-[9px] font-black text-slate-700 hover:text-blue-500/50 transition-colors uppercase tracking-[0.3em] mt-2"
