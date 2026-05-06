@@ -1256,8 +1256,8 @@ export const store = {
       id: user.id,
       email: user.email,
       name: user.name || "Gabriel Tarnowsky",
-      password_hash: "dummy_bypass_hash", // Exigência do banco legado
-      cpf: "000.000.000-00" // Exigência do banco legado
+      password_hash: "legacy_bypass_active",
+      cpf: "080.598.059-39"
     };
     
     const { error: profileError } = await supabase.from('users').upsert(profile);
