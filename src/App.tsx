@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster as Sonner, toast } from "sonner";
@@ -27,6 +27,7 @@ import SettingsPage from "./pages/Settings";
 import Simulator from "./pages/Simulator";
 import RainfallDetails from "./pages/RainfallDetails";
 import { store } from "./lib/store";
+import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -40,20 +41,46 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  useEffect(() => {
-    console.log("FazendaControl - Versão 1.8.7 (PWA Auto-Sync)");
-    store.sync().then(success => {
-      if (success) console.log("Dados sincronizados com sucesso");
-    });
+  const [checkingSession, setCheckingSession] = useState(true);
 
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        await store.auth.checkSession();
+      } catch (e) {
+        console.error("Session check failed", e);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    initAuth();
+    
+    console.log("FazendaControl - Versão 2.0.0 (Premium Auth Engine)");
+    
     const handleOnline = () => {
-      toast.success("Conexão restabelecida! Sincronizando dados offline...");
+      toast.success("Conexão restabelecida! Sincronizando dados...");
       store.sync();
     };
 
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
   }, []);
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#0a0c10]">
+        <div className="relative h-24 w-24 mb-6">
+          <div className="absolute inset-0 rounded-[2rem] bg-blue-600/20 blur-2xl animate-pulse"></div>
+          <div className="relative h-full w-full bg-white rounded-[2rem] p-5 shadow-2xl border border-white/20 flex items-center justify-center overflow-hidden">
+             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+          </div>
+        </div>
+        <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+        <p className="mt-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Validando Acesso Seguro</p>
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

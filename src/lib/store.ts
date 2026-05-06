@@ -380,6 +380,39 @@ const auth = {
     saveSession(data.id);
     return data;
   },
+  checkSession: async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session) {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem("bovi_user_profile");
+      return null;
+    }
+
+    const userId = session.user.id;
+    saveSession(userId);
+
+    // Refresh profile from DB or Metadata
+    const { data: profileData } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+    
+    const profile = profileData || { 
+      id: userId, 
+      name: session.user.user_metadata?.name || "Usuário", 
+      email: session.user.email || "",
+      farm_name: session.user.user_metadata?.farm_name,
+      cpf: session.user.user_metadata?.cpf
+    };
+
+    saveUserProfile(profile);
+    return profile;
+  },
+  getCurrentUser: () => {
+    const userId = getSession();
+    if (!userId) return null;
+    const profile = loadUserProfile();
+    if (profile && profile.id === userId) return profile as User;
+    // Se não houver profile mas houver ID, tentamos retornar algo mínimo para não quebrar a UI
+    return { id: userId, name: "Usuário", email: "", createdAt: "" } as User;
+  },
   login: async (identifier: string, pass: string) => {
     let email = identifier.trim().toLowerCase();
     
@@ -391,15 +424,13 @@ const auth = {
           .from('users')
           .select('email')
           .eq('cpf', onlyNums)
-          .maybeSingle(); // Usar maybeSingle para não estourar erro se não achar
+          .maybeSingle();
         
         if (!cpfError && userData) {
           email = userData.email;
-        } else if (cpfError) {
-          console.warn("Aviso: Busca por CPF falhou (provavelmente coluna inexistente):", cpfError.message);
         }
       } catch (e) {
-        console.error("Erro crítico na busca por CPF:", e);
+        console.error("CPF lookup failed:", e);
       }
     }
 
@@ -412,12 +443,11 @@ const auth = {
       if (authError.message.includes('Invalid login credentials')) {
         throw new Error("E-mail/CPF ou senha incorretos. Verifique seus dados.");
       }
-      throw new Error("Erro no acesso: " + authError.message);
+      throw new Error(authError.message);
     }
 
-    if (!authData.user) throw new Error("Erro no login: Sessão não iniciada.");
+    if (!authData.user) throw new Error("Erro no login");
 
-    // Sincronizar dados do perfil (incluindo CPF dos metadados se necessário)
     const { data, error } = await supabase.from('users').select('*').eq('id', authData.user.id).maybeSingle();
     
     const profile = data || { 
@@ -427,11 +457,6 @@ const auth = {
       farm_name: authData.user.user_metadata?.farm_name,
       cpf: authData.user.user_metadata?.cpf
     };
-
-    // Se o CPF está nos metadados mas não na tabela users, vamos tentar atualizar a tabela users
-    if (authData.user.user_metadata?.cpf && (!data || !data.cpf)) {
-      await supabase.from('users').update({ cpf: authData.user.user_metadata.cpf }).eq('id', authData.user.id).catch(() => {});
-    }
 
     saveSession(authData.user.id);
     saveUserProfile(profile);
