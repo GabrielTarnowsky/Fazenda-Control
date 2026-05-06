@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { store, Animal, Financial, AnimalEvent, parseDateSafe, Rainfall } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
-import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight, Cloud, Database, RefreshCw, Upload, Download, CloudRain, Droplets } from "lucide-react";
+import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight, Cloud, Database, RefreshCw, Upload, Download, CloudRain, Droplets, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
