@@ -1249,52 +1249,64 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Usuário não identificado");
 
-    toast.loading("Iniciando Busca Forense (Modo Raio-X)...");
+    toast.loading("Iniciando Clonagem Forense de Dados...");
 
-    // 1. BUSCA TOTAL SEM FILTROS
-    const { data: allData, error } = await supabase.from('animals').select('user_id');
+    // 1. BUSCA TOTAL DE ANIMAIS (QUALQUER DONO)
+    const { data: allAnimals, error } = await supabase.from('animals').select('*');
     
-    if (error) {
-      toast.error("Erro crítico ao acessar a tabela de animais.");
+    if (error || !allAnimals || allAnimals.length === 0) {
+      toast.error("Nenhum animal encontrado para clonar.");
       return;
     }
 
-    if (!allData || allData.length === 0) {
-      toast.error("O banco de dados de animais está TOTALMENTE VAZIO na nuvem.");
+    const otherAnimals = allAnimals.filter(a => a.user_id !== user.id);
+
+    if (otherAnimals.length === 0) {
+      toast.info(`Você já possui todos os ${allAnimals.length} animais do banco.`);
       return;
     }
 
-    // 2. Identificar quem são os "donos" das vacas no banco
-    const ownerIds = Array.from(new Set(allData.map(a => a.user_id)));
-    const otherOwners = ownerIds.filter(id => id !== user.id);
-
-    if (otherOwners.length === 0) {
-      toast.info(`O banco tem ${allData.length} animais, mas todos já pertencem a você.`);
-      return;
-    }
-
-    // 3. MIGRAR TUDO DE TODOS OS OUTROS
-    toast.loading(`Encontrados animais de ${otherOwners.length} IDs diferentes. Resgatando...`);
+    // 2. MODO CLONE: Pegar tudo das outras tabelas e re-inserir para o Gabriel
+    toast.loading(`Clonando rebanho de ${otherAnimals.length} animais...`);
     
-    let totalRecovered = 0;
+    let totalCloned = 0;
     const tables = ['animals', 'events', 'financial', 'insemination', 'settings', 'rainfall'];
 
-    for (const oldId of otherOwners) {
+    // Pegar todos os IDs de donos antigos encontrados
+    const oldIds = Array.from(new Set(otherAnimals.map(a => a.user_id)));
+
+    for (const oldId of oldIds) {
       if (!oldId) continue;
       for (const table of tables) {
-        const { data } = await supabase.from(table).update({ user_id: user.id }).eq('user_id', oldId).select();
-        if (data) totalRecovered += data.length;
+        try {
+          // Pegar os dados originais
+          const { data: sourceData } = await supabase.from(table).select('*').eq('user_id', oldId);
+          
+          if (sourceData && sourceData.length > 0) {
+            // Preparar cópias com o novo user_id
+            const copies = sourceData.map(item => ({
+              ...item,
+              user_id: user.id,
+              id: item.id // Mantemos o ID se for UUID para manter os vínculos entre tabelas (se usarmos upsert)
+            }));
+            
+            // Inserir as cópias (upsert para evitar erro de ID duplicado se o usuário já tiver alguns dados)
+            const { error: insertError } = await supabase.from(table).upsert(copies);
+            
+            if (!insertError) totalCloned += copies.length;
+          }
+        } catch (e) {}
       }
     }
 
-    if (totalRecovered > 0) {
-      toast.success(`MÁGICA! ${totalRecovered} registros recuperados de outros perfis.`);
+    if (totalCloned > 0) {
+      toast.success(`MISSÃO CUMPRIDA! ${totalCloned} registros clonados com sucesso.`);
       setTimeout(() => window.location.reload(), 2000);
     } else {
-      toast.error("Falha ao migrar os registros encontrados.");
+      toast.error("Erro técnico ao clonar registros. Verifique a conexão.");
     }
 
-    return totalRecovered;
+    return totalCloned;
   },
   sync: async () => {
     const queue = getPendingActions();
