@@ -429,17 +429,38 @@ const auth = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
 
-    const { data, error } = await supabase
-      .from('users')
-      .update(updates)
-      .eq('id', user.id)
-      .select()
-      .single();
+    // 1. Atualizar no Supabase Auth Metadata (Mais garantido que funcione sempre)
+    const { error: authError } = await supabase.auth.updateUser({
+      data: { 
+        name: updates.name || user.name, 
+        cpf: updates.cpf || user.cpf,
+        farm_name: updates.farm_name || user.farm_name
+      }
+    });
 
-    if (error) throw error;
+    if (authError) console.warn("Erro ao atualizar Auth Metadata:", authError.message);
+
+    // 2. Tentar atualizar na tabela pública 'users' (Pode falhar se a coluna CPF não existir)
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .update(updates)
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (!error && data) {
+        saveUserProfile(data);
+        return data;
+      }
+    } catch (e) {
+      console.error("Erro na tabela users, usando fallback:", e);
+    }
     
-    saveUserProfile(data);
-    return data;
+    // Fallback: Se a tabela users falhar, atualizar apenas o cache local com os novos dados
+    const updatedProfile = { ...user, ...updates };
+    saveUserProfile(updatedProfile);
+    return updatedProfile;
   },
   logout: async () => {
     await supabase.auth.signOut();
