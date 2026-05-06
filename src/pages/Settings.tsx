@@ -42,6 +42,8 @@ export default function SettingsPage() {
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [useAutoRainfall, setUseAutoRainfall] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profile, setProfile] = useState({ name: user?.name || "", email: user?.email || "", cpf: user?.cpf || "" });
 
   const [counts, setCounts] = useState({ animals: 0, events: 0, financials: 0 });
 
@@ -221,13 +223,63 @@ export default function SettingsPage() {
                   <Shield className="h-3 w-3 mr-1" /> Conta Ativa
                 </Badge>
                 <button 
-                  onClick={() => setShowPassFields(!showPassFields)}
+                  onClick={() => setIsEditingProfile(!isEditingProfile)}
                   className="text-[10px] font-black uppercase text-primary hover:underline ml-2"
                 >
-                  {showPassFields ? "Cancelar" : "Alterar Senha"}
+                  {isEditingProfile ? "Cancelar" : "Editar Perfil"}
                 </button>
               </div>
             </div>
+          </div>
+
+          {isEditingProfile && (
+            <div className="mt-6 p-5 bg-white/50 rounded-2xl border border-primary/10 space-y-4 animate-in slide-in-from-top-2 duration-300">
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Seu Nome</label>
+                  <Input 
+                    value={profile.name} 
+                    onChange={e => setProfile({...profile, name: e.target.value})}
+                    className="h-10 bg-white border-slate-200 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">CPF (Para login)</label>
+                  <Input 
+                    placeholder="000.000.000-00"
+                    value={profile.cpf || ""} 
+                    onChange={e => setProfile({...profile, cpf: e.target.value.replace(/\D/g, '').slice(0, 11)})}
+                    className="h-10 bg-white border-slate-200 rounded-xl"
+                  />
+                  <p className="text-[9px] text-slate-400 mt-1 ml-1 italic">* Use apenas números para salvar</p>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        await store.auth.updateProfile({ name: profile.name, cpf: profile.cpf });
+                        toast.success("Perfil atualizado!");
+                        setIsEditingProfile(false);
+                      } catch (err: any) {
+                        toast.error("Erro ao salvar perfil");
+                      }
+                    }}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold italic uppercase text-xs rounded-xl h-10"
+                  >
+                    Salvar Alterações
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 flex items-center justify-between pt-4 border-t border-primary/10">
+            <button 
+              onClick={() => setShowPassFields(!showPassFields)}
+              className="text-[10px] font-black uppercase text-primary hover:underline"
+            >
+              {showPassFields ? "Fechar Alterar Senha" : "Deseja mudar sua senha?"}
+            </button>
           </div>
 
           {showPassFields && (

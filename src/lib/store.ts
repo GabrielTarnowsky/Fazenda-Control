@@ -42,6 +42,7 @@ export interface User {
   name: string;
   email: string;
   farm_name?: string;
+  cpf?: string;
   password_hash?: string;
   salt?: string;
   createdAt: string;
@@ -379,33 +380,66 @@ const auth = {
     saveSession(data.id);
     return data;
   },
-  login: async (email: string, pass: string) => {
+  login: async (identifier: string, pass: string) => {
+    let email = identifier.trim().toLowerCase();
+    
+    // Se parecer um CPF (apenas números e tem 11 dígitos)
+    const onlyNums = identifier.replace(/\D/g, '');
+    if (onlyNums.length === 11) {
+      const { data: userData, error: cpfError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('cpf', onlyNums)
+        .single();
+      
+      if (!cpfError && userData) {
+        email = userData.email;
+      }
+    }
+
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email,
       password: pass
     });
 
     if (authError) {
       if (authError.message.includes('Invalid login credentials')) {
-        throw new Error("Email ou senha incorretos");
+        throw new Error("E-mail/CPF ou senha incorretos");
       }
       throw authError;
     }
 
     if (!authData.user) throw new Error("Erro no login");
 
-    const { data, error } = await supabase.from('users').select('id, name, email, farm_name').eq('id', authData.user.id).single();
+    const { data, error } = await supabase.from('users').select('id, name, email, farm_name, cpf').eq('id', authData.user.id).single();
     
     const profile = data || { 
       id: authData.user.id, 
       name: authData.user.user_metadata?.name || "Usuário", 
       email: authData.user.email || email,
-      farm_name: authData.user.user_metadata?.farm_name
+      farm_name: authData.user.user_metadata?.farm_name,
+      cpf: authData.user.user_metadata?.cpf
     };
 
     saveSession(authData.user.id);
     saveUserProfile(profile);
     return profile;
+  },
+  updateProfile: async (updates: Partial<User>) => {
+    const user = auth.getCurrentUser();
+    if (!user) throw new Error("Não autenticado");
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    saveUserProfile(data);
+    return data;
   },
   logout: async () => {
     await supabase.auth.signOut();
