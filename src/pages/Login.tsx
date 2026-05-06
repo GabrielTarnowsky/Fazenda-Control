@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Beef, LogIn, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function Login() {
     setLoading(true);
     
     try {
-      await store.auth.login(email, password);
+      await store.auth.login(identifier, password);
       const user = store.auth.getCurrentUser();
       
       toast.success(`Bem-vindo de volta, ${user?.name || 'Produtor'}!`);
@@ -76,11 +76,11 @@ export default function Login() {
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                   <Input 
-                    type="email" 
-                    placeholder="E-mail de acesso" 
+                    type="text" 
+                    placeholder="E-mail ou CPF" 
                     className="pl-12 h-14 bg-white/[0.03] border-white/5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all rounded-2xl text-base"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    value={identifier}
+                    onChange={e => setIdentifier(e.target.value)}
                     required
                   />
                 </div>
