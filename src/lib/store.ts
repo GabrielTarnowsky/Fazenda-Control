@@ -8,7 +8,7 @@ const v4 = () => {
     return crypto.randomUUID();
   }
   // Fallback for older environments
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
@@ -340,7 +340,7 @@ const auth = {
   signup: async (name: string, email: string, pass: string, farmName?: string) => {
     const passError = validatePasswordStrength(pass);
     if (passError) throw new Error(passError);
-    
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password: pass,
@@ -359,9 +359,9 @@ const auth = {
       }
       throw authError;
     }
-    
+
     if (!authData.user) throw new Error("Erro ao criar usuário");
-    
+
     const { data, error } = await supabase.from('users').insert([{
       id: authData.user.id,
       name,
@@ -390,10 +390,10 @@ const auth = {
 
       // Refresh profile from DB or Metadata
       const { data: profileData } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
-      
-      const profile = profileData || { 
-        id: userId, 
-        name: session.user.user_metadata?.name || "Usuário", 
+
+      const profile = profileData || {
+        id: userId,
+        name: session.user.user_metadata?.name || "Usuário",
         email: session.user.email || "",
         farm_name: session.user.user_metadata?.farm_name,
         cpf: session.user.user_metadata?.cpf
@@ -403,7 +403,7 @@ const auth = {
 
       // AUTO-RECOVERY: Se o usuário entrar e estiver logado, tentamos vincular dados antigos em silêncio
       // Isso resolve o problema de "conta zerada" após migração/login
-      auth.recoverLegacyDataSilent(profile).catch(() => {});
+      auth.recoverLegacyDataSilent(profile).catch(() => { });
 
       return profile;
     } catch (e) {
@@ -413,7 +413,7 @@ const auth = {
   },
   recoverLegacyDataSilent: async (user: User) => {
     if (!user || !user.email) return;
-    
+
     // Buscar outros IDs com o mesmo email
     const { data: legacyUsers } = await supabase
       .from('users')
@@ -429,7 +429,7 @@ const auth = {
     const tables = ['animals', 'financials', 'events', 'rainfall', 'health', 'settings'];
     for (const oldId of oldIds) {
       for (const table of tables) {
-        await supabase.from(table).update({ user_id: user.id }).eq('user_id', oldId).catch(() => {});
+        await supabase.from(table).update({ user_id: user.id }).eq('user_id', oldId).catch(() => { });
       }
     }
   },
@@ -443,7 +443,7 @@ const auth = {
   },
   login: async (identifier: string, pass: string) => {
     let email = identifier.trim().toLowerCase();
-    
+
     // Se parecer um CPF (11 dígitos numéricos)
     const onlyNums = identifier.replace(/\D/g, '');
     if (onlyNums.length === 11) {
@@ -453,7 +453,7 @@ const auth = {
           .select('email')
           .eq('cpf', onlyNums)
           .maybeSingle();
-        
+
         if (!cpfError && userData) {
           email = userData.email;
         }
@@ -477,10 +477,10 @@ const auth = {
     if (!authData.user) throw new Error("Erro no login");
 
     const { data, error } = await supabase.from('users').select('*').eq('id', authData.user.id).maybeSingle();
-    
-    const profile = data || { 
-      id: authData.user.id, 
-      name: authData.user.user_metadata?.name || "Usuário", 
+
+    const profile = data || {
+      id: authData.user.id,
+      name: authData.user.user_metadata?.name || "Usuário",
       email: authData.user.email || email,
       farm_name: authData.user.user_metadata?.farm_name,
       cpf: authData.user.user_metadata?.cpf
@@ -496,8 +496,8 @@ const auth = {
 
     // 1. Atualizar no Supabase Auth Metadata (Mais garantido que funcione sempre)
     const { error: authError } = await supabase.auth.updateUser({
-      data: { 
-        name: updates.name || user.name, 
+      data: {
+        name: updates.name || user.name,
         cpf: updates.cpf || user.cpf,
         farm_name: updates.farm_name || user.farm_name
       }
@@ -521,7 +521,7 @@ const auth = {
     } catch (e) {
       console.error("Erro na tabela users, usando fallback:", e);
     }
-    
+
     // Fallback: Se a tabela users falhar, atualizar apenas o cache local com os novos dados
     const updatedProfile = { ...user, ...updates };
     saveUserProfile(updatedProfile);
@@ -554,8 +554,8 @@ const auth = {
       });
       if (error) throw error;
       return true;
-    } 
-    
+    }
+
     // Se não houver senha, estamos apenas pedindo o e-mail de recuperação
     if (!newPassword) {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
@@ -576,12 +576,12 @@ const auth = {
 
 export const store = {
   auth,
-  
+
   // Animals
   getAnimals: async () => {
     const user = auth.getCurrentUser();
     if (!user) return [];
-    
+
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return getDataCache('animals');
     }
@@ -589,11 +589,11 @@ export const store = {
     try {
       const { data, error } = await supabase.from('animals').select('*').eq('user_id', user.id);
       if (error) throw error;
-      
+
       const mapped = (data || []).map(a => ({ ...a, lote_id: a.lot }));
       // Use fallback for tag in localeCompare to prevent JS crashes
       const sorted = mapped.sort((a, b) => (b.tag || "").localeCompare(a.tag || ""));
-      
+
       saveDataCache('animals', sorted);
       return sorted;
     } catch (error) {
@@ -603,7 +603,7 @@ export const store = {
   addAnimal: async (a: Omit<Animal, "id">) => {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
-    const item: any = { 
+    const item: any = {
       id: (a as any).id || v4(),
       tag: sanitizeString(a.tag),
       user_id: user.id,
@@ -742,7 +742,7 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item = { ...log, id: v4(), user_id: user.id };
-    
+
     const finMeta = {
       id: item.id,
       type: 'metadata',
@@ -770,7 +770,7 @@ export const store = {
   addEvent: async (e: Omit<AnimalEvent, "id">) => {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
-    const item = { 
+    const item = {
       id: (e as any).id || v4(),
       animal_id: e.animal_id,
       type: e.type,
@@ -782,7 +782,7 @@ export const store = {
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       addPendingAction({ method: 'addEvent', args: [item] });
-      
+
       const currentCache = getDataCache('events');
       saveDataCache('events', [item, ...currentCache]);
 
@@ -795,11 +795,11 @@ export const store = {
     try {
       const { data, error } = await supabase.from('events').insert([item]).select().single();
       if (error) throw error;
-      
+
       if (e.type === "pesagem" && e.weight) await store.updateAnimal(e.animal_id, { weight: e.weight });
       if (e.type === "venda") await store.updateAnimal(e.animal_id, { status: "vendido", peso_saida: e.weight });
       if (e.type === "morte") await store.updateAnimal(e.animal_id, { status: "morto", peso_saida: e.weight });
-      
+
       return data;
     } catch {
       addPendingAction({ method: 'addEvent', args: [item] });
@@ -840,19 +840,19 @@ export const store = {
       const baseDate = parseDateSafe(f.date);
       for (let i = 0; i < installments; i++) {
         const instDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
-        items.push({ 
-          ...f, 
-          id: v4(), 
+        items.push({
+          ...f,
+          id: v4(),
           user_id: user.id,
-          value: valuePerInstallment, 
+          value: valuePerInstallment,
           date: instDate.toISOString().split("T")[0],
-          description: `${f.description} (${i + 1}/${installments})` 
+          description: `${f.description} (${i + 1}/${installments})`
         });
       }
     } else {
-      items.push({ 
-        ...f, 
-        id: v4(), 
+      items.push({
+        ...f,
+        id: v4(),
         user_id: user.id,
         description: sanitizeString(f.description),
         category: sanitizeString(f.category)
@@ -923,7 +923,7 @@ export const store = {
   addInsemination: async (ins: Omit<Insemination, "id">) => {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
-    const item = { 
+    const item = {
       id: v4(),
       animal_id: ins.animal_id,
       date: ins.date,
@@ -944,7 +944,7 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     // Using insemination table for health as per mapping
-    const item = { 
+    const item = {
       id: v4(),
       animal_id: h.animal_id,
       date: h.date,
@@ -1044,15 +1044,15 @@ export const store = {
     if (!user) throw new Error("Não autenticado");
     const item = { ...pur, id: v4(), user_id: user.id };
     const finMeta = { id: item.id, type: 'metadata', category: 'purchase', value: item.total_value || 0, date: item.date || new Date().toISOString(), description: JSON.stringify(item), user_id: user.id };
-    
+
     let ingName = "Insumo";
     try {
       const { data } = await supabase.from('financial').select('*').eq('id', item.ingredient_id).eq('user_id', user.id).single();
       if (data && data.description) {
-         const decoded = JSON.parse(data.description);
-         if (decoded.name) ingName = decoded.name;
+        const decoded = JSON.parse(data.description);
+        if (decoded.name) ingName = decoded.name;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const finExpense = {
       id: v4(),
@@ -1067,7 +1067,7 @@ export const store = {
 
     const { error } = await supabase.from('financial').insert([finMeta, finExpense]);
     if (error) throw error;
-    
+
     // Atualiza o custo por kg do insumo com a compra mais recente
     if (item.ingredient_id && item.cost_per_kg) {
       try {
@@ -1086,7 +1086,7 @@ export const store = {
     const existing = all.find(p => p.id === id);
     if (!existing) return;
     const updated = { ...existing, ...data };
-    
+
     // Atualiza a metadata nativa
     await supabase.from('financial').update({ description: JSON.stringify(updated), value: updated.total_value, date: updated.date }).eq('id', id).eq('user_id', user.id);
 
@@ -1103,33 +1103,33 @@ export const store = {
       try {
         const ingData = await supabase.from('financial').select('description').eq('id', updated.ingredient_id).single();
         if (ingData.data?.description) {
-           const dec = JSON.parse(ingData.data.description);
-           if (dec.name) ingName = dec.name;
+          const dec = JSON.parse(ingData.data.description);
+          if (dec.name) ingName = dec.name;
         }
-      } catch(e){}
+      } catch (e) { }
 
       await supabase.from('financial').update({
-          value: updated.total_value,
-          date: updated.date,
-          payment_method: updated.payment_method || 'Pix',
-          description: `Compra de ${updated.total_qty_kg}kg de ${ingName}`
+        value: updated.total_value,
+        date: updated.date,
+        payment_method: updated.payment_method || 'Pix',
+        description: `Compra de ${updated.total_qty_kg}kg de ${ingName}`
       }).eq('id', expenses[0].id).eq('user_id', user.id);
     }
   },
   deleteIngredientPurchase: async (id: string) => {
     const user = auth.getCurrentUser();
     if (!user) return;
-    
+
     // Tenta encontrar a despesa associada antes de deletar
     const all = await store.getIngredientPurchases();
     const existing = all.find(p => p.id === id);
     if (existing) {
-       await supabase.from('financial')
-         .delete()
-         .eq('category', 'Compra de Insumos')
-         .eq('value', existing.total_value)
-         .eq('date', existing.date)
-         .eq('user_id', user.id);
+      await supabase.from('financial')
+        .delete()
+        .eq('category', 'Compra de Insumos')
+        .eq('value', existing.total_value)
+        .eq('date', existing.date)
+        .eq('user_id', user.id);
     }
 
     // Deleta a metadata da compra
@@ -1140,7 +1140,7 @@ export const store = {
   getSettings: async (): Promise<Setting[]> => {
     const user = auth.getCurrentUser();
     if (!user) return [];
-    
+
     // Tenta carregar do Supabase
     const { data } = await supabase.from('settings').select('*').eq('user_id', user.id);
     if (data) return data;
@@ -1181,14 +1181,14 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const item: Rainfall = { id: v4(), date, mm, user_id: user.id };
-    const fin = { 
-      id: item.id, 
-      type: 'metadata', 
-      category: 'rainfall', 
-      value: mm, 
-      date: date, 
-      description: JSON.stringify(item), 
-      user_id: user.id 
+    const fin = {
+      id: item.id,
+      type: 'metadata',
+      category: 'rainfall',
+      value: mm,
+      date: date,
+      description: JSON.stringify(item),
+      user_id: user.id
     };
     const { error } = await supabase.from('financial').insert([fin]);
     if (error) throw error;
@@ -1207,14 +1207,14 @@ export const store = {
       // Usando allorigins para evitar CORS
       const targetUrl = encodeURIComponent("https://www.scotconsultoria.com.br/cotacoes/boi-gordo/");
       const proxyUrl = `https://api.allorigins.win/get?url=${targetUrl}`;
-      
+
       const response = await fetch(proxyUrl);
       const data = await response.json();
       const html = data.contents;
 
       // Na Scot, o valor geralmente está em tabelas. 
       const match = html.match(/(?:Teresina|Piauí).*?(\d{3}(?:,\d{2})?)/i);
-      
+
       if (match && match[1]) {
         return parseFloat(match[1].replace(',', '.'));
       }
@@ -1284,7 +1284,7 @@ export const store = {
       try {
         const raw = localStorage.getItem(key);
         if (!raw) continue;
-        
+
         let localData = [];
         try {
           const parsed = JSON.parse(raw);
@@ -1300,7 +1300,7 @@ export const store = {
             const { error: uploadError } = await supabase
               .from(table)
               .upsert({ ...item, user_id: user.id, id: item.id || v4() });
-            
+
             if (!uploadError) recoveredCount++;
           }
           // Limpar o cache antigo para não duplicar no futuro
@@ -1320,7 +1320,7 @@ export const store = {
             .update({ user_id: user.id })
             .eq('user_id', oldId)
             .select();
-          
+
           if (!updateError && data) recoveredCount += data.length;
         } catch (e) {
           console.error(`Erro ao recuperar tabela ${table}:`, e);
@@ -1357,7 +1357,7 @@ export const store = {
         console.error("Failed to sync action", action, e);
       }
     }
-    
+
     if (success) {
       clearPendingActions();
       toast.success("Dados sincronizados com a nuvem!");

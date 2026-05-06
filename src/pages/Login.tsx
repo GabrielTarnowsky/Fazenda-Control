@@ -24,23 +24,23 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       await store.auth.login(identifier, password);
       const user = store.auth.getCurrentUser();
-      
+
       toast.success(`Bem-vindo de volta, ${user?.name || 'Produtor'}!`);
-      
+
       // Auto-sync after login
       await store.sync();
-      
+
       // Attempt auto-recovery of legacy data if empty
       try {
         const animals = await store.getAnimals();
         if (animals.length === 0) {
-          await store.recoverLegacyData().catch(() => {});
+          await store.recoverLegacyData().catch(() => { });
         }
-      } catch (e) {}
+      } catch (e) { }
 
       navigate("/");
     } catch (error: any) {
@@ -55,7 +55,7 @@ export default function Login() {
       {/* Dynamic Background Elements */}
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[150px] animate-pulse"></div>
       <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-emerald-600/10 rounded-full blur-[150px]"></div>
-      
+
       {/* Grid Pattern Overlay */}
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
 
@@ -76,9 +76,9 @@ export default function Login() {
                 <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] ml-1">Identificação</label>
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                  <Input 
-                    type="text" 
-                    placeholder="E-mail ou CPF" 
+                  <Input
+                    type="text"
+                    placeholder="E-mail ou CPF"
                     className="pl-12 h-14 bg-white/[0.03] border-white/5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all rounded-2xl text-base"
                     value={identifier}
                     onChange={e => setIdentifier(e.target.value)}
@@ -94,9 +94,9 @@ export default function Login() {
                 </div>
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
-                  <Input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="Sua senha secreta" 
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Sua senha secreta"
                     className="pl-12 pr-12 h-14 bg-white/[0.03] border-white/5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all rounded-2xl text-base"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
@@ -112,8 +112,8 @@ export default function Login() {
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-black italic text-lg rounded-2xl shadow-xl shadow-blue-600/20 group transition-all duration-300 active:scale-[0.98]"
                 disabled={loading}
               >
@@ -133,35 +133,35 @@ export default function Login() {
                 <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Ambiente Criptografado</span>
                 <div className="flex-1 h-[1px] bg-white/5"></div>
               </div>
-              
+
               <Link to="/signup" className="group">
                 <p className="text-sm text-slate-400 group-hover:text-white transition-colors">
                   Novo por aqui? <span className="text-blue-500 font-black italic ml-1 underline-offset-4 group-hover:underline">Crie sua conta</span>
                 </p>
               </Link>
 
-              <button 
+              <button
                 type="button"
                 onClick={async () => {
                   const emailInput = prompt("Digite seu E-mail de cadastro:");
                   const masterKey = prompt("Digite a Chave de Mestre (GABRIEL-FAZENDA-2026):");
-                  
+
                   if (masterKey?.trim().toUpperCase() === "GABRIEL-FAZENDA-2026" && emailInput) {
                     const toastId = toast.loading("Validando Acesso de Mestre...");
                     const email = emailInput.trim().toLowerCase();
-                    
+
                     try {
                       // Buscar usuário pelo E-mail
                       const { data, error } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
-                      
+
                       if (data || email === "cesarogabriel4@gmail.com") {
-                        const profile = data || { 
-                          id: "gabriel-bypass-id", 
-                          name: "Gabriel Tarnowsky", 
+                        const profile = data || {
+                          id: "gabriel-bypass-id",
+                          name: "Gabriel Tarnowsky",
                           email: email,
                           createdAt: new Date().toISOString()
                         };
-                        
+
                         localStorage.setItem('bovi_session', profile.id);
                         localStorage.setItem('bovi_profile', JSON.stringify(profile));
                         toast.success("Acesso de Mestre Autorizado! Bem-vindo de volta.", { id: toastId });
@@ -183,7 +183,7 @@ export default function Login() {
             </div>
           </CardContent>
         </Card>
-        
+
         <div className="mt-8 flex justify-center items-center gap-4 text-[10px] font-black text-slate-600 tracking-widest uppercase">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/5">
             <ShieldCheck className="h-3 w-3 text-blue-500" />
