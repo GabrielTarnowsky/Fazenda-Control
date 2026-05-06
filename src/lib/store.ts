@@ -383,17 +383,23 @@ const auth = {
   login: async (identifier: string, pass: string) => {
     let email = identifier.trim().toLowerCase();
     
-    // Se parecer um CPF (apenas números e tem 11 dígitos)
+    // Se parecer um CPF (11 dígitos numéricos)
     const onlyNums = identifier.replace(/\D/g, '');
     if (onlyNums.length === 11) {
-      const { data: userData, error: cpfError } = await supabase
-        .from('users')
-        .select('email')
-        .eq('cpf', onlyNums)
-        .single();
-      
-      if (!cpfError && userData) {
-        email = userData.email;
+      try {
+        const { data: userData, error: cpfError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('cpf', onlyNums)
+          .maybeSingle(); // Usar maybeSingle para não estourar erro se não achar
+        
+        if (!cpfError && userData) {
+          email = userData.email;
+        } else if (cpfError) {
+          console.warn("Aviso: Busca por CPF falhou (provavelmente coluna inexistente):", cpfError.message);
+        }
+      } catch (e) {
+        console.error("Erro crítico na busca por CPF:", e);
       }
     }
 
@@ -404,14 +410,15 @@ const auth = {
 
     if (authError) {
       if (authError.message.includes('Invalid login credentials')) {
-        throw new Error("E-mail/CPF ou senha incorretos");
+        throw new Error("E-mail/CPF ou senha incorretos. Verifique seus dados.");
       }
-      throw authError;
+      throw new Error("Erro no acesso: " + authError.message);
     }
 
-    if (!authData.user) throw new Error("Erro no login");
+    if (!authData.user) throw new Error("Erro no login: Sessão não iniciada.");
 
-    const { data, error } = await supabase.from('users').select('id, name, email, farm_name, cpf').eq('id', authData.user.id).single();
+    // Sincronizar dados do perfil (incluindo CPF dos metadados se necessário)
+    const { data, error } = await supabase.from('users').select('*').eq('id', authData.user.id).maybeSingle();
     
     const profile = data || { 
       id: authData.user.id, 
@@ -420,6 +427,11 @@ const auth = {
       farm_name: authData.user.user_metadata?.farm_name,
       cpf: authData.user.user_metadata?.cpf
     };
+
+    // Se o CPF está nos metadados mas não na tabela users, vamos tentar atualizar a tabela users
+    if (authData.user.user_metadata?.cpf && (!data || !data.cpf)) {
+      await supabase.from('users').update({ cpf: authData.user.user_metadata.cpf }).eq('id', authData.user.id).catch(() => {});
+    }
 
     saveSession(authData.user.id);
     saveUserProfile(profile);
