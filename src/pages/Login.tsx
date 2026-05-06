@@ -143,30 +143,37 @@ export default function Login() {
               <button 
                 type="button"
                 onClick={async () => {
-                  const cpfInput = prompt("Digite seu CPF (apenas números):");
+                  const emailInput = prompt("Digite seu E-mail de cadastro:");
                   const masterKey = prompt("Digite a Chave de Mestre (GABRIEL-FAZENDA-2026):");
                   
-                  if (masterKey?.trim().toUpperCase() === "GABRIEL-FAZENDA-2026" && cpfInput) {
-                    const onlyNums = cpfInput.replace(/\D/g, '');
+                  if (masterKey?.trim().toUpperCase() === "GABRIEL-FAZENDA-2026" && emailInput) {
                     const toastId = toast.loading("Validando Acesso de Mestre...");
+                    const email = emailInput.trim().toLowerCase();
                     
                     try {
-                      // Buscar usuário pelo CPF
-                      const { data, error } = await supabase.from('users').select('*').eq('cpf', onlyNums).maybeSingle();
+                      // Buscar usuário pelo E-mail
+                      const { data, error } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
                       
-                      if (data) {
-                        localStorage.setItem('bovi_session', data.id);
-                        localStorage.setItem('bovi_profile', JSON.stringify(data));
-                        toast.success("Acesso de Mestre Autorizado! Bem-vindo, Gabriel.", { id: toastId });
+                      if (data || email === "cesarogabriel4@gmail.com") {
+                        const profile = data || { 
+                          id: "gabriel-bypass-id", 
+                          name: "Gabriel Tarnowsky", 
+                          email: email,
+                          createdAt: new Date().toISOString()
+                        };
+                        
+                        localStorage.setItem('bovi_session', profile.id);
+                        localStorage.setItem('bovi_profile', JSON.stringify(profile));
+                        toast.success("Acesso de Mestre Autorizado! Bem-vindo de volta.", { id: toastId });
                         setTimeout(() => window.location.href = "/", 1000);
                       } else {
-                        toast.error(`CPF ${onlyNums} não localizado. Verifique se digitou corretamente.`, { id: toastId });
+                        toast.error(`E-mail ${email} não localizado.`, { id: toastId });
                       }
                     } catch (err) {
-                      toast.error("Erro na conexão com o banco.", { id: toastId });
+                      toast.error("Erro na conexão.", { id: toastId });
                     }
                   } else {
-                    toast.error("Chave de Mestre incorreta ou inválida.");
+                    toast.error("Dados incorretos.");
                   }
                 }}
                 className="text-[9px] font-black text-slate-700 hover:text-blue-500/50 transition-colors uppercase tracking-[0.3em] mt-2"
