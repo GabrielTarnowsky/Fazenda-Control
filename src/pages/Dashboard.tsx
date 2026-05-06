@@ -358,7 +358,10 @@ export default function Dashboard() {
 
       {/* Pluviometria Section */}
       <div className="animate-fade-in-up" style={{ animationDelay: '150ms' }}>
-        <Card className="border-none shadow-2xl shadow-blue-500/5 bg-gradient-to-br from-white via-blue-50/30 to-blue-100/20 overflow-hidden group">
+        <Card 
+          onClick={() => navigate('/rainfall')}
+          className="border-none shadow-2xl shadow-blue-500/5 bg-gradient-to-br from-white via-blue-50/30 to-blue-100/20 overflow-hidden group cursor-pointer hover:scale-[1.01] transition-all duration-300 active:scale-[0.99]"
+        >
           <CardContent className="p-0">
             <div className="flex flex-col md:flex-row items-stretch">
               {/* Main Info */}
@@ -382,7 +385,7 @@ export default function Dashboard() {
                   </div>
                   
                   <Dialog open={showRainfallDialog} onOpenChange={setShowRainfallDialog}>
-                    <DialogTrigger asChild>
+                    <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="sm" className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 hover:bg-blue-600 hover:text-white transition-all">
                         <Droplets className="h-5 w-5" />
                       </Button>

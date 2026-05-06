@@ -25,6 +25,7 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import SettingsPage from "./pages/Settings";
 import Simulator from "./pages/Simulator";
+import RainfallDetails from "./pages/RainfallDetails";
 import { store } from "./lib/store";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,7 @@ const App = () => {
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               <Route path="/insemination" element={<ProtectedRoute><Insemination /></ProtectedRoute>} />
               <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
+              <Route path="/rainfall" element={<ProtectedRoute><RainfallDetails /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
             </Route>
