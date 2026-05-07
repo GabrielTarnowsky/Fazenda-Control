@@ -385,30 +385,35 @@ const auth = {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error || !session) return null;
 
-      const userId = session.user.id;
-      saveSession(userId);
+      let effectiveId = session.user.id;
+      const userEmail = session.user.email || "";
 
-      // Refresh profile from DB or Metadata
-      const { data: profileData } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+      // 1. Tentar achar perfil pelo ID do auth
+      let { data: profileData } = await supabase.from('users').select('*').eq('id', effectiveId).maybeSingle();
+
+      // 2. Se não achou pelo ID, procurar pelo EMAIL (ponte entre conta nova e antiga)
+      if (!profileData && userEmail) {
+        const { data: emailProfile } = await supabase.from('users').select('*').eq('email', userEmail.trim().toLowerCase()).maybeSingle();
+        if (emailProfile) {
+          profileData = emailProfile;
+          effectiveId = emailProfile.id; // USAR O ID ANTIGO QUE TEM OS DADOS
+        }
+      }
 
       const profile = profileData || {
-        id: userId,
+        id: effectiveId,
         name: session.user.user_metadata?.name || "Usuário",
-        email: session.user.email || "",
-        farm_name: session.user.user_metadata?.farm_name,
-        cpf: session.user.user_metadata?.cpf
+        email: userEmail,
+        farm_name: session.user.user_metadata?.farm_name
       };
 
+      saveSession(effectiveId);
       saveUserProfile(profile);
-
-      // AUTO-RECOVERY: Se o usuário entrar e estiver logado, tentamos vincular dados antigos em silêncio
-      // Isso resolve o problema de "conta zerada" após migração/login
-      auth.recoverLegacyDataSilent(profile).catch(() => { });
 
       return profile;
     } catch (e) {
       console.error("Silent session check failed", e);
-      return auth.getCurrentUser(); // Fallback para o que temos no cache
+      return auth.getCurrentUser();
     }
   },
   recoverLegacyDataSilent: async (user: User) => {
@@ -476,17 +481,28 @@ const auth = {
 
     if (!authData.user) throw new Error("Erro no login");
 
-    const { data, error } = await supabase.from('users').select('*').eq('id', authData.user.id).maybeSingle();
+    let effectiveId = authData.user.id;
+
+    // 1. Tentar achar perfil pelo ID do auth
+    let { data } = await supabase.from('users').select('*').eq('id', effectiveId).maybeSingle();
+
+    // 2. Se não achou, procurar pelo EMAIL (ponte entre conta nova e antiga)
+    if (!data) {
+      const { data: emailProfile } = await supabase.from('users').select('*').eq('email', email).maybeSingle();
+      if (emailProfile) {
+        data = emailProfile;
+        effectiveId = emailProfile.id; // USAR O ID ANTIGO
+      }
+    }
 
     const profile = data || {
-      id: authData.user.id,
+      id: effectiveId,
       name: authData.user.user_metadata?.name || "Usuário",
       email: authData.user.email || email,
-      farm_name: authData.user.user_metadata?.farm_name,
-      cpf: authData.user.user_metadata?.cpf
+      farm_name: authData.user.user_metadata?.farm_name
     };
 
-    saveSession(authData.user.id);
+    saveSession(effectiveId);
     saveUserProfile(profile);
     return profile;
   },
