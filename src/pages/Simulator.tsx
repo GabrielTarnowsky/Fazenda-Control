@@ -151,7 +151,8 @@ export default function Simulator() {
       unitLabel,
       unitsPerHead,
       totalFeeding,
-      feedingPerHead: days * dailyCost
+      feedingPerHead: days * dailyCost,
+      costPerProducedArroba: (totalGainKg > 0) ? (totalMaintenance / (totalGainKg * yieldDecimal / 15)) : 0
     };
   }, [form]);
 
@@ -334,14 +335,22 @@ export default function Simulator() {
                 <h2 className="text-6xl font-black italic tracking-tighter mb-4">
                   R$ {results.netProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </h2>
-                <div className="grid grid-cols-2 gap-6 mt-8 border-t border-white/20 pt-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 border-t border-white/20 pt-6">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Retorno (ROI)</p>
-                    <p className="text-2xl font-black">{results.roi.toFixed(1)}%</p>
+                    <p className="text-xl font-black">{results.roi.toFixed(1)}%</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Custo Comida Total</p>
-                    <p className="text-2xl font-black text-amber-300">R$ {results.totalFeeding.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Lucro/Cabeça</p>
+                    <p className="text-xl font-black text-white">R$ {results.profitPerHead.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Custo Comida</p>
+                    <p className="text-xl font-black text-amber-300">R$ {results.totalFeeding.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Custo/@ Prod.</p>
+                    <p className="text-xl font-black text-blue-200">R$ {results.costPerProducedArroba.toFixed(2)}</p>
                   </div>
                 </div>
               </CardContent>
