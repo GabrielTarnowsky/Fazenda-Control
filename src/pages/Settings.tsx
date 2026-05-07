@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { store } from "@/lib/store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { 
   Settings as SettingsIcon, 
   LogOut, 
@@ -25,9 +27,10 @@ import {
   Sun,
   Moon,
   MapPin,
-  CloudRain
+  CloudRain,
+  Lock,
+  Smartphone
 } from "lucide-react";
-
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -42,7 +45,6 @@ export default function SettingsPage() {
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [useAutoRainfall, setUseAutoRainfall] = useState(false);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profile, setProfile] = useState({ name: user?.name || "", email: user?.email || "", cpf: user?.cpf || "" });
 
   const [counts, setCounts] = useState({ animals: 0, events: 0, financials: 0 });
@@ -150,7 +152,6 @@ export default function SettingsPage() {
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [updatingPass, setUpdatingPass] = useState(false);
-  const [showPassFields, setShowPassFields] = useState(false);
 
   const toggleTheme = (newTheme: 'light' | 'dark') => {
     setTheme(newTheme);
@@ -179,7 +180,6 @@ export default function SettingsPage() {
       toast.success("Senha atualizada com sucesso!");
       setNewPass("");
       setConfirmPass("");
-      setShowPassFields(false);
     } catch (err: any) {
       toast.error(err.message || "Erro ao atualizar senha");
     } finally {
@@ -187,422 +187,402 @@ export default function SettingsPage() {
     }
   };
 
-  // Count local data for info
-  const animalCount = counts.animals;
-  const eventCount = counts.events;
-  const financialCount = counts.financials;
-
   return (
-    <div className="p-4 pb-20 animate-fade-in space-y-6 max-w-2xl mx-auto">
+    <div className="p-4 md:p-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center">
-          <SettingsIcon className="h-6 w-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="font-display text-2xl font-bold">Configurações</h1>
-          <p className="text-sm text-muted-foreground font-medium">Gerencie sua conta e dados</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 bg-primary/10 rounded-2xl flex items-center justify-center ring-1 ring-primary/20 shadow-sm">
+            <SettingsIcon className="h-7 w-7 text-primary" />
+          </div>
+          <div>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Configurações</h1>
+            <p className="text-sm text-muted-foreground font-medium mt-1">Gerencie seu perfil, sistema e dados</p>
+          </div>
         </div>
       </div>
 
-      {/* Profile Card */}
-      <Card className="border-none shadow-xl bg-gradient-to-br from-primary/5 via-card to-emerald-500/5 overflow-hidden rounded-2xl">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center ring-2 ring-primary/20">
-              <User className="h-8 w-8 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-black italic tracking-tight truncate">{user?.name || "Usuário"}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground truncate">{user?.email || "—"}</p>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-primary/30 text-primary bg-primary/5">
-                  <Shield className="h-3 w-3 mr-1" /> Conta Ativa
-                </Badge>
-                <button 
-                  onClick={() => setIsEditingProfile(!isEditingProfile)}
-                  className="text-[10px] font-black uppercase text-primary hover:underline ml-2"
-                >
-                  {isEditingProfile ? "Cancelar" : "Editar Perfil"}
-                </button>
-              </div>
-            </div>
-          </div>
+      <Tabs defaultValue="conta" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 h-14 bg-muted/40 p-1 mb-8 rounded-2xl">
+          <TabsTrigger value="conta" className="rounded-xl text-xs md:text-sm font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <User className="h-4 w-4 mr-2" /> Conta
+          </TabsTrigger>
+          <TabsTrigger value="sistema" className="rounded-xl text-xs md:text-sm font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <Smartphone className="h-4 w-4 mr-2" /> Sistema
+          </TabsTrigger>
+          <TabsTrigger value="dados" className="rounded-xl text-xs md:text-sm font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <Cloud className="h-4 w-4 mr-2" /> Dados
+          </TabsTrigger>
+        </TabsList>
 
-          {isEditingProfile && (
-            <div className="mt-6 p-5 bg-white/50 rounded-2xl border border-primary/10 space-y-4 animate-in slide-in-from-top-2 duration-300">
-              <div className="space-y-4">
+        {/* ================= ABA: CONTA ================= */}
+        <TabsContent value="conta" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
+          
+          {/* Perfil */}
+          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Seu Nome</label>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" /> Perfil Pessoal
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-1">Atualize suas informações básicas.</CardDescription>
+                </div>
+                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-0 font-bold">
+                  <Shield className="h-3 w-3 mr-1" /> Ativa
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-5">
+              <div className="grid md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nome Completo</Label>
                   <Input 
                     value={profile.name} 
                     onChange={e => setProfile({...profile, name: e.target.value})}
-                    className="h-10 bg-white border-slate-200 rounded-xl"
+                    className="h-11 rounded-xl bg-muted/30 focus-visible:bg-background"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">CPF (Para login)</label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">CPF / Documento</Label>
                   <Input 
-                    placeholder="000.000.000-00"
+                    placeholder="Somente números"
                     value={profile.cpf || ""} 
                     onChange={e => setProfile({...profile, cpf: e.target.value.replace(/\D/g, '').slice(0, 11)})}
-                    className="h-10 bg-white border-slate-200 rounded-xl"
+                    className="h-11 rounded-xl bg-muted/30 focus-visible:bg-background"
                   />
-                  <p className="text-[9px] text-slate-400 mt-1 ml-1 italic">* Use apenas números para salvar</p>
                 </div>
-                <div className="flex gap-2 pt-2">
-                  <Button 
-                    onClick={async () => {
-                      try {
-                        await store.auth.updateProfile({ name: profile.name, cpf: profile.cpf });
-                        toast.success("Perfil atualizado!");
-                        setIsEditingProfile(false);
-                      } catch (err: any) {
-                        toast.error("Erro ao salvar perfil");
-                      }
-                    }}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold italic uppercase text-xs rounded-xl h-10"
-                  >
-                    Salvar Alterações
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">E-mail</Label>
+                  <Input 
+                    disabled
+                    value={profile.email} 
+                    className="h-11 rounded-xl bg-muted/50 text-muted-foreground cursor-not-allowed"
+                  />
+                  <p className="text-[10px] text-muted-foreground/70 ml-1">O e-mail de acesso não pode ser alterado.</p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button 
+                  onClick={async () => {
+                    try {
+                      await store.auth.updateProfile({ name: profile.name, cpf: profile.cpf });
+                      toast.success("Perfil atualizado com sucesso!");
+                    } catch (err: any) {
+                      toast.error("Erro ao salvar perfil");
+                    }
+                  }}
+                  className="rounded-xl h-10 font-bold px-6 bg-primary/90 hover:bg-primary"
+                >
+                  Salvar Perfil
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Segurança */}
+          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Lock className="h-4 w-4 text-primary" /> Segurança
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">Altere sua senha de acesso ao sistema.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-5">
+              <div className="grid md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nova Senha</Label>
+                  <Input 
+                    type="password" 
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    className="h-11 rounded-xl bg-muted/30 focus-visible:bg-background"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Confirmar Nova Senha</Label>
+                  <Input 
+                    type="password" 
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    placeholder="Repita a senha"
+                    className="h-11 rounded-xl bg-muted/30 focus-visible:bg-background"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button 
+                  onClick={handleUpdatePassword}
+                  disabled={updatingPass || !newPass}
+                  variant="secondary"
+                  className="rounded-xl h-10 font-bold px-6"
+                >
+                  {updatingPass ? "Atualizando..." : "Alterar Senha"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Logout */}
+          <div className="pt-4">
+            {!showLogoutConfirm ? (
+              <Button 
+                variant="outline" 
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full md:w-auto h-12 rounded-xl border-destructive/20 text-destructive hover:bg-destructive/5 hover:border-destructive/40 hover:text-destructive transition-all"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                <span className="font-bold">Sair da Conta (Logout)</span>
+              </Button>
+            ) : (
+              <div className="p-5 bg-destructive/5 border border-destructive/20 rounded-2xl animate-in fade-in zoom-in-95 duration-200">
+                <h4 className="font-bold text-destructive text-sm flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" /> Confirmar Saída
+                </h4>
+                <p className="text-xs text-muted-foreground mt-2 mb-4">
+                  Seus dados estão salvos em segurança na nuvem. Você precisará do seu e-mail e senha para acessar novamente.
+                </p>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setShowLogoutConfirm(false)} className="h-10 rounded-xl text-xs font-bold flex-1">
+                    Cancelar
+                  </Button>
+                  <Button variant="destructive" onClick={handleLogout} className="h-10 rounded-xl text-xs font-bold flex-1 shadow-sm">
+                    Sair Agora
                   </Button>
                 </div>
               </div>
-            </div>
-          )}
-
-          <div className="mt-4 flex items-center justify-between pt-4 border-t border-primary/10">
-            <button 
-              onClick={() => setShowPassFields(!showPassFields)}
-              className="text-[10px] font-black uppercase text-primary hover:underline"
-            >
-              {showPassFields ? "Fechar Alterar Senha" : "Deseja mudar sua senha?"}
-            </button>
+            )}
           </div>
+        </TabsContent>
 
-          {showPassFields && (
-            <div className="mt-6 p-4 bg-white/50 rounded-2xl border border-primary/10 space-y-4 animate-in slide-in-from-top-2 duration-300">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nova Senha</Label>
-                <Input 
-                  type="password" 
-                  value={newPass}
-                  onChange={(e) => setNewPass(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="h-10 rounded-xl bg-white border-primary/10"
-                />
+        {/* ================= ABA: SISTEMA ================= */}
+        <TabsContent value="sistema" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
+          
+          {/* Aparência */}
+          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" /> Aparência
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-2 gap-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => toggleTheme('light')}
+                  className={`h-24 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all border-2 ${theme === 'light' ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted/50'}`}
+                >
+                  <Sun className="h-6 w-6" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Modo Claro</span>
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => toggleTheme('dark')}
+                  className={`h-24 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all border-2 ${theme === 'dark' ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted/50'}`}
+                >
+                  <Moon className="h-6 w-6" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Modo Escuro</span>
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Confirmar Senha</Label>
-                <Input 
-                  type="password" 
-                  value={confirmPass}
-                  onChange={(e) => setConfirmPass(e.target.value)}
-                  placeholder="Repita a nova senha"
-                  className="h-10 rounded-xl bg-white border-primary/10"
-                />
+            </CardContent>
+          </Card>
+
+          {/* Localização e Clima */}
+          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
+            <CardHeader className="bg-blue-500/5 border-b border-blue-500/10 pb-4">
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-blue-600 dark:text-blue-500">
+                <CloudRain className="h-4 w-4" /> Localização e Clima
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">Gerencie a obtenção de dados de chuva via satélite.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="flex items-center justify-between bg-muted/30 p-4 rounded-xl border border-border/50">
+                <div className="space-y-1 pr-4">
+                  <Label className="text-sm font-bold">Pluviometria Automática</Label>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Baixar histórico de chuvas automaticamente baseado nas coordenadas informadas abaixo.</p>
+                </div>
+                <Switch checked={useAutoRainfall} onCheckedChange={setUseAutoRainfall} />
               </div>
-              <Button 
-                onClick={handleUpdatePassword}
-                disabled={updatingPass}
-                className="w-full h-10 rounded-xl bg-primary text-white font-black italic uppercase text-xs"
-              >
-                {updatingPass ? "Atualizando..." : "Confirmar Nova Senha"}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      
-      {/* Aparência (Modo Escuro/Claro) */}
-      <Card className="border-none shadow-xl bg-card overflow-hidden rounded-2xl">
-        <CardHeader className="pb-3 bg-muted/20 border-b">
-          <CardTitle className="text-sm font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Activity className="h-4 w-4" /> Aparência
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Button 
-              variant={theme === 'light' ? 'default' : 'outline'}
-              onClick={() => toggleTheme('light')}
-              className={`h-16 rounded-xl flex flex-col gap-1 transition-all ${theme === 'light' ? 'bg-amber-500 hover:bg-amber-600 text-white' : ''}`}
-            >
-              <Sun className="h-5 w-5" />
-              <span className="text-[10px] font-black uppercase italic">Claro</span>
-            </Button>
-            <Button 
-              variant={theme === 'dark' ? 'default' : 'outline'}
-              onClick={() => toggleTheme('dark')}
-              className={`h-16 rounded-xl flex flex-col gap-1 transition-all ${theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-white' : ''}`}
-            >
-              <Moon className="h-5 w-5" />
-              <span className="text-[10px] font-black uppercase italic">Escuro</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Localização e Clima */}
-      <Card className="border-none shadow-xl bg-card overflow-hidden rounded-2xl">
-        <CardHeader className="pb-3 bg-blue-500/5 border-b border-blue-500/10">
-          <CardTitle className="text-sm font-black uppercase tracking-wider text-blue-600 flex items-center gap-2">
-            <CloudRain className="h-4 w-4" /> Localização e Clima
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-bold">Pluviometria Automática</Label>
-              <p className="text-[10px] text-muted-foreground font-medium">Buscar dados de chuva automaticamente via satélite</p>
-            </div>
-            <Switch 
-              checked={useAutoRainfall}
-              onCheckedChange={setUseAutoRainfall}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="lat" className="text-xs font-bold uppercase text-muted-foreground">Latitude</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
-                <Input 
-                  id="lat" 
-                  value={lat} 
-                  onChange={(e) => setLat(e.target.value)}
-                  placeholder="-5.0892" 
-                  className="pl-9 font-mono text-xs"
-                />
+              <div className="grid md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <Label htmlFor="lat" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Latitude</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                    <Input 
+                      id="lat" 
+                      value={lat} 
+                      onChange={(e) => setLat(e.target.value)}
+                      placeholder="-5.0892" 
+                      className="pl-10 h-11 rounded-xl font-mono text-sm bg-muted/30 focus-visible:bg-background"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lng" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Longitude</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                    <Input 
+                      id="lng" 
+                      value={lng} 
+                      onChange={(e) => setLng(e.target.value)}
+                      placeholder="-42.8016" 
+                      className="pl-10 h-11 rounded-xl font-mono text-sm bg-muted/30 focus-visible:bg-background"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lng" className="text-xs font-bold uppercase text-muted-foreground">Longitude</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
-                <Input 
-                  id="lng" 
-                  value={lng} 
-                  onChange={(e) => setLng(e.target.value)}
-                  placeholder="-42.8016" 
-                  className="pl-9 font-mono text-xs"
-                />
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Button 
+                  variant="outline" 
+                  onClick={detectLocation}
+                  className="flex-1 h-11 rounded-xl font-bold text-xs"
+                >
+                  <MapPin className="h-4 w-4 mr-2 text-blue-600" /> Usar Posição Atual do GPS
+                </Button>
+                <Button 
+                  onClick={handleSaveLocation}
+                  className="flex-1 h-11 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" /> Salvar Coordenadas
+                </Button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              onClick={detectLocation}
-              className="flex-1 font-bold text-xs rounded-xl h-12"
-            >
-              <MapPin className="h-4 w-4 mr-2 text-blue-600" /> Detectar Minha Posição
-            </Button>
-            <Button 
-              onClick={handleSaveLocation}
-              className="flex-1 font-black italic uppercase text-xs rounded-xl h-12 shadow-lg shadow-primary/20"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" /> Salvar Local
-            </Button>
-          </div>
-
-          <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 flex items-start gap-3">
-             <Cloud className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-             <p className="text-[10px] text-blue-600/70 leading-relaxed font-medium italic">
-               A chuva automática utiliza dados do serviço Open-Meteo com base nas coordenadas da sua fazenda.
-             </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Mercado e Parâmetros */}
-      <Card className="border-none shadow-xl bg-slate-900 text-white overflow-hidden rounded-2xl border-pink-500/20">
-        <CardHeader className="pb-3 bg-slate-800 border-b border-white/5">
-          <CardTitle className="text-sm font-black uppercase tracking-wider text-pink-400 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" /> Mercado e Parâmetros (Piauí)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-slate-400 uppercase">Preço da Arroba Base (@)</p>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-black text-pink-500 italic">R$</span>
-                <input 
-                  type="number" 
-                  value={marketPrice}
-                  onChange={(e) => handleUpdatePrice(e.target.value)}
-                  className="bg-transparent border-none text-2xl font-black italic focus:ring-0 w-24 text-white"
-                />
+          {/* Mercado */}
+          <Card className="border-pink-500/20 shadow-sm rounded-2xl overflow-hidden bg-slate-900/5 dark:bg-slate-900/40">
+            <CardHeader className="bg-pink-500/5 border-b border-pink-500/10 pb-4">
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-pink-600 dark:text-pink-500">
+                <TrendingUp className="h-4 w-4" /> Mercado (Boi Gordo)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                <div className="space-y-2 flex-1">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Preço Base da Arroba (@)</Label>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl font-black text-pink-600 dark:text-pink-500">R$</span>
+                    <Input 
+                      type="number" 
+                      value={marketPrice}
+                      onChange={(e) => handleUpdatePrice(e.target.value)}
+                      className="h-12 w-32 rounded-xl text-lg font-black bg-white dark:bg-slate-900 border-pink-200 dark:border-pink-900/50"
+                    />
+                  </div>
+                </div>
+                <div className="sm:w-auto w-full pt-6 sm:pt-0">
+                  <Button 
+                    onClick={syncMarket}
+                    disabled={fetchingMarket}
+                    className="w-full sm:w-auto h-12 rounded-xl font-bold px-6 bg-pink-600 hover:bg-pink-700 text-white shadow-sm"
+                  >
+                    {fetchingMarket ? "Buscando..." : "Sincronizar Mercado Atual"}
+                  </Button>
+                </div>
               </div>
-            </div>
-            <Button 
-              size="sm"
-              onClick={syncMarket}
-              disabled={fetchingMarket}
-              className="bg-pink-600 hover:bg-pink-700 text-white font-black italic uppercase text-[10px] rounded-xl px-4 py-5 shadow-lg shadow-pink-900/20"
-            >
-              {fetchingMarket ? "Buscando..." : "Sincronizar Mercado"}
-            </Button>
-          </div>
-          <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex items-start gap-3">
-             <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-             <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-               Este preço é usado para calcular a <span className="text-pink-400 font-bold">Previsão de Lucro</span> dos seus lotes ativos. O valor de animais já vendidos não será afetado.
-             </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Data Summary */}
-      <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
-        <CardHeader className="pb-3 bg-muted/30 border-b">
-          <CardTitle className="text-sm font-black uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Activity className="h-4 w-4" /> Dados Neste Dispositivo
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center p-3 bg-blue-500/5 rounded-xl border border-blue-500/10">
-              <p className="text-2xl font-black italic text-blue-700">{animalCount}</p>
-              <p className="text-[9px] font-black uppercase text-muted-foreground mt-1">Animais</p>
-            </div>
-            <div className="text-center p-3 bg-purple-500/5 rounded-xl border border-purple-500/10">
-              <p className="text-2xl font-black italic text-purple-700">{eventCount}</p>
-              <p className="text-[9px] font-black uppercase text-muted-foreground mt-1">Eventos</p>
-            </div>
-            <div className="text-center p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
-              <p className="text-2xl font-black italic text-emerald-700">{financialCount}</p>
-              <p className="text-[9px] font-black uppercase text-muted-foreground mt-1">Financeiro</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sync Section */}
-      <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
-        <CardContent className="p-0">
-          <button 
-            onClick={handleSync} 
-            disabled={syncing}
-            className="w-full p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors active:scale-[0.99] disabled:opacity-60"
-          >
-            <div className="h-11 w-11 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
-              {syncing ? (
-                <RotateCcw className="h-5 w-5 text-blue-600 animate-spin" />
-              ) : (
-                <Cloud className="h-5 w-5 text-blue-600" />
-              )}
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-bold text-sm">{syncing ? "Sincronizando..." : "Sincronizar Dados"}</p>
-              <p className="text-[11px] text-muted-foreground">
-                Última sincronização: <span className="font-bold">{lastSyncFormatted}</span>
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0" />
-          </button>
-        </CardContent>
-      </Card>
-
-      {/* App Info */}
-      <Card className="border-none shadow-lg rounded-2xl overflow-hidden">
-        <CardContent className="p-0">
-          <div className="p-4 flex items-center gap-4 border-b border-muted/40">
-            <div className="h-11 w-11 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-              <Beef className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-bold text-sm">FazendaControl</p>
-              <p className="text-[11px] text-muted-foreground">Versão 1.2.0 — Gestão Pecuária</p>
-            </div>
-            <Badge variant="outline" className="text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-              <CheckCircle className="h-3 w-3 mr-1" /> Atualizado
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Data Recovery Section */}
-      <Card className="border-none shadow-xl bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl overflow-hidden mt-8">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-black italic flex items-center gap-2 text-amber-700">
-            <RotateCcw className="h-4 w-4" /> RECUPERAÇÃO DE DADOS
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 pt-0">
-          <p className="text-xs text-amber-600 font-medium mb-4">
-            Se você entrou na conta e seus animais não aparecem, clique no botão abaixo para tentar vincular seus dados antigos a esta nova conta.
-          </p>
-          <Button 
-            variant="outline" 
-            onClick={async () => {
-              const loadingToast = toast.loading("Buscando seus dados antigos...");
-              try {
-                const count = await store.recoverLegacyData();
-                toast.success(`${count} registros recuperados com sucesso!`, { id: loadingToast });
-                setTimeout(() => window.location.reload(), 1500);
-              } catch (err: any) {
-                toast.error(err.message, { id: loadingToast });
-              }
-            }}
-            className="w-full border-amber-200 text-amber-700 hover:bg-amber-100 font-black italic uppercase text-xs"
-          >
-            Vincular Animais e Histórico
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Logout Section */}
-      {!showLogoutConfirm ? (
-        <Button 
-          variant="outline" 
-          onClick={() => setShowLogoutConfirm(true)}
-          className="w-full h-14 rounded-2xl border-destructive/20 text-destructive hover:bg-destructive/5 hover:border-destructive/40 transition-all group shadow-sm"
-        >
-          <LogOut className="h-5 w-5 mr-3 transition-transform group-hover:-translate-x-1" />
-          <span className="font-black italic uppercase tracking-wide text-sm">Sair da Conta</span>
-        </Button>
-      ) : (
-        <Card className="border-destructive/30 bg-destructive/5 rounded-2xl overflow-hidden shadow-lg animate-in slide-in-from-bottom-4 duration-300">
-          <CardContent className="p-5 space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 bg-destructive/10 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <p className="font-black text-sm text-destructive">Confirmar Saída</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Seus dados continuam salvos na nuvem. Para acessar novamente, basta fazer login com seu email e senha.
+              <div className="mt-5 p-4 bg-white/60 dark:bg-slate-950/40 rounded-xl border border-pink-500/10 flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                  Este valor base é utilizado nos relatórios e no simulador para prever lucro de lotes ativos. Animais que já possuem "Valor de Venda" registrado não serão alterados.
                 </p>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowLogoutConfirm(false)}
-                className="h-12 rounded-xl font-bold uppercase text-xs"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleLogout}
-                className="h-12 rounded-xl font-black italic uppercase text-xs shadow-lg shadow-destructive/20 tracking-wide"
-              >
-                <LogOut className="h-4 w-4 mr-2" /> Sair Agora
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
+        {/* ================= ABA: DADOS ================= */}
+        <TabsContent value="dados" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
+          
+          {/* Sincronização */}
+          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
+            <CardContent className="p-0">
+              <div className="p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-5 w-full md:w-auto">
+                  <div className="h-16 w-16 bg-blue-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-blue-500/20">
+                    {syncing ? (
+                      <RotateCcw className="h-7 w-7 text-blue-600 animate-spin" />
+                    ) : (
+                      <Cloud className="h-7 w-7 text-blue-600" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg">Sincronização em Nuvem</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Última sincronização: <span className="font-bold text-foreground">{lastSyncFormatted}</span>
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleSync} 
+                  disabled={syncing}
+                  className="w-full md:w-auto h-12 rounded-xl font-bold px-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                >
+                  {syncing ? "Sincronizando..." : "Forçar Sincronização"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Resumo */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="border-border/50 shadow-sm rounded-2xl">
+              <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-2">
+                <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center mb-1">
+                  <Beef className="h-5 w-5 text-blue-600" />
+                </div>
+                <p className="text-3xl font-black text-foreground">{counts.animals}</p>
+                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Animais</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50 shadow-sm rounded-2xl">
+              <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-2">
+                <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center mb-1">
+                  <Activity className="h-5 w-5 text-purple-600" />
+                </div>
+                <p className="text-3xl font-black text-foreground">{counts.events}</p>
+                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Eventos</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50 shadow-sm rounded-2xl">
+              <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-2">
+                <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center mb-1">
+                  <TrendingUp className="h-5 w-5 text-emerald-600" />
+                </div>
+                <p className="text-3xl font-black text-foreground">{counts.financials}</p>
+                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Registros Fin.</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* App Info */}
+          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden bg-muted/10">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 border border-primary/10">
+                    <img src="/logo.png" alt="Logo" className="h-6 w-6 object-contain opacity-80" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">FazendaControl Pro</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Plataforma de Gestão Pecuária Inteligente</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-background">
+                  Versão 1.5.0
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </Tabs>
+      
       {/* Footer */}
-      <p className="text-center text-[10px] text-muted-foreground/50 font-bold uppercase tracking-[0.3em] pt-4">
-        FazendaControl © 2024 — Todos os direitos reservados
+      <p className="text-center text-[10px] text-muted-foreground/40 font-bold uppercase tracking-[0.2em] mt-12">
+        FazendaControl © {new Date().getFullYear()}
       </p>
     </div>
   );
