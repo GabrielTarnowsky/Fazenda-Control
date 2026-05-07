@@ -18,10 +18,11 @@ import {
   Trash2,
   Activity,
   Download,
-  Loader2
+  Loader2,
+  Wheat
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { store } from "@/lib/store";
+import { store, Ration } from "@/lib/store";
 
 interface SavedSimulation {
   id: string;
@@ -45,6 +46,7 @@ export default function Simulator() {
   const [showSaved, setShowSaved] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
+  const [rations, setRations] = useState<Ration[]>([]);
   const reportRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
@@ -55,6 +57,9 @@ export default function Simulator() {
     expectedGMD: "",
     days: "",
     dailyCost: "",
+    costMethod: "manual", // 'manual' ou 'ration'
+    rationId: "none",
+    consumptionKg: "2.0",
     extraCost: "",
     expectedSalePrice: "",
     yieldPct: "54",
@@ -81,6 +86,9 @@ export default function Simulator() {
         setSavedSimulations(JSON.parse(saved));
       } catch (e) { }
     }
+
+    // 3. Carregar Rações
+    store.getRations().then(data => setRations(data || []));
   }, []);
 
   const results = useMemo(() => {
@@ -89,8 +97,19 @@ export default function Simulator() {
     const purchasePricePerHead = Number(form.purchasePricePerHead) || 0;
     const expectedGMD = Number(form.expectedGMD) || 0;
     const days = Number(form.days) || 0;
-    const dailyCost = Number(form.dailyCost) || 0;
+    const manualDailyCost = Number(form.dailyCost) || 0;
+    const consumptionKg = Number(form.consumptionKg) || 0;
     const extraCost = Number(form.extraCost) || 0;
+    
+    // Cálculo do custo diário efetivo
+    let effectiveDailyCost = manualDailyCost;
+    if (form.costMethod === 'ration' && form.rationId !== 'none') {
+      const selectedRation = rations.find(r => r.id === form.rationId);
+      if (selectedRation) {
+        effectiveDailyCost = selectedRation.cost_per_kg * consumptionKg;
+      }
+    }
+
     const expectedSalePrice = Number(form.expectedSalePrice) || 0;
     const yieldPct = Number(form.yieldPct) || 54;
     const targetMargin = Number(form.targetMargin) || 0;
@@ -109,7 +128,7 @@ export default function Simulator() {
 
     // 4. Custos
     const totalPurchase = quantity * purchasePricePerHead;
-    const totalFeeding = quantity * days * dailyCost; // NOVO: Custo específico de comida
+    const totalFeeding = quantity * days * effectiveDailyCost; // Usa o custo efetivo
     const totalMaintenance = totalFeeding + extraCost;
     const totalInvestment = totalPurchase + totalMaintenance;
 
@@ -151,7 +170,7 @@ export default function Simulator() {
       unitLabel,
       unitsPerHead,
       totalFeeding,
-      feedingPerHead: days * dailyCost,
+      feedingPerHead: days * effectiveDailyCost,
       costPerProducedArroba: (totalGainKg > 0) ? (totalMaintenance / (totalGainKg * yieldDecimal / 15)) : 0
     };
   }, [form]);
@@ -277,7 +296,7 @@ export default function Simulator() {
                 </div>
 
                 <div className="space-y-4 border-b pb-5">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2"><Activity className="h-4 w-4" /> 2. Engorda</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2"><Activity className="h-4 w-4" /> 2. Engorda e Alimentação</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Ganho Diário (GMD)</Label>
@@ -287,10 +306,43 @@ export default function Simulator() {
                       <Label className="text-[11px] font-bold text-muted-foreground">Tempo (Dias)</Label>
                       <Input type="number" value={form.days} onChange={e => setForm({...form, days: e.target.value})} className="h-10 font-bold" />
                     </div>
+                    
                     <div className="col-span-2 space-y-1.5">
-                      <Label className="text-[11px] font-bold text-muted-foreground">Custo da Diária (R$/animal)</Label>
-                      <Input type="number" step="0.1" value={form.dailyCost} onChange={e => setForm({...form, dailyCost: e.target.value})} className="h-10 font-bold" />
+                      <Label className="text-[11px] font-bold text-muted-foreground">Método de Custo</Label>
+                      <Select value={form.costMethod} onValueChange={v => setForm({...form, costMethod: v})}>
+                        <SelectTrigger className="h-10 font-bold text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manual">Custo Diário Manual (R$)</SelectItem>
+                          <SelectItem value="ration">Usar Ração Cadastrada</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+
+                    {form.costMethod === 'manual' ? (
+                      <div className="col-span-2 space-y-1.5 animate-in fade-in zoom-in duration-300">
+                        <Label className="text-[11px] font-bold text-muted-foreground">Custo da Diária (R$/animal)</Label>
+                        <Input type="number" step="0.1" value={form.dailyCost} onChange={e => setForm({...form, dailyCost: e.target.value})} className="h-10 font-bold" />
+                      </div>
+                    ) : (
+                      <div className="col-span-2 grid grid-cols-2 gap-4 animate-in fade-in zoom-in duration-300">
+                        <div className="space-y-1.5">
+                          <Label className="text-[11px] font-bold text-muted-foreground">Escolher Ração</Label>
+                          <Select value={form.rationId} onValueChange={v => setForm({...form, rationId: v})}>
+                            <SelectTrigger className="h-10 font-bold text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Selecione...</SelectItem>
+                              {rations.map(r => (
+                                <SelectItem key={r.id} value={r.id}>{r.name} (R$ {r.cost_per_kg.toFixed(2)}/kg)</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[11px] font-bold text-muted-foreground">Consumo (kg/dia)</Label>
+                          <Input type="number" step="0.5" value={form.consumptionKg} onChange={e => setForm({...form, consumptionKg: e.target.value})} className="h-10 font-bold" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
