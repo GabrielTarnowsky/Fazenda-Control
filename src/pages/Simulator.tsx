@@ -109,7 +109,8 @@ export default function Simulator() {
 
     // 4. Custos
     const totalPurchase = quantity * purchasePricePerHead;
-    const totalMaintenance = (quantity * days * dailyCost) + extraCost;
+    const totalFeeding = quantity * days * dailyCost; // NOVO: Custo específico de comida
+    const totalMaintenance = totalFeeding + extraCost;
     const totalInvestment = totalPurchase + totalMaintenance;
 
     // 5. Receita
@@ -148,7 +149,9 @@ export default function Simulator() {
       roi,
       breakevenPrice,
       unitLabel,
-      unitsPerHead
+      unitsPerHead,
+      totalFeeding,
+      feedingPerHead: days * dailyCost
     };
   }, [form]);
 
@@ -337,8 +340,8 @@ export default function Simulator() {
                     <p className="text-2xl font-black">{results.roi.toFixed(1)}%</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Lucro/Cabeça</p>
-                    <p className="text-2xl font-black">R$ {results.profitPerHead.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Custo Comida Total</p>
+                    <p className="text-2xl font-black text-amber-300">R$ {results.totalFeeding.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</p>
                   </div>
                 </div>
               </CardContent>
@@ -366,6 +369,10 @@ export default function Simulator() {
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-muted-foreground font-medium">Rendimento ({form.yieldPct}%)</span>
                       <span className="font-bold">{results.finalCarcassKg.toFixed(1)} kg</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground font-medium">Comida/animal</span>
+                      <span className="font-bold text-amber-600">R$ {results.feedingPerHead.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center bg-primary/10 p-3 rounded-xl mt-3">
                       <span className="text-[11px] font-black text-primary uppercase">Total em @</span>
