@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { store } from "@/lib/store";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,14 +32,6 @@ export default function Login() {
 
       // Auto-sync after login
       await store.sync();
-
-      // Attempt auto-recovery of legacy data if empty
-      try {
-        const animals = await store.getAnimals();
-        if (animals.length === 0) {
-          await store.recoverLegacyData().catch(() => { });
-        }
-      } catch (e) { }
 
       navigate("/");
     } catch (error: any) {
@@ -139,94 +130,6 @@ export default function Login() {
                   Novo por aqui? <span className="text-blue-500 font-black italic ml-1 underline-offset-4 group-hover:underline">Crie sua conta</span>
                 </p>
               </Link>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  const emailInput = prompt("Digite seu E-mail de cadastro:");
-                  const masterKey = prompt("Digite a Chave de Mestre (GABRIEL-FAZENDA-2026):");
-
-                  if (masterKey?.trim().toUpperCase() === "GABRIEL-FAZENDA-2026" && emailInput) {
-                    const email = emailInput.trim().toLowerCase();
-                    const toastId = toast.loading("Rastreando seu rebanho no banco de dados...");
-
-                    try {
-                      let targetId = "gabriel-bypass-id";
-                      let maxAnimals = 0;
-
-                      // 1. ACHAR O VERDADEIRO DONO DOS ANIMAIS (Ignorar e-mail, buscar pelos dados reais)
-                      const { data: animalRecords } = await supabase.from('animals').select('user_id');
-                      
-                      if (animalRecords && animalRecords.length > 0) {
-                        // Contar qual user_id tem mais animais
-                        const counts: Record<string, number> = {};
-                        for (const a of animalRecords) {
-                          if (!a.user_id) continue;
-                          counts[a.user_id] = (counts[a.user_id] || 0) + 1;
-                        }
-
-                        for (const [uid, count] of Object.entries(counts)) {
-                          if (count > maxAnimals) {
-                            maxAnimals = count;
-                            targetId = uid;
-                          }
-                        }
-                      }
-
-                      if (maxAnimals > 0) {
-                        toast.success(`Conta Mestre localizada com ${maxAnimals} animais. Entrando...`, { id: toastId });
-                      } else {
-                        // Se não tem animais, cria um ID baseado no email
-                        toast.success(`Nenhum animal antigo. Criando acesso seguro...`, { id: toastId });
-                        targetId = email; // usar o email como ID temporario ou buscar do users
-                      }
-
-                      // Pegar os dados do perfil (se existir), ou criar um genérico
-                      const { data: profileData } = await supabase.from('users').select('*').eq('id', targetId).maybeSingle();
-                      
-                      const bestProfile = profileData || {
-                        id: targetId,
-                        name: "Gabriel Tarnowsky",
-                        email: email
-                      };
-
-                      // 3. Logar na conta com os dados reais
-                      const sessionData = {
-                        userId: targetId,
-                        expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000)
-                      };
-                      localStorage.setItem('bovi_session', JSON.stringify(sessionData));
-                      localStorage.setItem('bovi_user_profile', JSON.stringify(bestProfile));
-                      
-                      setTimeout(() => window.location.href = "/", 1000);
-
-                    } catch (err) {
-                      toast.error("Erro na busca profunda.", { id: toastId });
-                    }
-                  } else {
-                    toast.error("Dados incorretos.");
-                  }
-                }}
-                className="text-[9px] font-black text-slate-700 hover:text-blue-500/50 transition-colors uppercase tracking-[0.3em] mt-2"
-              >
-                Acesso de Emergência (Master Key)
-              </button>
-
-              <button 
-                type="button"
-                onClick={async () => {
-                  if (confirm("Isso vai buscar todos os animais órfãos no banco de dados e vincular à sua conta. Deseja continuar?")) {
-                    try {
-                      await store.recoverLegacyData();
-                    } catch (e) {
-                      toast.error("Você precisa estar logado para resgatar dados.");
-                    }
-                  }
-                }}
-                className="text-[9px] font-black text-emerald-600 hover:text-emerald-500 transition-colors uppercase tracking-[0.3em] mt-4 border border-emerald-500/20 px-4 py-2 rounded-full bg-emerald-500/5"
-              >
-                Resgatar Meus Dados (Forçado)
-              </button>
             </div>
           </CardContent>
         </Card>

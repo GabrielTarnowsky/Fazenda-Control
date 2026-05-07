@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, DollarSign, Beef, Target, FileText, Settings, Wheat, Baby, Calculator, ShieldCheck, User, LogOut } from "lucide-react";
+import { Home, DollarSign, Beef, Target, FileText, Settings, Wheat, Baby, Calculator, User, LogOut } from "lucide-react";
 import { store } from "@/lib/store";
 import {
   Sidebar,
@@ -73,19 +73,7 @@ export function AppSidebar() {
           </SidebarMenu>
         </div>
 
-        <div className="mt-auto p-4 border-t border-white/5 space-y-2">
-          <button 
-            onClick={async () => {
-              if (confirm("Deseja buscar todos os animais órfãos no banco e vincular à sua conta?")) {
-                await store.recoverLegacyData();
-              }
-            }}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:bg-emerald-500/10 transition-colors border border-emerald-500/20"
-          >
-            <ShieldCheck className="h-4 w-4" />
-            Resgatar Dados
-          </button>
-          
+        <div className="mt-auto p-4 border-t border-white/5">
           <button 
             onClick={() => {
               store.auth.logout();

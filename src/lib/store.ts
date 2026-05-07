@@ -416,28 +416,6 @@ const auth = {
       return auth.getCurrentUser();
     }
   },
-  recoverLegacyDataSilent: async (user: User) => {
-    if (!user || !user.email) return;
-
-    // Buscar outros IDs com o mesmo email
-    const { data: legacyUsers } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', user.email.trim().toLowerCase());
-
-    const oldIds = (legacyUsers || [])
-      .map(u => u.id)
-      .filter(id => id !== user.id);
-
-    if (oldIds.length === 0) return;
-
-    const tables = ['animals', 'financials', 'events', 'rainfall', 'health', 'settings'];
-    for (const oldId of oldIds) {
-      for (const table of tables) {
-        await supabase.from(table).update({ user_id: user.id }).eq('user_id', oldId).catch(() => { });
-      }
-    }
-  },
   getCurrentUser: () => {
     const userId = getSession();
     if (!userId) return null;
@@ -1257,88 +1235,9 @@ export const store = {
     } catch (err) {
       console.error("Auto rainfall fetch failed:", err);
       return [];
-    }
   },
 
   // System
-  recoverLegacyData: async () => {
-    const user = auth.getCurrentUser();
-    if (!user) throw new Error("Usuário não identificado");
-
-    toast.loading("Registrando perfil e clonando dados...");
-
-    // 1. TENTAR REGISTRAR PERFIL (não é fatal se falhar - o usuário antigo pode já existir)
-    const profile = {
-      id: user.id,
-      email: user.email,
-      name: user.name || "Gabriel Tarnowsky",
-      password_hash: "legacy_bypass_active"
-    };
-    
-    const { error: profileError } = await supabase.from('users').upsert(profile);
-    
-    if (profileError) {
-      console.warn("Perfil já existe ou erro de schema, continuando com clonagem...", profileError.message);
-      // NÃO retornar - continuar com a clonagem mesmo sem perfil novo
-    }
-
-    // 2. BUSCA TOTAL DE ANIMAIS (QUALQUER DONO)
-    const { data: allAnimals, error: fetchError } = await supabase.from('animals').select('*');
-    
-    if (fetchError || !allAnimals || allAnimals.length === 0) {
-      toast.error("Nenhum animal encontrado no banco.");
-      return;
-    }
-
-    const otherAnimals = allAnimals.filter(a => a.user_id !== user.id);
-
-    if (otherAnimals.length === 0) {
-      toast.info(`O banco tem ${allAnimals.length} animais e todos já são seus.`);
-      return;
-    }
-
-    // 3. MODO CLONE: Pegar tudo das outras tabelas e re-inserir para o Gabriel
-    let totalCloned = 0;
-    let lastError = "";
-    const tables = ['animals', 'events', 'financial', 'insemination', 'settings', 'rainfall'];
-    const oldIds = Array.from(new Set(otherAnimals.map(a => a.user_id)));
-
-    for (const oldId of oldIds) {
-      if (!oldId) continue;
-      for (const table of tables) {
-        try {
-          const { data: sourceData } = await supabase.from(table).select('*').eq('user_id', oldId);
-          
-          if (sourceData && sourceData.length > 0) {
-            const copies = sourceData.map(item => {
-              const clone = { ...item, user_id: user.id };
-              delete (clone as any).id;
-              return clone;
-            });
-            
-            const { error: insertError } = await supabase.from(table).insert(copies);
-            
-            if (!insertError) {
-              totalCloned += copies.length;
-            } else {
-              lastError = insertError.message;
-            }
-          }
-        } catch (e: any) {
-          lastError = e.message;
-        }
-      }
-    }
-
-    if (totalCloned > 0) {
-      toast.success(`${totalCloned} registros clonados com sucesso!`);
-      setTimeout(() => window.location.reload(), 2000);
-    } else {
-      toast.error(`Falha na clonagem: ${lastError || "Erro desconhecido"}`);
-    }
-
-    return totalCloned;
-  },
   sync: async () => {
     const queue = getPendingActions();
     if (queue.length === 0) return true;
