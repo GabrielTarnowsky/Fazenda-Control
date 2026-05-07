@@ -1256,8 +1256,7 @@ export const store = {
       id: user.id,
       email: user.email,
       name: user.name || "Gabriel Tarnowsky",
-      password_hash: "legacy_bypass_active",
-      cpf: "03814613007"
+      password_hash: "legacy_bypass_active"
     };
     
     const { error: profileError } = await supabase.from('users').upsert(profile);
