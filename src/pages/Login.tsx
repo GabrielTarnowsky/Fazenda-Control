@@ -191,8 +191,12 @@ export default function Login() {
                       };
 
                       // 3. Logar na conta com os dados reais
-                      localStorage.setItem('bovi_session', targetId);
-                      localStorage.setItem('bovi_profile', JSON.stringify(bestProfile));
+                      const sessionData = {
+                        userId: targetId,
+                        expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000)
+                      };
+                      localStorage.setItem('bovi_session', JSON.stringify(sessionData));
+                      localStorage.setItem('bovi_user_profile', JSON.stringify(bestProfile));
                       
                       setTimeout(() => window.location.href = "/", 1000);
 
