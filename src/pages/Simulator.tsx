@@ -100,7 +100,7 @@ export default function Simulator() {
     const manualDailyCost = Number(form.dailyCost) || 0;
     const consumptionKg = Number(form.consumptionKg) || 0;
     const extraCost = Number(form.extraCost) || 0;
-    
+
     // Cálculo do custo diário efetivo
     let effectiveDailyCost = manualDailyCost;
     if (form.costMethod === 'ration' && form.rationId !== 'none') {
@@ -115,20 +115,22 @@ export default function Simulator() {
     const targetMargin = Number(form.targetMargin) || 0;
 
     const yieldDecimal = yieldPct / 100;
-    
+
     // 1. Ganho de Peso Total
     const totalGainKg = expectedGMD * days;
-    
+
     // 2. Peso Final (Kg Vivo)
     const finalWeight = initialWeight + totalGainKg;
-    
-    // 3. Conversão para Arroba (@)
+
+    // 3. Conversão para Arroba (@) - Lógica de Pecuarista
+    const arrobasIniciais = (initialWeight * 0.50) / 15; // Estimativa boi magro (50%)
     const finalCarcassKg = finalWeight * yieldDecimal;
-    const finalArroba = finalCarcassKg / 15;
+    const arrobasFinais = finalCarcassKg / 15;
+    const arrobasProduzidas = arrobasFinais - arrobasIniciais;
 
     // 4. Custos
     const totalPurchase = quantity * purchasePricePerHead;
-    const totalFeeding = quantity * days * effectiveDailyCost; // Usa o custo efetivo
+    const totalFeeding = quantity * days * effectiveDailyCost; 
     const totalMaintenance = totalFeeding + extraCost;
     const totalInvestment = totalPurchase + totalMaintenance;
 
@@ -157,7 +159,7 @@ export default function Simulator() {
     return {
       totalGainKg,
       finalWeight,
-      finalArroba,
+      finalArroba: arrobasFinais,
       finalCarcassKg,
       totalPurchase,
       totalMaintenance,
@@ -171,8 +173,9 @@ export default function Simulator() {
       unitsPerHead,
       totalFeeding,
       feedingPerHead: days * effectiveDailyCost,
-      costPerProducedArroba: (totalGainKg > 0 && quantity > 0) 
-        ? (totalMaintenance / quantity) / (totalGainKg * yieldDecimal / 15) 
+      producedArrobasPerHead: arrobasProduzidas,
+      costPerProducedArroba: (arrobasProduzidas > 0 && quantity > 0) 
+        ? ((totalFeeding + extraCost) / quantity) / arrobasProduzidas 
         : 0
     };
   }, [form]);
@@ -269,30 +272,30 @@ export default function Simulator() {
         </Card>
       ) : (
         <div className="grid lg:grid-cols-12 gap-6 items-start">
-          
+
           {/* LADO ESQUERDO: ENTRADAS */}
           <div className="lg:col-span-5 space-y-4">
             <Card className="border shadow-sm rounded-xl overflow-hidden">
               <div className="bg-muted/30 p-3 border-b flex items-center justify-between">
-                <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="h-9 font-bold bg-transparent border-none focus-visible:ring-0 w-[60%]" />
+                <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="h-9 font-bold bg-transparent border-none focus-visible:ring-0 w-[60%]" />
                 <Button onClick={saveSimulation} size="sm" className="font-bold"><Save className="h-4 w-4 mr-2" /> Salvar</Button>
               </div>
               <CardContent className="p-5 space-y-6">
-                
+
                 <div className="space-y-4 border-b pb-5">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2"><Scale className="h-4 w-4" /> 1. Compra</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Qtd. Animais</Label>
-                      <Input type="number" placeholder="100" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="h-10 font-bold" />
+                      <Input type="number" placeholder="100" value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} className="h-10 font-bold" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Preço/Cabeça (R$)</Label>
-                      <Input type="number" placeholder="2800" value={form.purchasePricePerHead} onChange={e => setForm({...form, purchasePricePerHead: e.target.value})} className="h-10 font-bold" />
+                      <Input type="number" placeholder="2800" value={form.purchasePricePerHead} onChange={e => setForm({ ...form, purchasePricePerHead: e.target.value })} className="h-10 font-bold" />
                     </div>
                     <div className="col-span-2 space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Peso Médio na Compra (kg)</Label>
-                      <Input type="number" placeholder="350" value={form.initialWeight} onChange={e => setForm({...form, initialWeight: e.target.value})} className="h-10 font-bold" />
+                      <Input type="number" placeholder="350" value={form.initialWeight} onChange={e => setForm({ ...form, initialWeight: e.target.value })} className="h-10 font-bold" />
                     </div>
                   </div>
                 </div>
@@ -302,16 +305,16 @@ export default function Simulator() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Ganho Diário (GMD)</Label>
-                      <Input type="number" step="0.1" value={form.expectedGMD} onChange={e => setForm({...form, expectedGMD: e.target.value})} className="h-10 font-bold" />
+                      <Input type="number" step="0.1" value={form.expectedGMD} onChange={e => setForm({ ...form, expectedGMD: e.target.value })} className="h-10 font-bold" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Tempo (Dias)</Label>
-                      <Input type="number" value={form.days} onChange={e => setForm({...form, days: e.target.value})} className="h-10 font-bold" />
+                      <Input type="number" value={form.days} onChange={e => setForm({ ...form, days: e.target.value })} className="h-10 font-bold" />
                     </div>
-                    
+
                     <div className="col-span-2 space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Método de Custo</Label>
-                      <Select value={form.costMethod} onValueChange={v => setForm({...form, costMethod: v})}>
+                      <Select value={form.costMethod} onValueChange={v => setForm({ ...form, costMethod: v })}>
                         <SelectTrigger className="h-10 font-bold text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="manual">Custo Diário Manual (R$)</SelectItem>
@@ -323,13 +326,13 @@ export default function Simulator() {
                     {form.costMethod === 'manual' ? (
                       <div className="col-span-2 space-y-1.5 animate-in fade-in zoom-in duration-300">
                         <Label className="text-[11px] font-bold text-muted-foreground">Custo da Diária (R$/animal)</Label>
-                        <Input type="number" step="0.1" value={form.dailyCost} onChange={e => setForm({...form, dailyCost: e.target.value})} className="h-10 font-bold" />
+                        <Input type="number" step="0.1" value={form.dailyCost} onChange={e => setForm({ ...form, dailyCost: e.target.value })} className="h-10 font-bold" />
                       </div>
                     ) : (
                       <div className="col-span-2 grid grid-cols-2 gap-4 animate-in fade-in zoom-in duration-300">
                         <div className="space-y-1.5">
                           <Label className="text-[11px] font-bold text-muted-foreground">Escolher Ração</Label>
-                          <Select value={form.rationId} onValueChange={v => setForm({...form, rationId: v})}>
+                          <Select value={form.rationId} onValueChange={v => setForm({ ...form, rationId: v })}>
                             <SelectTrigger className="h-10 font-bold text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">Selecione...</SelectItem>
@@ -341,7 +344,7 @@ export default function Simulator() {
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-[11px] font-bold text-muted-foreground">Consumo (kg/dia)</Label>
-                          <Input type="number" step="0.5" value={form.consumptionKg} onChange={e => setForm({...form, consumptionKg: e.target.value})} className="h-10 font-bold" />
+                          <Input type="number" step="0.5" value={form.consumptionKg} onChange={e => setForm({ ...form, consumptionKg: e.target.value })} className="h-10 font-bold" />
                         </div>
                       </div>
                     )}
@@ -353,11 +356,11 @@ export default function Simulator() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Rendimento (%)</Label>
-                      <Input type="number" value={form.yieldPct} onChange={e => setForm({...form, yieldPct: e.target.value})} className="h-10 font-bold" />
+                      <Input type="number" value={form.yieldPct} onChange={e => setForm({ ...form, yieldPct: e.target.value })} className="h-10 font-bold" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-bold text-muted-foreground">Método</Label>
-                      <Select value={form.saleMethod} onValueChange={v => setForm({...form, saleMethod: v})}>
+                      <Select value={form.saleMethod} onValueChange={v => setForm({ ...form, saleMethod: v })}>
                         <SelectTrigger className="h-10 font-bold text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="arroba">Por Arroba (@)</SelectItem>
@@ -371,7 +374,7 @@ export default function Simulator() {
                     <Label className="text-[11px] font-black text-emerald-600 uppercase tracking-wider">Preço de Venda Esperado (Por {results.unitLabel})</Label>
                     <div className="relative mt-1">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600 font-bold">R$</span>
-                      <Input type="number" value={form.expectedSalePrice} onChange={e => setForm({...form, expectedSalePrice: e.target.value})} className="h-12 text-2xl font-black pl-9 border-emerald-500/30 bg-emerald-500/5" />
+                      <Input type="number" value={form.expectedSalePrice} onChange={e => setForm({ ...form, expectedSalePrice: e.target.value })} className="h-12 text-2xl font-black pl-9 border-emerald-500/30 bg-emerald-500/5" />
                     </div>
                   </div>
                 </div>
@@ -382,7 +385,7 @@ export default function Simulator() {
 
           {/* LADO DIREITO: RESULTADOS */}
           <div className="lg:col-span-7 space-y-4">
-            
+
             <Card className={`border shadow-sm rounded-xl overflow-hidden transition-all ${isProfitable ? 'bg-emerald-600' : 'bg-destructive'}`}>
               <CardContent className="p-8 text-white">
                 <p className="text-xs font-bold uppercase tracking-wider opacity-80 mb-1">Lucro Líquido Estimado</p>
