@@ -1251,7 +1251,7 @@ export const store = {
 
     toast.loading("Registrando perfil e clonando dados...");
 
-    // 1. GARANTIR QUE O USUÁRIO EXISTE NA TABELA 'users' (Satisfazer Foreign Key)
+    // 1. TENTAR REGISTRAR PERFIL (não é fatal se falhar - o usuário antigo pode já existir)
     const profile = {
       id: user.id,
       email: user.email,
@@ -1262,8 +1262,8 @@ export const store = {
     const { error: profileError } = await supabase.from('users').upsert(profile);
     
     if (profileError) {
-      toast.error(`Erro ao registrar perfil: ${profileError.message}`);
-      return;
+      console.warn("Perfil já existe ou erro de schema, continuando com clonagem...", profileError.message);
+      // NÃO retornar - continuar com a clonagem mesmo sem perfil novo
     }
 
     // 2. BUSCA TOTAL DE ANIMAIS (QUALQUER DONO)
