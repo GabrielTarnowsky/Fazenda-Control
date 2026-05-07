@@ -400,17 +400,19 @@ const auth = {
         }
       }
 
-      const profile = profileData || {
+      const profile = {
+        ...(profileData || {}),
         id: effectiveId,
-        name: session.user.user_metadata?.name || "Usuário",
-        email: userEmail,
-        farm_name: session.user.user_metadata?.farm_name
+        name: profileData?.name || session.user.user_metadata?.name || "Usuário",
+        email: profileData?.email || userEmail,
+        farm_name: profileData?.farm_name || session.user.user_metadata?.farm_name,
+        cpf: profileData?.cpf || session.user.user_metadata?.cpf // GARANTIR QUE O CPF VEM DO METADATA SE NÃO ESTIVER NA TABELA
       };
 
       saveSession(effectiveId);
       saveUserProfile(profile);
 
-      return profile;
+      return profile as User;
     } catch (e) {
       console.error("Silent session check failed", e);
       return auth.getCurrentUser();
@@ -473,16 +475,18 @@ const auth = {
       }
     }
 
-    const profile = data || {
+    const profile = {
+      ...(data || {}),
       id: effectiveId,
-      name: authData.user.user_metadata?.name || "Usuário",
-      email: authData.user.email || email,
-      farm_name: authData.user.user_metadata?.farm_name
+      name: data?.name || authData.user.user_metadata?.name || "Usuário",
+      email: data?.email || authData.user.email || email,
+      farm_name: data?.farm_name || authData.user.user_metadata?.farm_name,
+      cpf: data?.cpf || authData.user.user_metadata?.cpf // GARANTIR QUE O CPF VEM DO METADATA NO LOGIN
     };
 
     saveSession(effectiveId);
     saveUserProfile(profile);
-    return profile;
+    return profile as User;
   },
   updateProfile: async (updates: Partial<User>) => {
     const user = auth.getCurrentUser();
@@ -499,7 +503,9 @@ const auth = {
 
     if (authError) console.warn("Erro ao atualizar Auth Metadata:", authError.message);
 
-    // 2. Tentar atualizar na tabela pública 'users' (Pode falhar se a coluna CPF não existir)
+    // 2. Tentar atualizar na tabela pública 'users'
+    let finalProfile = { ...user, ...updates };
+    
     try {
       const { data, error } = await supabase
         .from('users')
@@ -509,17 +515,15 @@ const auth = {
         .single();
 
       if (!error && data) {
-        saveUserProfile(data);
-        return data;
+        finalProfile = { ...finalProfile, ...data };
       }
     } catch (e) {
       console.error("Erro na tabela users, usando fallback:", e);
     }
 
-    // Fallback: Se a tabela users falhar, atualizar apenas o cache local com os novos dados
-    const updatedProfile = { ...user, ...updates };
-    saveUserProfile(updatedProfile);
-    return updatedProfile;
+    // SEMPRE atualizar o cache local com os dados mais recentes (incluindo CPF)
+    saveUserProfile(finalProfile);
+    return finalProfile as User;
   },
   logout: async () => {
     await supabase.auth.signOut();
