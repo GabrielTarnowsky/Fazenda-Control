@@ -171,7 +171,9 @@ export default function Simulator() {
       unitsPerHead,
       totalFeeding,
       feedingPerHead: days * effectiveDailyCost,
-      costPerProducedArroba: (totalGainKg > 0) ? (totalMaintenance / (totalGainKg * yieldDecimal / 15)) : 0
+      costPerProducedArroba: (totalGainKg > 0 && quantity > 0) 
+        ? (totalMaintenance / quantity) / (totalGainKg * yieldDecimal / 15) 
+        : 0
     };
   }, [form]);
 
