@@ -1235,6 +1235,7 @@ export const store = {
     } catch (err) {
       console.error("Auto rainfall fetch failed:", err);
       return [];
+    }
   },
 
   // System

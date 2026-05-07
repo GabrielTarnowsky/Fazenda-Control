@@ -9,27 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { 
-  Settings as SettingsIcon, 
-  LogOut, 
-  User, 
-  Mail, 
-  Shield, 
-  RotateCcw, 
-  Cloud, 
-  ChevronRight,
-  AlertTriangle,
-  Beef,
-  Activity,
-  CheckCircle,
-  TrendingUp,
-  Sun,
-  Moon,
-  MapPin,
-  CloudRain,
-  Lock,
-  Smartphone
+  LogOut, User, RotateCcw, Cloud, AlertTriangle, Beef, Activity,
+  CheckCircle, TrendingUp, Sun, Moon, MapPin, CloudRain, Lock, Smartphone
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -188,81 +170,71 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 bg-primary/10 rounded-2xl flex items-center justify-center ring-1 ring-primary/20 shadow-sm">
-            <SettingsIcon className="h-7 w-7 text-primary" />
-          </div>
-          <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Configurações</h1>
-            <p className="text-sm text-muted-foreground font-medium mt-1">Gerencie seu perfil, sistema e dados</p>
-          </div>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-black tracking-tight text-foreground">Configurações</h1>
+        <p className="text-sm text-muted-foreground mt-1">Gerencie seu perfil, sistema e dados</p>
       </div>
 
       <Tabs defaultValue="conta" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-14 bg-muted/40 p-1 mb-8 rounded-2xl">
-          <TabsTrigger value="conta" className="rounded-xl text-xs md:text-sm font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
-            <User className="h-4 w-4 mr-2" /> Conta
+        <TabsList className="grid w-full grid-cols-3 h-11 bg-muted/50 p-1 mb-6 rounded-xl">
+          <TabsTrigger value="conta" className="rounded-lg text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm gap-1.5">
+            <User className="h-3.5 w-3.5" /> Conta
           </TabsTrigger>
-          <TabsTrigger value="sistema" className="rounded-xl text-xs md:text-sm font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
-            <Smartphone className="h-4 w-4 mr-2" /> Sistema
+          <TabsTrigger value="sistema" className="rounded-lg text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm gap-1.5">
+            <Smartphone className="h-3.5 w-3.5" /> Sistema
           </TabsTrigger>
-          <TabsTrigger value="dados" className="rounded-xl text-xs md:text-sm font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
-            <Cloud className="h-4 w-4 mr-2" /> Dados
+          <TabsTrigger value="dados" className="rounded-lg text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm gap-1.5">
+            <Cloud className="h-3.5 w-3.5" /> Dados
           </TabsTrigger>
         </TabsList>
 
         {/* ================= ABA: CONTA ================= */}
-        <TabsContent value="conta" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="conta" className="space-y-5 focus-visible:outline-none focus-visible:ring-0">
           
           {/* Perfil */}
-          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
-            <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
+          <Card className="border shadow-sm rounded-xl">
+            <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary" /> Perfil Pessoal
-                  </CardTitle>
-                  <CardDescription className="text-xs mt-1">Atualize suas informações básicas.</CardDescription>
-                </div>
-                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-0 font-bold">
-                  <Shield className="h-3 w-3 mr-1" /> Ativa
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" /> Perfil
+                </CardTitle>
+                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-0 text-[10px] font-bold">
+                  Ativa
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="p-6 space-y-5">
-              <div className="grid md:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nome Completo</Label>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">Nome Completo</Label>
                   <Input 
                     value={profile.name} 
                     onChange={e => setProfile({...profile, name: e.target.value})}
-                    className="h-11 rounded-xl bg-muted/30 focus-visible:bg-background"
+                    className="h-10 rounded-lg"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">CPF / Documento</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">CPF / Documento</Label>
                   <Input 
                     placeholder="Somente números"
                     value={profile.cpf || ""} 
                     onChange={e => setProfile({...profile, cpf: e.target.value.replace(/\D/g, '').slice(0, 11)})}
-                    className="h-11 rounded-xl bg-muted/30 focus-visible:bg-background"
+                    className="h-10 rounded-lg"
                   />
                 </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">E-mail</Label>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">E-mail</Label>
                   <Input 
                     disabled
                     value={profile.email} 
-                    className="h-11 rounded-xl bg-muted/50 text-muted-foreground cursor-not-allowed"
+                    className="h-10 rounded-lg bg-muted/50 text-muted-foreground cursor-not-allowed"
                   />
-                  <p className="text-[10px] text-muted-foreground/70 ml-1">O e-mail de acesso não pode ser alterado.</p>
+                  <p className="text-[10px] text-muted-foreground/60">O e-mail não pode ser alterado.</p>
                 </div>
               </div>
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end">
                 <Button 
                   onClick={async () => {
                     try {
@@ -272,7 +244,8 @@ export default function SettingsPage() {
                       toast.error("Erro ao salvar perfil");
                     }
                   }}
-                  className="rounded-xl h-10 font-bold px-6 bg-primary/90 hover:bg-primary"
+                  size="sm"
+                  className="rounded-lg font-bold px-5"
                 >
                   Salvar Perfil
                 </Button>
@@ -281,42 +254,42 @@ export default function SettingsPage() {
           </Card>
 
           {/* Segurança */}
-          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
-            <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary" /> Segurança
+          <Card className="border shadow-sm rounded-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Lock className="h-4 w-4 text-muted-foreground" /> Segurança
               </CardTitle>
-              <CardDescription className="text-xs mt-1">Altere sua senha de acesso ao sistema.</CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-5">
-              <div className="grid md:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nova Senha</Label>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">Nova Senha</Label>
                   <Input 
                     type="password" 
                     value={newPass}
                     onChange={(e) => setNewPass(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    className="h-11 rounded-xl bg-muted/30 focus-visible:bg-background"
+                    className="h-10 rounded-lg"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Confirmar Nova Senha</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">Confirmar Senha</Label>
                   <Input 
                     type="password" 
                     value={confirmPass}
                     onChange={(e) => setConfirmPass(e.target.value)}
                     placeholder="Repita a senha"
-                    className="h-11 rounded-xl bg-muted/30 focus-visible:bg-background"
+                    className="h-10 rounded-lg"
                   />
                 </div>
               </div>
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end">
                 <Button 
                   onClick={handleUpdatePassword}
                   disabled={updatingPass || !newPass}
                   variant="secondary"
-                  className="rounded-xl h-10 font-bold px-6"
+                  size="sm"
+                  className="rounded-lg font-bold px-5"
                 >
                   {updatingPass ? "Atualizando..." : "Alterar Senha"}
                 </Button>
@@ -325,29 +298,29 @@ export default function SettingsPage() {
           </Card>
 
           {/* Logout */}
-          <div className="pt-4">
+          <div className="pt-2">
             {!showLogoutConfirm ? (
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 onClick={() => setShowLogoutConfirm(true)}
-                className="w-full md:w-auto h-12 rounded-xl border-destructive/20 text-destructive hover:bg-destructive/5 hover:border-destructive/40 hover:text-destructive transition-all"
+                className="w-full h-11 rounded-xl text-destructive hover:bg-destructive/5 hover:text-destructive"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                <span className="font-bold">Sair da Conta (Logout)</span>
+                <span className="font-bold text-sm">Sair da Conta</span>
               </Button>
             ) : (
-              <div className="p-5 bg-destructive/5 border border-destructive/20 rounded-2xl animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-xl animate-in fade-in zoom-in-95 duration-200">
                 <h4 className="font-bold text-destructive text-sm flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" /> Confirmar Saída
                 </h4>
-                <p className="text-xs text-muted-foreground mt-2 mb-4">
-                  Seus dados estão salvos em segurança na nuvem. Você precisará do seu e-mail e senha para acessar novamente.
+                <p className="text-xs text-muted-foreground mt-1.5 mb-4">
+                  Seus dados estão salvos na nuvem. Você precisará do e-mail e senha para acessar novamente.
                 </p>
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setShowLogoutConfirm(false)} className="h-10 rounded-xl text-xs font-bold flex-1">
+                  <Button variant="outline" onClick={() => setShowLogoutConfirm(false)} className="h-9 rounded-lg text-xs font-bold flex-1">
                     Cancelar
                   </Button>
-                  <Button variant="destructive" onClick={handleLogout} className="h-10 rounded-xl text-xs font-bold flex-1 shadow-sm">
+                  <Button variant="destructive" onClick={handleLogout} className="h-9 rounded-lg text-xs font-bold flex-1">
                     Sair Agora
                   </Button>
                 </div>
@@ -357,136 +330,133 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* ================= ABA: SISTEMA ================= */}
-        <TabsContent value="sistema" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="sistema" className="space-y-5 focus-visible:outline-none focus-visible:ring-0">
           
           {/* Aparência */}
-          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
-            <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" /> Aparência
+          <Card className="border shadow-sm rounded-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-muted-foreground" /> Aparência
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-2 gap-4">
-                <Button 
-                  variant="outline"
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
                   onClick={() => toggleTheme('light')}
-                  className={`h-24 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all border-2 ${theme === 'light' ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted/50'}`}
+                  className={`h-20 rounded-xl flex flex-col items-center justify-center gap-2 transition-all border-2 ${theme === 'light' ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted/50'}`}
                 >
-                  <Sun className="h-6 w-6" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Modo Claro</span>
-                </Button>
-                <Button 
-                  variant="outline"
+                  <Sun className="h-5 w-5" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Modo Claro</span>
+                </button>
+                <button 
                   onClick={() => toggleTheme('dark')}
-                  className={`h-24 rounded-2xl flex flex-col items-center justify-center gap-3 transition-all border-2 ${theme === 'dark' ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted/50'}`}
+                  className={`h-20 rounded-xl flex flex-col items-center justify-center gap-2 transition-all border-2 ${theme === 'dark' ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:bg-muted/50'}`}
                 >
-                  <Moon className="h-6 w-6" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Modo Escuro</span>
-                </Button>
+                  <Moon className="h-5 w-5" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Modo Escuro</span>
+                </button>
               </div>
             </CardContent>
           </Card>
 
           {/* Localização e Clima */}
-          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
-            <CardHeader className="bg-blue-500/5 border-b border-blue-500/10 pb-4">
-              <CardTitle className="text-base font-bold flex items-center gap-2 text-blue-600 dark:text-blue-500">
-                <CloudRain className="h-4 w-4" /> Localização e Clima
+          <Card className="border shadow-sm rounded-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <CloudRain className="h-4 w-4 text-muted-foreground" /> Localização e Clima
               </CardTitle>
-              <CardDescription className="text-xs mt-1">Gerencie a obtenção de dados de chuva via satélite.</CardDescription>
+              <CardDescription className="text-xs mt-1">Dados de chuva automáticos via satélite.</CardDescription>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="flex items-center justify-between bg-muted/30 p-4 rounded-xl border border-border/50">
-                <div className="space-y-1 pr-4">
-                  <Label className="text-sm font-bold">Pluviometria Automática</Label>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Baixar histórico de chuvas automaticamente baseado nas coordenadas informadas abaixo.</p>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between bg-muted/30 p-3 rounded-lg border">
+                <div className="space-y-0.5 pr-4">
+                  <Label className="text-xs font-bold">Pluviometria Automática</Label>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">Baixar histórico de chuvas baseado nas coordenadas.</p>
                 </div>
                 <Switch checked={useAutoRainfall} onCheckedChange={setUseAutoRainfall} />
               </div>
 
-              <div className="grid md:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="lat" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Latitude</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">Latitude</Label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
                     <Input 
-                      id="lat" 
                       value={lat} 
                       onChange={(e) => setLat(e.target.value)}
                       placeholder="-5.0892" 
-                      className="pl-10 h-11 rounded-xl font-mono text-sm bg-muted/30 focus-visible:bg-background"
+                      className="pl-9 h-10 rounded-lg font-mono text-sm"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lng" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Longitude</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">Longitude</Label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
                     <Input 
-                      id="lng" 
                       value={lng} 
                       onChange={(e) => setLng(e.target.value)}
                       placeholder="-42.8016" 
-                      className="pl-10 h-11 rounded-xl font-mono text-sm bg-muted/30 focus-visible:bg-background"
+                      className="pl-9 h-10 rounded-lg font-mono text-sm"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <div className="flex gap-2">
                 <Button 
                   variant="outline" 
                   onClick={detectLocation}
-                  className="flex-1 h-11 rounded-xl font-bold text-xs"
+                  size="sm"
+                  className="flex-1 rounded-lg font-bold text-xs"
                 >
-                  <MapPin className="h-4 w-4 mr-2 text-blue-600" /> Usar Posição Atual do GPS
+                  <MapPin className="h-3.5 w-3.5 mr-1.5" /> GPS Atual
                 </Button>
                 <Button 
                   onClick={handleSaveLocation}
-                  className="flex-1 h-11 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                  size="sm"
+                  className="flex-1 rounded-lg font-bold text-xs"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" /> Salvar Coordenadas
+                  <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Salvar
                 </Button>
               </div>
             </CardContent>
           </Card>
 
           {/* Mercado */}
-          <Card className="border-pink-500/20 shadow-sm rounded-2xl overflow-hidden bg-slate-900/5 dark:bg-slate-900/40">
-            <CardHeader className="bg-pink-500/5 border-b border-pink-500/10 pb-4">
-              <CardTitle className="text-base font-bold flex items-center gap-2 text-pink-600 dark:text-pink-500">
-                <TrendingUp className="h-4 w-4" /> Mercado (Boi Gordo)
+          <Card className="border shadow-sm rounded-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" /> Mercado (Boi Gordo)
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                <div className="space-y-2 flex-1">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Preço Base da Arroba (@)</Label>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl font-black text-pink-600 dark:text-pink-500">R$</span>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="space-y-1.5 flex-1">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">Preço Base da Arroba (@)</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-muted-foreground">R$</span>
                     <Input 
                       type="number" 
                       value={marketPrice}
                       onChange={(e) => handleUpdatePrice(e.target.value)}
-                      className="h-12 w-32 rounded-xl text-lg font-black bg-white dark:bg-slate-900 border-pink-200 dark:border-pink-900/50"
+                      className="h-10 w-28 rounded-lg text-lg font-bold"
                     />
                   </div>
                 </div>
-                <div className="sm:w-auto w-full pt-6 sm:pt-0">
-                  <Button 
-                    onClick={syncMarket}
-                    disabled={fetchingMarket}
-                    className="w-full sm:w-auto h-12 rounded-xl font-bold px-6 bg-pink-600 hover:bg-pink-700 text-white shadow-sm"
-                  >
-                    {fetchingMarket ? "Buscando..." : "Sincronizar Mercado Atual"}
-                  </Button>
-                </div>
+                <Button 
+                  onClick={syncMarket}
+                  disabled={fetchingMarket}
+                  size="sm"
+                  className="rounded-lg font-bold text-xs px-4 h-10 self-end"
+                >
+                  {fetchingMarket ? "Buscando..." : "Sincronizar"}
+                </Button>
               </div>
-              <div className="mt-5 p-4 bg-white/60 dark:bg-slate-950/40 rounded-xl border border-pink-500/10 flex items-start gap-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                  Este valor base é utilizado nos relatórios e no simulador para prever lucro de lotes ativos. Animais que já possuem "Valor de Venda" registrado não serão alterados.
+              <div className="p-3 bg-muted/30 rounded-lg border flex items-start gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Valor utilizado nos relatórios e simulador. Animais com "Valor de Venda" registrado não são alterados.
                 </p>
               </div>
             </CardContent>
@@ -494,84 +464,79 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* ================= ABA: DADOS ================= */}
-        <TabsContent value="dados" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent value="dados" className="space-y-5 focus-visible:outline-none focus-visible:ring-0">
           
           {/* Sincronização */}
-          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden">
-            <CardContent className="p-0">
-              <div className="p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-5 w-full md:w-auto">
-                  <div className="h-16 w-16 bg-blue-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-blue-500/20">
+          <Card className="border shadow-sm rounded-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
                     {syncing ? (
-                      <RotateCcw className="h-7 w-7 text-blue-600 animate-spin" />
+                      <RotateCcw className="h-5 w-5 text-primary animate-spin" />
                     ) : (
-                      <Cloud className="h-7 w-7 text-blue-600" />
+                      <Cloud className="h-5 w-5 text-primary" />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg">Sincronização em Nuvem</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Última sincronização: <span className="font-bold text-foreground">{lastSyncFormatted}</span>
+                  <div>
+                    <h3 className="font-bold text-sm">Sincronização</h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Última: <span className="font-semibold text-foreground">{lastSyncFormatted}</span>
                     </p>
                   </div>
                 </div>
                 <Button 
                   onClick={handleSync} 
                   disabled={syncing}
-                  className="w-full md:w-auto h-12 rounded-xl font-bold px-8 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                  size="sm"
+                  className="rounded-lg font-bold px-4"
                 >
-                  {syncing ? "Sincronizando..." : "Forçar Sincronização"}
+                  {syncing ? "Sincronizando..." : "Sincronizar"}
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Resumo */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="border-border/50 shadow-sm rounded-2xl">
-              <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center mb-1">
-                  <Beef className="h-5 w-5 text-blue-600" />
-                </div>
-                <p className="text-3xl font-black text-foreground">{counts.animals}</p>
-                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Animais</p>
+          {/* Resumo de Dados */}
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="border shadow-sm rounded-xl">
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                <Beef className="h-5 w-5 text-primary mb-2" />
+                <p className="text-2xl font-black">{counts.animals}</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase">Animais</p>
               </CardContent>
             </Card>
-            <Card className="border-border/50 shadow-sm rounded-2xl">
-              <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center mb-1">
-                  <Activity className="h-5 w-5 text-purple-600" />
-                </div>
-                <p className="text-3xl font-black text-foreground">{counts.events}</p>
-                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Eventos</p>
+            <Card className="border shadow-sm rounded-xl">
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                <Activity className="h-5 w-5 text-primary mb-2" />
+                <p className="text-2xl font-black">{counts.events}</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase">Eventos</p>
               </CardContent>
             </Card>
-            <Card className="border-border/50 shadow-sm rounded-2xl">
-              <CardContent className="p-6 flex flex-col items-center justify-center text-center space-y-2">
-                <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center mb-1">
-                  <TrendingUp className="h-5 w-5 text-emerald-600" />
-                </div>
-                <p className="text-3xl font-black text-foreground">{counts.financials}</p>
-                <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Registros Fin.</p>
+            <Card className="border shadow-sm rounded-xl">
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                <TrendingUp className="h-5 w-5 text-primary mb-2" />
+                <p className="text-2xl font-black">{counts.financials}</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase">Financeiro</p>
               </CardContent>
             </Card>
           </div>
 
           {/* App Info */}
-          <Card className="border-border/50 shadow-sm rounded-2xl overflow-hidden bg-muted/10">
-            <CardContent className="p-6">
+          <Card className="border shadow-sm rounded-xl bg-muted/20">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 border border-primary/10">
-                    <img src="/logo.png" alt="Logo" className="h-6 w-6 object-contain opacity-80" />
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 bg-background rounded-lg flex items-center justify-center border">
+                    <img src="/logo.png" alt="Logo" className="h-5 w-5 object-contain" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm">FazendaControl Pro</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Plataforma de Gestão Pecuária Inteligente</p>
+                    <h3 className="font-bold text-xs">FazendaControl Pro</h3>
+                    <p className="text-[10px] text-muted-foreground">Gestão Pecuária Inteligente</p>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-background">
-                  Versão 1.5.0
+                <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider">
+                  v1.5.0
                 </Badge>
               </div>
             </CardContent>
@@ -580,8 +545,7 @@ export default function SettingsPage() {
 
       </Tabs>
       
-      {/* Footer */}
-      <p className="text-center text-[10px] text-muted-foreground/40 font-bold uppercase tracking-[0.2em] mt-12">
+      <p className="text-center text-[10px] text-muted-foreground/30 font-semibold mt-10">
         FazendaControl © {new Date().getFullYear()}
       </p>
     </div>
