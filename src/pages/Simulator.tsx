@@ -146,8 +146,8 @@ export default function Simulator() {
         unitLabel = "Kg Vivo";
         break;
       default: // arroba
-        unitsPerHead = finalArroba;
-        grossRevenue = quantity * finalArroba * expectedSalePrice;
+        unitsPerHead = arrobasFinais;
+        grossRevenue = quantity * arrobasFinais * expectedSalePrice;
         unitLabel = "Arroba (@)";
     }
 
