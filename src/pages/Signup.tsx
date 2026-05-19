@@ -33,9 +33,6 @@ export default function Signup() {
       // Automatically log in
       await store.auth.login(email, password);
       
-      // Auto-recovery check for new signups
-      await store.recoverLegacyData().catch(() => {});
-      
       navigate("/");
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar conta. Verifique os dados.");
