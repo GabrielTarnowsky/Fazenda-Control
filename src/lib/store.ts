@@ -165,13 +165,6 @@ export interface Rainfall {
   user_id?: string;
 }
 
-export interface Rainfall {
-  id: string;
-  date: string;
-  mm: number;
-  user_id?: string;
-}
-
 // --- HELPERS ---
 
 export const formatDateDisplay = (dateStr: string) => {
@@ -215,8 +208,10 @@ export function sanitizeString(str: string): string {
 
 // Validação de senha forte
 export function validatePasswordStrength(pass: string): string | null {
-  if (pass.length < 6) return "A senha deve ter no mínimo 6 caracteres";
-  return null; // Senha válida
+  if (pass.length < 8) return 'A senha deve ter no mínimo 8 caracteres';
+  if (!/[A-Z]/.test(pass)) return 'A senha deve ter pelo menos uma letra maiúscula';
+  if (!/[0-9]/.test(pass)) return 'A senha deve ter pelo menos um número';
+  return null;
 }
 
 // --- SESSION: Com expiração persistente ---
@@ -418,14 +413,7 @@ const auth = {
       return auth.getCurrentUser();
     }
   },
-  getCurrentUser: () => {
-    const userId = getSession();
-    if (!userId) return null;
-    const profile = loadUserProfile();
-    if (profile && profile.id === userId) return profile as User;
-    // Se não houver profile mas houver ID, tentamos retornar algo mínimo para não quebrar a UI
-    return { id: userId, name: "Usuário", email: "", createdAt: "" } as User;
-  },
+
   login: async (identifier: string, pass: string) => {
     let email = identifier.trim().toLowerCase();
 
@@ -1253,29 +1241,22 @@ export const store = {
     if (queue.length === 0) return true;
     if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
 
+    clearPendingActions(); // limpa ANTES de executar para evitar re-execução
+
     let success = true;
     for (const action of queue) {
       try {
         const method = (store as any)[action.method];
-        if (method) {
-          // Excluir a ação atual da fila para evitar duplicidade em caso de reload durante o loop
-          const remaining = getPendingActions().filter(a => a.id !== action.id);
-          const user = auth.getCurrentUser();
-          if (user) {
-            localStorage.setItem(`${PENDING_ACTIONS_KEY}_${user.id}`, JSON.stringify(remaining));
-          }
-          await method(...action.args);
-        }
+        if (method) await method(...action.args);
       } catch (e) {
         success = false;
-        console.error("Failed to sync action", action, e);
+        console.error('Failed to sync action', action, e);
+        // re-enfileira somente o que falhou
+        addPendingAction({ method: action.method, args: action.args });
       }
     }
 
-    if (success) {
-      clearPendingActions();
-      toast.success("Dados sincronizados com a nuvem!");
-    }
+    if (success) toast.success('Dados sincronizados com a nuvem!');
     return success;
   },
   pushToCloud: async () => true

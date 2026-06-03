@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [showPurchase, setShowPurchase] = useState(false);
   const [showRainfallDialog, setShowRainfallDialog] = useState(false);
   const [newRainfall, setNewRainfall] = useState({ mm: "", date: new Date().toISOString().split("T")[0] });
+  const [marketPrice, setMarketPrice] = useState(280);
   
   const navigate = useNavigate();
 
@@ -40,6 +41,7 @@ export default function Dashboard() {
     store.getIngredients().then(setIngredients);
     store.getEvents().then(setEvents);
     store.getRainfall().then(setRainfall);
+    store.fetchMarketPrice().then(preco => { if (preco) setMarketPrice(preco); });
 
     store.getSettings().then(async settings => {
       const useAuto = settings.find(s => s.key === 'use_auto_rainfall')?.value === 'true';
@@ -87,13 +89,12 @@ export default function Dashboard() {
   const totalAnimals = activeAnimals.length;
   
   const projectedProfit = useMemo(() => {
-    const PRECO_MERCADO_ARROBA = 280;
     return activeAnimals.reduce((sum, a) => {
-      const revenue = (a.weight / 15) * (a.preco_arroba || PRECO_MERCADO_ARROBA);
+      const revenue = (a.weight / 15) * (a.preco_arroba || marketPrice);
       const profit = revenue - (a.valor_compra || 0);
       return sum + profit;
     }, 0);
-  }, [activeAnimals]);
+  }, [activeAnimals, marketPrice]);
 
   // Rainfall calculations
   const rainfallStats = useMemo(() => {

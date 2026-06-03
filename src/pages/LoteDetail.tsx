@@ -20,6 +20,7 @@ import WeighingReport from "@/components/WeighingReport";
 
 export default function LoteDetail() {
   const { nome } = useParams<{ nome: string }>();
+  const nomeDecodificado = nome ? decodeURIComponent(nome) : '';
   const navigate = useNavigate();
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -152,9 +153,9 @@ export default function LoteDetail() {
   };
 
   const loadData = async () => {
-    if (!nome) return;
+    if (!nomeDecodificado) return;
     setLoading(true);
-    const loteNome = decodeURIComponent(nome);
+    const loteNome = nomeDecodificado;
     const [allAnimals, allEvents, allFinancials, feedingLogsData, settings] = await Promise.all([
       store.getAnimals(),
       store.getEvents(),
@@ -325,12 +326,11 @@ export default function LoteDetail() {
 
   useEffect(() => {
     loadData();
-  }, [nome]);
+  }, [nomeDecodificado]);
 
   if (loading) return <div className="p-4 text-center py-20 italic">Calculando performance do lote...</div>;
 
-  if (!nome) return null;
-  const decodedNome = decodeURIComponent(nome);
+  if (!nomeDecodificado) return null;
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6">
@@ -342,7 +342,7 @@ export default function LoteDetail() {
 
       <div>
         <h1 className="font-display text-2xl font-bold">Relatório do Lote</h1>
-        <p className="text-muted-foreground">{decodedNome} — {animals.length} cabeças</p>
+        <p className="text-muted-foreground">{nomeDecodificado} — {animals.length} cabeças</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -733,7 +733,7 @@ export default function LoteDetail() {
       <WeighingReport 
         isOpen={isReportOpen} 
         onClose={() => setIsReportOpen(false)} 
-        loteId={nome || ""} 
+        loteId={nomeDecodificado} 
         weightedAnimalIds={reportAnimalIds} 
       />
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { store, Animal } from "@/lib/store";
 import { useNavigate, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -31,35 +31,36 @@ export default function AddAnimal() {
     peso_entrada: "", peso_saida: "", matriz_id: "", payment_method: "Pix"
   });
 
-  useEffect(() => {
-    const loadData = async () => {
-      const all = await store.getAnimals();
-      setAnimalsList(all);
-      
-      if (id) {
-        const animal = all.find(a => a.id === id);
-        if (animal) {
-          setForm({
-            tag: animal.tag || "",
-            sex: animal.sex || "Macho",
-            breed: animal.breed || "",
-            birth_date: animal.birth_date || "",
-            weight: animal.weight || 0,
-            categoria: animal.categoria || "Bezerro",
-            origem: animal.origem || "Nascimento",
-            data_compra: animal.data_compra || "",
-            valor_compra: animal.valor_compra ? animal.valor_compra.toString() : "",
-            preco_arroba: animal.preco_arroba ? animal.preco_arroba.toString() : "",
-            peso_entrada: animal.peso_entrada ? animal.peso_entrada.toString() : "",
-            peso_saida: animal.peso_saida ? animal.peso_saida.toString() : "",
-            lote_id: animal.lote_id || (animal as any).lot || "",
-            matriz_id: animal.matriz_id || "",
-          } as any);
-        }
+  const loadData = useCallback(async () => {
+    const all = await store.getAnimals();
+    setAnimalsList(all);
+    
+    if (id) {
+      const animal = all.find(a => a.id === id);
+      if (animal) {
+        setForm({
+          tag: animal.tag || "",
+          sex: animal.sex || "Macho",
+          breed: animal.breed || "",
+          birth_date: animal.birth_date || "",
+          weight: animal.weight || 0,
+          categoria: animal.categoria || "Bezerro",
+          origem: animal.origem || "Nascimento",
+          data_compra: animal.data_compra || "",
+          valor_compra: animal.valor_compra ? animal.valor_compra.toString() : "",
+          preco_arroba: animal.preco_arroba ? animal.preco_arroba.toString() : "",
+          peso_entrada: animal.peso_entrada ? animal.peso_entrada.toString() : "",
+          peso_saida: animal.peso_saida ? animal.peso_saida.toString() : "",
+          lote_id: animal.lote_id || (animal as any).lot || "",
+          matriz_id: animal.matriz_id || "",
+        } as any);
       }
-    };
-    loadData();
+    }
   }, [id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const females = animals_list
     .filter(a => a.sex?.toLowerCase() === "fêmea" || a.sex?.toLowerCase() === "femea")

@@ -9,6 +9,12 @@ if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'seu_projeto_aqui') {
 
 // Ensure createClient is called with something, even if empty, but we'll try to prevent crash
 // In some versions of supabase-js, empty URL throws.
-export const supabase = (supabaseUrl && supabaseUrl !== 'seu_projeto_aqui') 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
-  : null as any; 
+export const supabase = (supabaseUrl && supabaseUrl !== 'seu_projeto_aqui')
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : new Proxy({} as ReturnType<typeof createClient>, {
+      get() {
+        throw new Error(
+          'Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env'
+        );
+      }
+    });

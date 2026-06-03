@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wheat, Plus, Trash2, Pencil, PackagePlus, Sparkles } from "lucide-react";
+import { Wheat, Plus, Trash2, Pencil, PackagePlus, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import PurchaseForm from "@/components/PurchaseForm";
@@ -18,8 +18,17 @@ export default function Ingredients() {
   const [showPurchase, setShowPurchase] = useState(false);
   const navigate = useNavigate();
 
+  const [loading, setLoading] = useState(true);
+
   const loadData = async () => {
-    setIngredients(await store.getIngredients());
+    setLoading(true);
+    try {
+      setIngredients(await store.getIngredients());
+    } catch (e) {
+      toast.error('Erro ao carregar dados. Verifique sua conexão.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -101,6 +110,12 @@ export default function Ingredients() {
       toast.info("Produto removido");
     }
   };
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-6">

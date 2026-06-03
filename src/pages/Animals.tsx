@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { store, Animal } from "@/lib/store";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Plus, ChevronRight, Filter, Users, Weight, TrendingUp, Calendar, Info, Trash2 } from "lucide-react";
+import { Search, Plus, ChevronRight, Filter, Users, Weight, TrendingUp, Calendar, Info, Trash2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,9 +19,14 @@ export default function Animals() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const data = await store.getAnimals();
-      setAnimals(data);
-      setLoading(false);
+      try {
+        const data = await store.getAnimals();
+        setAnimals(data);
+      } catch (e) {
+        toast.error('Erro ao carregar dados. Verifique sua conexão.');
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, []);
@@ -104,6 +109,12 @@ export default function Animals() {
         </div>
       </CardContent>
     </Card>
+  );
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
   );
 
   return (

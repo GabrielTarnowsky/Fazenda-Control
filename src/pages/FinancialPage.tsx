@@ -12,7 +12,8 @@ import {
   Pencil,
   X,
   Check,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,9 +72,18 @@ export default function FinancialPage() {
     installments: 1
   });
 
+  const [loading, setLoading] = useState(true);
+
   const refreshRecords = async () => {
-    const data = await store.getFinancials();
-    setRecords(data);
+    setLoading(true);
+    try {
+      const data = await store.getFinancials();
+      setRecords(data);
+    } catch (e) {
+      toast.error('Erro ao carregar dados. Verifique sua conexão.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -157,8 +167,14 @@ export default function FinancialPage() {
     setSelectedDate(newDate);
   };
 
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+
   return (
-    <div className="space-y-6 animate-fade-in pb-20">
+    <div className="p-4 pb-20 animate-fade-in space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold tracking-tight">Financeiro</h1>

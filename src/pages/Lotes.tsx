@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { store, Animal } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Weight, TrendingUp, ChevronRight } from "lucide-react";
+import { Users, Weight, TrendingUp, ChevronRight, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface LoteStats {
   nome: string;
@@ -21,75 +22,82 @@ export default function Lotes() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const [animals, allEvents] = await Promise.all([
-        store.getAnimals(),
-        store.getEvents()
-      ]);
+      try {
+        const [animals, allEvents] = await Promise.all([
+          store.getAnimals(),
+          store.getEvents()
+        ]);
 
-      const lotesMap: Record<string, Animal[]> = {};
+        const lotesMap: Record<string, Animal[]> = {};
 
-      animals.forEach(a => {
-        const loteName = a.lote_id || "Sem Lote";
-        if (!lotesMap[loteName]) lotesMap[loteName] = [];
-        lotesMap[loteName].push(a);
-      });
-
-      const lotesStats: LoteStats[] = Object.keys(lotesMap).map(nome => {
-        const loteAnimals = lotesMap[nome];
-        
-        let somaPesoFinal = 0;
-        let maxDate = "";
-
-        loteAnimals.forEach(a => {
-          // Encontrar data do ultimo evento filtrando localmente
-          const animalEvents = allEvents.filter(e => e.animal_id === a.id);
-          animalEvents.forEach(e => {
-            if (e.date > maxDate) maxDate = e.date;
-          });
-
-          // 1. Tenta o campo direto peso_saida
-          let pSai = (a.peso_saida && a.peso_saida > 0) ? a.peso_saida : 0;
-          
-          // 2. Se não tiver, busca no histórico de eventos (Legacy fallback)
-          if (pSai === 0 && (a.status === "vendido" || a.status === "morto")) {
-            const saleEvent = animalEvents.find(e => e.type === "venda" || e.type === "morte");
-            if (saleEvent && saleEvent.weight > 0) {
-              pSai = saleEvent.weight;
-            }
-          }
-          
-          // 3. Se for ativo e não tiver peso_saida, usa o peso atual
-          const pesoFinal = pSai > 0 ? pSai : (a.weight || 0);
-          somaPesoFinal += pesoFinal;
+        animals.forEach(a => {
+          const loteName = a.lote_id || "Sem Lote";
+          if (!lotesMap[loteName]) lotesMap[loteName] = [];
+          lotesMap[loteName].push(a);
         });
 
-        const pesoMedioFinal = loteAnimals.length ? somaPesoFinal / loteAnimals.length : 0;
-        const isVendido = loteAnimals.length > 0 && loteAnimals.every(a => a.status === "vendido" || a.status === "morto");
-        
-        return {
-          nome,
-          quantidade: loteAnimals.length,
-          pesoTotal: somaPesoFinal,
-          pesoMedio: pesoMedioFinal,
-          isVendido,
-          dataFim: maxDate
-        };
-      });
+        const lotesStats: LoteStats[] = Object.keys(lotesMap).map(nome => {
+          const loteAnimals = lotesMap[nome];
+          
+          let somaPesoFinal = 0;
+          let maxDate = "";
 
-      lotesStats.sort((a, b) => {
-        if (a.nome === "Sem Lote") return 1;
-        if (b.nome === "Sem Lote") return -1;
-        if (a.isVendido !== b.isVendido) return a.isVendido ? 1 : -1;
-        if (a.isVendido && b.isVendido) return b.dataFim.localeCompare(a.dataFim);
-        return a.nome.localeCompare(b.nome);
-      });
+          loteAnimals.forEach(a => {
+            const animalEvents = allEvents.filter(e => e.animal_id === a.id);
+            animalEvents.forEach(e => {
+              if (e.date > maxDate) maxDate = e.date;
+            });
 
-      setStats(lotesStats);
-      setLoading(false);
+            let pSai = (a.peso_saida && a.peso_saida > 0) ? a.peso_saida : 0;
+            
+            if (pSai === 0 && (a.status === "vendido" || a.status === "morto")) {
+              const saleEvent = animalEvents.find(e => e.type === "venda" || e.type === "morte");
+              if (saleEvent && saleEvent.weight > 0) {
+                pSai = saleEvent.weight;
+              }
+            }
+            
+            const pesoFinal = pSai > 0 ? pSai : (a.weight || 0);
+            somaPesoFinal += pesoFinal;
+          });
+
+          const pesoMedioFinal = loteAnimals.length ? somaPesoFinal / loteAnimals.length : 0;
+          const isVendido = loteAnimals.length > 0 && loteAnimals.every(a => a.status === "vendido" || a.status === "morto");
+          
+          return {
+            nome,
+            quantidade: loteAnimals.length,
+            pesoTotal: somaPesoFinal,
+            pesoMedio: pesoMedioFinal,
+            isVendido,
+            dataFim: maxDate
+          };
+        });
+
+        lotesStats.sort((a, b) => {
+          if (a.nome === "Sem Lote") return 1;
+          if (b.nome === "Sem Lote") return -1;
+          if (a.isVendido !== b.isVendido) return a.isVendido ? 1 : -1;
+          if (a.isVendido && b.isVendido) return b.dataFim.localeCompare(a.dataFim);
+          return a.nome.localeCompare(b.nome);
+        });
+
+        setStats(lotesStats);
+      } catch (e) {
+        toast.error('Erro ao carregar dados. Verifique sua conexão.');
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadData();
   }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
 
   return (
     <div className="p-4 pb-20 animate-fade-in space-y-4">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { store } from "@/lib/store";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -35,32 +35,33 @@ export default function AddEvent() {
     }
   }, [form.weight, form.price_kg_m, form.type]);
 
-  useEffect(() => {
-    if (id) {
-      const loadData = async () => {
-        setLoading(true);
-        const event = await store.getEvent(id);
-        if (event) {
-          setForm({
-            type: event.type || "vacina",
-            date: event.date || new Date().toISOString().split("T")[0],
-            weight: event.weight || 0,
-            value: event.value || 0,
-            description: event.description || "",
-            animal_id: event.animal_id || "",
-            payment_method: (event as any).payment_method || "Pix",
-            price_kg_m: (event as any).price_kg_m || 0,
-            frete: 0
-          });
-          setLoading(false);
-        } else {
-          toast.error("Evento não encontrado");
-          navigate(-1);
-        }
-      };
-      loadData();
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const event = await store.getEvent(id!);
+    if (event) {
+      setForm({
+        type: event.type || "vacina",
+        date: event.date || new Date().toISOString().split("T")[0],
+        weight: event.weight || 0,
+        value: event.value || 0,
+        description: event.description || "",
+        animal_id: event.animal_id || "",
+        payment_method: (event as any).payment_method || "Pix",
+        price_kg_m: (event as any).price_kg_m || 0,
+        frete: 0
+      });
+      setLoading(false);
+    } else {
+      toast.error("Evento não encontrado");
+      navigate(-1);
     }
   }, [id, navigate]);
+
+  useEffect(() => {
+    if (id) {
+      loadData();
+    }
+  }, [id, loadData]);
 
   if (loading) return <div className="p-8 text-center text-muted-foreground">Carregando...</div>;
 
