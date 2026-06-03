@@ -23,12 +23,19 @@ export function SidebarLayout({ children }: { children?: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background overflow-hidden font-sans">
+      <div className="min-h-screen flex w-full bg-background overflow-hidden font-sans relative">
+        {/* Dynamic Background Elements */}
+        <div className="fixed top-[-20%] right-[-10%] w-[60%] h-[60%] bg-emerald-600/5 rounded-full blur-[150px] pointer-events-none"></div>
+        <div className="fixed bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/5 rounded-full blur-[150px] pointer-events-none"></div>
+        
+        {/* Grid Pattern Overlay */}
+        <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay pointer-events-none z-0"></div>
+
         <AppSidebar />
-        <main className="flex-1 overflow-y-auto w-full p-4 md:p-8 pt-16 md:pt-8 bg-background">
-          <div className="md:hidden flex items-center justify-between fixed top-0 left-0 right-0 p-4 bg-sidebar border-b z-20 shadow-sm">
+        <main className="flex-1 overflow-y-auto w-full p-4 md:p-8 pt-16 md:pt-8 relative z-10">
+          <div className="md:hidden flex items-center justify-between fixed top-0 left-0 right-0 p-4 bg-sidebar/80 backdrop-blur-md border-b z-20 shadow-sm">
              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-border/50">
+                <div className="h-8 w-8 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden border border-border/50">
                   <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
                 </div>
                 <h1 className="font-display font-black italic tracking-tighter text-primary text-xl">FazendaControl</h1>

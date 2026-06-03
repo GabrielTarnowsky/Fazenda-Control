@@ -34,37 +34,30 @@ export default function Dashboard() {
   
   const navigate = useNavigate();
 
-  const loadData = async () => {
-    const [animalsData, financialsData, ingredientsData, eventsData, rainfallData, settings] = await Promise.all([
-      store.getAnimals(),
-      store.getFinancials(),
-      store.getIngredients(),
-      store.getEvents(),
-      store.getRainfall(),
-      store.getSettings()
-    ]);
-    setAnimals(animalsData);
-    setFinancials(financialsData);
-    setIngredients(ingredientsData);
-    setEvents(eventsData);
-    setRainfall(rainfallData);
+  const loadData = () => {
+    store.getAnimals().then(setAnimals);
+    store.getFinancials().then(setFinancials);
+    store.getIngredients().then(setIngredients);
+    store.getEvents().then(setEvents);
+    store.getRainfall().then(setRainfall);
 
-    // Check for auto rainfall
-    const useAuto = settings.find(s => s.key === 'use_auto_rainfall')?.value === 'true';
-    const lat = settings.find(s => s.key === 'farm_lat')?.value;
-    const lng = settings.find(s => s.key === 'farm_lng')?.value;
+    store.getSettings().then(async settings => {
+      const useAuto = settings.find(s => s.key === 'use_auto_rainfall')?.value === 'true';
+      const lat = settings.find(s => s.key === 'farm_lat')?.value;
+      const lng = settings.find(s => s.key === 'farm_lng')?.value;
 
-    if (useAuto && lat && lng) {
-      setIsAutoEnabled(true);
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const today = now.toISOString().split("T")[0];
-      
-      const autoData = await store.fetchRainfallAuto(parseFloat(lat), parseFloat(lng), startOfMonth, today);
-      setAutoRainfall(autoData);
-    } else {
-      setIsAutoEnabled(false);
-    }
+      if (useAuto && lat && lng) {
+        setIsAutoEnabled(true);
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+        const today = now.toISOString().split("T")[0];
+        
+        const autoData = await store.fetchRainfallAuto(parseFloat(lat), parseFloat(lng), startOfMonth, today);
+        setAutoRainfall(autoData);
+      } else {
+        setIsAutoEnabled(false);
+      }
+    });
   };
 
   useEffect(() => {

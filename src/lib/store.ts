@@ -833,6 +833,11 @@ export const store = {
     const user = auth.getCurrentUser();
     if (!user) throw new Error("Não autenticado");
     const items: any[] = [];
+    
+    // Proteção contra valores acidentais muito altos que causam lentidão
+    if (installments > 48) installments = 48;
+    if (installments < 1) installments = 1;
+
     if (installments > 1) {
       const valuePerInstallment = f.value / installments;
       const baseDate = parseDateSafe(f.date);
