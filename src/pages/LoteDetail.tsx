@@ -278,8 +278,7 @@ export default function LoteDetail() {
         const isAnimalExpense = f.animal_id && loteAnimalIds.includes(f.animal_id);
         const descLower = (f.description || "").toLowerCase();
         const isLoteExpense = descLower.includes(`[lote: ${loteNome.toLowerCase()}]`) ||
-                              descLower.includes(`[lote:${loteNome.toLowerCase()}]`) ||
-                              descLower.includes(`lote ${loteNome.toLowerCase()}`);
+                              descLower.includes(`[lote:${loteNome.toLowerCase()}]`);
         if (isAnimalExpense || isLoteExpense) {
           custoTotal += f.value;
           if (descLower.includes("compra")) {
