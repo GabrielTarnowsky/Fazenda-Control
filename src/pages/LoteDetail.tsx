@@ -220,7 +220,8 @@ export default function LoteDetail() {
 
       const gKg = pSaiAdj - pEnt;
       const gmdVal = gKg / dias;
-      const arrG = gKg / 15;
+      // 52% de rendimento de carcaça padrão do lote
+      const arrG = (gKg * 0.52) / 15;
 
       // Financial
       const cAnim = a.valor_compra || 0;
@@ -229,7 +230,7 @@ export default function LoteDetail() {
       if (a.status === "vendido" || a.status === "morto") {
         rev = (vOm && vOm.value > 0) ? vOm.value : 0;
       } else {
-        rev = (pSaiAdj / 15) * prBase;
+        rev = ((pSaiAdj * 0.52) / 15) * prBase;
       }
       const luc = rev - cAnim;
 
@@ -256,7 +257,8 @@ export default function LoteDetail() {
     });
 
     const ganhoTotalKg = somaPesosSaidaTotal - somaPesosEntradaTotal;
-    const arrobasTotal = ganhoTotalKg / 15;
+    // Arrobas produzidas reais com 52% de rendimento de carcaça
+    const arrobasTotal = (ganhoTotalKg * 0.52) / 15;
     const mediaArroba = enriched.length > 0 ? (arrobasTotal / enriched.length) : 0;
 
     let custoTotal = 0;
@@ -285,14 +287,20 @@ export default function LoteDetail() {
       }
     });
 
-    const custoArroba = arrobasTotal > 0 ? custoTotal / arrobasTotal : 0;
     const cycleDaysAvg = enriched.reduce((acc, ea) => acc + ea.diasPermanencia, 0) / (enriched.length || 1);
     const totalFeeding = feedingLogs.reduce((acc, l) => acc + (l.total_cost || 0), 0);
     
     const totalOp = totalFeeding + sumMaint;
     const costPerDayPC = (enriched.length > 0 && cycleDaysAvg > 0) ? (totalOp / enriched.length) / cycleDaysAvg : 0;
-    const totalLuc = enriched.reduce((acc, ea) => acc + ea.lucro, 0);
-    const gmdLote = cycleDaysAvg > 0 ? ganhoTotalKg / cycleDaysAvg : 0;
+    
+    // GMD médio do lote por CABEÇA por dia
+    const gmdLote = (cycleDaysAvg > 0 && enriched.length > 0) ? (ganhoTotalKg / enriched.length) / cycleDaysAvg : 0;
+
+    // Custo por @ (Custo operacional da arroba produzida ou custo total por @ no gancho)
+    const arrobasTotaisLote = (somaPesosSaidaTotal * 0.52) / 15;
+    const custoArroba = totalOp > 0 
+      ? (arrobasTotal > 0 ? totalOp / arrobasTotal : 0)
+      : (arrobasTotaisLote > 0 ? custoTotal / arrobasTotaisLote : 0);
 
     // Pastos alocados ao lote e área (ha)
     const lotePastures = allPastures.filter(p => p.current_lot === loteNome);
@@ -314,23 +322,22 @@ export default function LoteDetail() {
     let lucroVendasCalc = 0;
 
     loteAnimals.forEach(a => {
+        const custoAnimal = a.valor_compra || 0;
         if (a.status === 'vendido') {
              const vendaOrMorte = allEvents.find(e => e.animal_id === a.id && e.type === "venda");
              const vendaValue = (vendaOrMorte && vendaOrMorte.value > 0) ? vendaOrMorte.value : 0;
-             const custoAnimal = a.valor_compra || 0;
              const freteDeVenda = allFinancials.find(f => f.animal_id === a.id && f.category === 'Frete de Venda')?.value || 0;
-             
              totalVendasCalc += vendaValue;
-
-             // SE VENDIDO: Lucro Real (Venda - Custo). SE ATIVO: Previsão (Peso/@ * PreçoMercado - Custo)
-             if (a.status === 'vendido') {
-                lucroVendasCalc += (vendaValue - custoAnimal - freteDeVenda);
-             } else if (a.status === 'ativo') {
-                const previsaoVenda = (a.weight / 15) * marketPrice;
-                lucroVendasCalc += (previsaoVenda - custoAnimal);
-             }
+             lucroVendasCalc += (vendaValue - custoAnimal - freteDeVenda);
+        } else if (a.status === 'ativo') {
+             const arrobasAnimal = ((a.weight || 0) * 0.52) / 15;
+             const previsaoVenda = arrobasAnimal * (a.preco_arroba || marketPrice);
+             totalVendasCalc += previsaoVenda;
+             lucroVendasCalc += (previsaoVenda - custoAnimal);
         }
     });
+
+    const totalLuc = lucroVendasCalc;
 
     setMetrics({
       gmd: gmdLote,
@@ -591,14 +598,14 @@ export default function LoteDetail() {
                 pesoEnt = evs.length > 0 ? evs[0].weight : (animal.origem === "Nascimento" ? 30 : animal.weight);
               }
               const ganhoKg = animal.weight - pesoEnt;
-              const arrobasGanhas = ganhoKg / 15;
+              const arrobasGanhas = (ganhoKg * 0.52) / 15;
               const dataEntrada = animal.data_compra || animal.birth_date;
               const msDiff = new Date().getTime() - new Date(dataEntrada).getTime();
               const days = Math.max(1, msDiff / (1000 * 3600 * 24));
               const gmd = ganhoKg / days;
               const custoAnimal = animal.valor_compra || 0;
               const precoBase = animal.preco_arroba > 0 ? animal.preco_arroba : PRECO_MERCADO_ARROBA;
-              const valorAtual = (animal.weight / 15) * precoBase;
+              const valorAtual = ((animal.weight * 0.52) / 15) * precoBase;
               const lucro = valorAtual - custoAnimal;
 
               return (
@@ -755,7 +762,7 @@ export default function LoteDetail() {
                // Lucro Diferenciado
                const lucro = animal.status === 'vendido' 
                   ? (vendaValue - custoAnimal - freteDesc)
-                  : ((animal.weight / 15) * marketPrice - custoAnimal);
+                  : (((animal.weight * 0.52) / 15) * marketPrice - custoAnimal);
 
                // Cálculo do GMD
                let pesoEnt = animal.peso_entrada && animal.peso_entrada > 0 ? animal.peso_entrada : 0;

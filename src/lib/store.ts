@@ -1495,23 +1495,44 @@ export const store = {
   },
 
   getPastureMapImage: (): string | null => {
-    const user = auth.getCurrentUser();
-    if (!user) return null;
     try {
-      return localStorage.getItem(`fc_pasture_image_${user.id}`);
+      const current = localStorage.getItem("fc_pasture_image_current");
+      if (current) return current;
+
+      const user = auth.getCurrentUser();
+      if (user) {
+        const userImg = localStorage.getItem(`fc_pasture_image_${user.id}`);
+        if (userImg) return userImg;
+      }
+
+      const globalImg = localStorage.getItem("fc_pasture_image");
+      if (globalImg) return globalImg;
+
+      // Busca qualquer chave de imagem de pasto salva no storage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("fc_pasture_image_")) {
+          const val = localStorage.getItem(key);
+          if (val) return val;
+        }
+      }
+      return null;
     } catch {
       return null;
     }
   },
 
   setPastureMapImage: (img: string | null): void => {
-    const user = auth.getCurrentUser();
-    if (!user) return;
     try {
+      const user = auth.getCurrentUser();
       if (!img) {
-        localStorage.removeItem(`fc_pasture_image_${user.id}`);
+        localStorage.removeItem("fc_pasture_image_current");
+        localStorage.removeItem("fc_pasture_image");
+        if (user) localStorage.removeItem(`fc_pasture_image_${user.id}`);
       } else {
-        localStorage.setItem(`fc_pasture_image_${user.id}`, img);
+        localStorage.setItem("fc_pasture_image_current", img);
+        localStorage.setItem("fc_pasture_image", img);
+        if (user) localStorage.setItem(`fc_pasture_image_${user.id}`, img);
       }
     } catch {
       // storage error
@@ -1523,6 +1544,8 @@ export const store = {
     if (!user) return [];
     const cacheKey = `pastures_${user.id}`;
     localStorage.removeItem(cacheKey);
+    localStorage.removeItem("fc_pasture_image_current");
+    localStorage.removeItem("fc_pasture_image");
     localStorage.removeItem(`fc_pasture_image_${user.id}`);
     return await store.getPastures();
   },

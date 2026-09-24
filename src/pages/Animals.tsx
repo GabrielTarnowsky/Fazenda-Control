@@ -263,7 +263,7 @@ export default function Animals() {
                 <span className="flex items-center gap-1 font-semibold text-foreground">
                   <Weight className="h-3.5 w-3.5 text-primary" /> 
                   {getDisplayWeight(animal)} kg 
-                  <span className="text-muted-foreground font-normal">({(getDisplayWeight(animal) / 15).toFixed(1)} @)</span>
+                  <span className="text-muted-foreground font-normal">({((getDisplayWeight(animal) * 0.50) / 15).toFixed(1)} @)</span>
                 </span>
                 <span className="flex items-center gap-1">
                   <Info className="h-3.5 w-3.5" /> {animal.breed || "Nelore"}

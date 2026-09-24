@@ -117,7 +117,8 @@ export default function Dashboard() {
   const totalAnimals = activeAnimals.length;
 
   const projectedProfit = activeAnimals.reduce((sum, a) => {
-    const revenue = (a.weight / 15) * (a.preco_arroba || marketPrice);
+    const arrobasLiquidas = (a.weight * 0.50) / 15; // 50% rendimento de carcaça padrão
+    const revenue = arrobasLiquidas * (a.preco_arroba || marketPrice);
     const profit = revenue - (a.valor_compra || 0);
     return sum + profit;
   }, 0);
@@ -161,7 +162,8 @@ export default function Dashboard() {
     const growing = activeAnimals.filter(a => a.weight < 400);
 
     const readyWeight = ready.reduce((sum, a) => sum + (a.weight || 0), 0);
-    const readyArrobas = readyWeight / 15;
+    // Rendimento de carcaça padrão de 50% (30 kg de peso vivo = 1 arroba líquida de carcaça)
+    const readyArrobas = (readyWeight * 0.50) / 15;
     const readyValue = readyArrobas * marketPrice;
 
     // Ordena os animais mais pesados para exibição
@@ -517,7 +519,7 @@ export default function Dashboard() {
                       {slaughterFunnel.readyCount} <span className="text-xs font-normal">cab.</span>
                     </p>
                     <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">
-                      $\ge 480$ kg (16+ @)
+                      ≥ 480 kg (16+ @)
                     </span>
                   </div>
 
@@ -585,7 +587,7 @@ export default function Dashboard() {
                       </p>
                       <p className="text-[11px] text-muted-foreground">
                         {slaughterFunnel.readyCount > 0 
-                          ? `${slaughterFunnel.readyArrobas.toFixed(1)} @ totais · R$ ${marketPrice.toFixed(2)}/@`
+                          ? `${slaughterFunnel.readyArrobas.toFixed(1)} @ líq. (50% RC) · R$ ${marketPrice.toFixed(2)}/@`
                           : "Acompanhe os bois mais próximos do ganho final"}
                       </p>
                     </div>
@@ -594,7 +596,7 @@ export default function Dashboard() {
                     <p className="text-base font-black text-emerald-600">
                       R$ {slaughterFunnel.readyCount > 0 
                         ? slaughterFunnel.readyValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        : ((slaughterFunnel.topAnimals[0]?.weight || 0) / 15 * marketPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        : ((((slaughterFunnel.topAnimals[0]?.weight || 0) * 0.50) / 15) * marketPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </p>
                     <span className="text-[10px] uppercase font-bold text-muted-foreground">
                       {slaughterFunnel.readyCount > 0 ? "Venda Imediata" : "Top animal"}
@@ -630,7 +632,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right font-medium">
                             <span className="font-bold text-foreground">{a.weight} kg</span>
-                            <span className="text-muted-foreground ml-1.5">({(a.weight / 15).toFixed(1)} @)</span>
+                            <span className="text-muted-foreground ml-1.5">({((a.weight * 0.50) / 15).toFixed(1)} @)</span>
                           </div>
                         </div>
                       );

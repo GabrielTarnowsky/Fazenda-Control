@@ -54,8 +54,16 @@ export default function PasturesPage() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Imagem do mapa de satélite (personalizada do usuário ou padrão)
-  const [mapImage, setMapImage] = useState<string>(DEFAULT_SATELLITE_BG);
+  // Imagem do mapa de satélite (carrega imediatamente o mapa ativo/atual do usuário para não piscar o mapa antigo)
+  const [mapImage, setMapImage] = useState<string>(() => {
+    try {
+      const saved = store.getPastureMapImage();
+      if (saved && !saved.includes("unsplash")) {
+        return saved;
+      }
+    } catch {}
+    return DEFAULT_SATELLITE_BG;
+  });
 
   // Estados de Interação do Mapa
   const [zoom, setZoom] = useState<number>(1);
@@ -155,6 +163,12 @@ export default function PasturesPage() {
   }, [isExpanded]);
 
   const loadData = async () => {
+    // Sincroniza o mapa atual de imediato sem esperar o carregamento da rede
+    const savedImgImmediate = store.getPastureMapImage();
+    if (savedImgImmediate && !savedImgImmediate.includes("unsplash")) {
+      setMapImage(savedImgImmediate);
+    }
+
     setLoading(true);
     try {
       const [pasturesData, animalsData] = await Promise.all([
@@ -167,8 +181,6 @@ export default function PasturesPage() {
       const savedImg = store.getPastureMapImage();
       if (savedImg && !savedImg.includes("unsplash")) {
         setMapImage(savedImg);
-      } else {
-        setMapImage(DEFAULT_SATELLITE_BG);
       }
     } catch (e) {
       toast.error("Erro ao carregar dados dos pastos");
