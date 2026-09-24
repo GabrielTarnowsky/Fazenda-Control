@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { store, Animal } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck, Beef, LandPlot } from "lucide-react";
+import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck, Beef, LandPlot, Plus, Utensils } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -186,7 +186,14 @@ export default function LoteDetail() {
     const PRECO_MERCADO_ARROBA = 280;
     const todayStr = new Date().toISOString().split("T")[0];
     const loteAnimalIds = loteAnimals.map(a => a.id);
-    const feedingLogs = feedingLogsData.filter(l => (l.lote_id || "Sem Lote") === loteNome);
+    
+    // Filtro inteligente de tratos por lote (case-insensitive e normalizado)
+    const targetLoteClean = loteNome.trim().toLowerCase();
+    const feedingLogs = feedingLogsData.filter(l => {
+      const lNome = (l.lote_id || "Sem Lote").trim().toLowerCase();
+      return lNome === targetLoteClean || 
+             lNome.replace(/[^a-z0-9]/g, "") === targetLoteClean.replace(/[^a-z0-9]/g, "");
+    });
 
     // Calc individual metrics for the list
     const enriched = loteAnimals.map(a => {
@@ -263,6 +270,7 @@ export default function LoteDetail() {
 
     let custoTotal = 0;
     let sumMaint = 0;
+    let sumFinFeeding = 0;
 
     // Despesas de animais do lote e despesas gerais marcadas para este lote no financeiro
     allFinancials.forEach(f => {
@@ -270,10 +278,21 @@ export default function LoteDetail() {
         const isAnimalExpense = f.animal_id && loteAnimalIds.includes(f.animal_id);
         const descLower = (f.description || "").toLowerCase();
         const isLoteExpense = descLower.includes(`[lote: ${loteNome.toLowerCase()}]`) ||
-                              descLower.includes(`[lote:${loteNome.toLowerCase()}]`);
+                              descLower.includes(`[lote:${loteNome.toLowerCase()}]`) ||
+                              descLower.includes(`lote ${loteNome.toLowerCase()}`);
         if (isAnimalExpense || isLoteExpense) {
           custoTotal += f.value;
-          if (!descLower.includes("compra")) {
+          if (descLower.includes("compra")) {
+            // compra de gado
+          } else if (
+            descLower.includes("trato") || 
+            descLower.includes("ração") || 
+            descLower.includes("suplemento") ||
+            f.category === "Nutrição" ||
+            f.category === "Alimentação"
+          ) {
+            sumFinFeeding += f.value;
+          } else {
             sumMaint += f.value;
           }
         }
@@ -288,7 +307,15 @@ export default function LoteDetail() {
     });
 
     const cycleDaysAvg = enriched.reduce((acc, ea) => acc + ea.diasPermanencia, 0) / (enriched.length || 1);
-    const totalFeeding = feedingLogs.reduce((acc, l) => acc + (l.total_cost || 0), 0);
+    
+    // Custo de alimentação consolidado (maior valor entre os registros do trato e lançamentos financeiros)
+    const feedingLogsSum = feedingLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0);
+    const totalFeeding = Math.max(feedingLogsSum, sumFinFeeding);
+
+    // Se o feeding log ainda não estava na tabela financeira de despesas gerais, incorpora no custo total
+    if (sumFinFeeding === 0 && totalFeeding > 0) {
+      custoTotal += totalFeeding;
+    }
     
     const totalOp = totalFeeding + sumMaint;
     const costPerDayPC = (enriched.length > 0 && cycleDaysAvg > 0) ? (totalOp / enriched.length) / cycleDaysAvg : 0;
@@ -379,16 +406,24 @@ export default function LoteDetail() {
         </button>
       </div>
 
-      <div>
-        <h1 className="font-display text-2xl font-bold">Relatório do Lote</h1>
-        <p className="text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
-          <span>{nomeDecodificado} — {animals.length} cabeças</span>
-          {metrics.pastureNames && (
-            <Badge variant="outline" className="text-[10px] font-bold border-blue-500/40 text-blue-700 bg-blue-500/10">
-              Pasto: {metrics.pastureNames} ({metrics.areaHa.toFixed(1)} ha)
-            </Badge>
-          )}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold">Relatório do Lote</h1>
+          <p className="text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
+            <span>{nomeDecodificado} — {animals.length} cabeças</span>
+            {metrics.pastureNames && (
+              <Badge variant="outline" className="text-[10px] font-bold border-blue-500/40 text-blue-700 bg-blue-500/10">
+                Pasto: {metrics.pastureNames} ({metrics.areaHa.toFixed(1)} ha)
+              </Badge>
+            )}
+          </p>
+        </div>
+        <Button 
+          onClick={() => navigate(`/rations/log/new?lote=${encodeURIComponent(nomeDecodificado)}`)}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 gap-1.5 shadow-sm self-start sm:self-auto"
+        >
+          <Utensils className="h-3.5 w-3.5" /> Lançar Ração / Trato
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -436,7 +471,19 @@ export default function LoteDetail() {
             <Coins className="h-5 w-5 text-orange-500 mb-1" />
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Custo do Lote</p>
             <p className="text-base font-bold">R$ {metrics.custoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-            <p className="text-[9px] text-muted-foreground mt-1 uppercase font-bold">Ração: R$ {metrics.custoAlimentacao.toLocaleString("pt-BR")}</p>
+            <div className="flex items-center justify-center gap-1.5 mt-1">
+              <span className="text-[9px] text-muted-foreground uppercase font-bold">Ração: R$ {metrics.custoAlimentacao.toLocaleString("pt-BR")}</span>
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  navigate(`/rations/log/new?lote=${encodeURIComponent(nomeDecodificado)}`); 
+                }}
+                className="text-[9px] font-black text-orange-700 hover:text-orange-800 bg-orange-500/15 hover:bg-orange-500/25 px-1.5 py-0.5 rounded border border-orange-500/30 flex items-center gap-0.5 transition-colors"
+                title="Lançar fornecimento de ração para este lote"
+              >
+                <Plus className="h-2.5 w-2.5" /> Trato
+              </button>
+            </div>
           </CardContent>
         </Card>
 

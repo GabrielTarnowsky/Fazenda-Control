@@ -781,10 +781,10 @@ export const store = {
     const finExpense = {
       id: v4(),
       type: 'despesa',
-      category: 'Alimentação',
+      category: 'Nutrição',
       value: item.total_cost || 0,
       date: item.date || new Date().toISOString(),
-      description: `Trato Lote ${item.lote_id || "Geral"} - ${item.days} dias`,
+      description: `Trato (${item.days} dias) [Lote: ${item.lote_id || "Geral"}] - Ração`,
       user_id: user.id
     };
 

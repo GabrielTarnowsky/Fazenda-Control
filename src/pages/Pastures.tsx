@@ -80,8 +80,23 @@ export default function PasturesPage() {
   // Pasto Selecionado
   const [selectedPastureId, setSelectedPastureId] = useState<string | null>(null);
 
-  // Estilo e tamanho dos rótulos dos pastos no mapa
-  const [markerStyle, setMarkerStyle] = useState<"compact" | "mini" | "number">("compact");
+  // Estilo e tamanho dos rótulos dos pastos no mapa (Padrão: número puro sem a palavra 'pasto')
+  const [markerStyle, setMarkerStyle] = useState<"compact" | "mini" | "number">(() => {
+    try {
+      const saved = localStorage.getItem("pasture_marker_style");
+      if (saved === "compact" || saved === "mini" || saved === "number") return saved;
+      return "number";
+    } catch {
+      return "number";
+    }
+  });
+
+  const updateMarkerStyle = (style: "compact" | "mini" | "number") => {
+    setMarkerStyle(style);
+    try {
+      localStorage.setItem("pasture_marker_style", style);
+    } catch {}
+  };
   const [showMarkerDetails, setShowMarkerDetails] = useState<boolean>(false);
   const [markerScale, setMarkerScale] = useState<number>(() => {
     try {
@@ -790,7 +805,7 @@ export default function PasturesPage() {
                 <span className="text-[10px] text-muted-foreground font-semibold px-1 hidden sm:inline">Rótulo:</span>
                 <button
                   type="button"
-                  onClick={() => setMarkerStyle("compact")}
+                  onClick={() => updateMarkerStyle("compact")}
                   className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
                     markerStyle === "compact" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -800,7 +815,7 @@ export default function PasturesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMarkerStyle("mini")}
+                  onClick={() => updateMarkerStyle("mini")}
                   className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
                     markerStyle === "mini" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -810,7 +825,7 @@ export default function PasturesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMarkerStyle("number")}
+                  onClick={() => updateMarkerStyle("number")}
                   className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
                     markerStyle === "number" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -1057,7 +1072,7 @@ export default function PasturesPage() {
                     {/* Marcador Estilizado Compacto do Pasto */}
                     <div className="flex flex-col items-center">
                       <div className={`relative flex items-center justify-center rounded-full shadow-lg border-2 border-white ${
-                        markerStyle === "number" ? "h-6 min-w-[24px] px-1.5" : "px-2.5 py-1"
+                        markerStyle === "number" ? "h-7 w-7 min-w-[28px] p-0" : "px-2.5 py-1"
                       } ${colors.bg} text-white font-extrabold transition-transform`}>
                         {/* Pulso sutil para pastos ocupados */}
                         {p.status === "ocupado" && (
@@ -1067,7 +1082,7 @@ export default function PasturesPage() {
                           </span>
                         )}
 
-                        <span className="text-[11px] font-black tracking-tight flex items-center gap-1 leading-none drop-shadow-sm">
+                        <span className="text-[12px] font-black tracking-tight flex items-center justify-center gap-1 leading-none drop-shadow-sm text-center">
                           {isDragMode && <Move className="h-3 w-3 animate-pulse" />}
                           {markerStyle === "number" 
                             ? p.number 
