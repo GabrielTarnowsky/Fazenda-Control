@@ -85,7 +85,7 @@ export default function AnimalDetail() {
   const msDiff = new Date(dFim).getTime() - new Date(dataEntrada).getTime();
   const dias = Math.max(1, msDiff / (1000 * 3600 * 24));
   
-  let pSai = animal.peso_saida || (saleEvent && saleEvent.weight > 0 ? saleEvent.weight : animal.weight);
+  const pSai = animal.peso_saida || (saleEvent && saleEvent.weight > 0 ? saleEvent.weight : animal.weight);
   const pSaiAdj = animal.status === "vendido" ? pSai * 2 : pSai;
   const gKg = pSaiAdj - pesoEnt;
   const gmd = gKg / dias;

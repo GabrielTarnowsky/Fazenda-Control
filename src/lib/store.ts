@@ -76,7 +76,7 @@ export interface Insemination {
   animal_id: string;
   date: string;
   bull: string;
-  status: "prenha" | "vazia" | "aguardando" | "aborto";
+  status: "prenha" | "vazia" | "aguardando" | "aborto" | "parida";
   technician?: string;
   observation?: string;
   estimated_birth?: string;
@@ -96,6 +96,25 @@ export interface Setting {
   value: string;
   user_id?: string; // Added for consistency with other interfaces
   updated_at?: string; // Added for consistency with upsert
+}
+
+export interface Pasture {
+  id: string;
+  number: string;
+  name: string;
+  area_ha: number;
+  grass_type: string;
+  status: "ocupado" | "descanso" | "vedado" | "reforma";
+  current_lot?: string;
+  x: number; // 0 to 100 percentage
+  y: number; // 0 to 100 percentage
+  scale?: number; // 0.3 to 1.5 individual scale for this pasture marker
+  rest_days?: number;
+  entry_date?: string;
+  water_source?: string;
+  capacity_ua?: number;
+  notes?: string;
+  user_id?: string;
 }
 
 export interface Health {
@@ -610,6 +629,7 @@ export const store = {
       }
     });
     if (a.lote_id) item.lot = a.lote_id;
+    item.lote_id = a.lote_id;
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       addPendingAction({ method: 'addAnimal', args: [item] }); // Pass the full item to keep the ID
@@ -621,7 +641,10 @@ export const store = {
     try {
       const { data, error } = await supabase.from('animals').insert([item]).select().single();
       if (error) throw error;
-      return data;
+      const formatted = { ...item, ...(data || {}), lote_id: (data?.lot || a.lote_id || item.lot) };
+      const currentCache = getDataCache('animals');
+      saveDataCache('animals', [formatted, ...currentCache.filter((x: any) => x.id !== formatted.id)]);
+      return formatted;
     } catch (error) {
       addPendingAction({ method: 'addAnimal', args: [item] });
       const currentCache = getDataCache('animals');
@@ -639,6 +662,16 @@ export const store = {
       if (val != null && val !== '') sanitized[col] = val;
     });
 
+    // Update local cache immediately
+    const currentCache = getDataCache('animals');
+    const updatedCache = currentCache.map((a: any) => {
+      if (a.id === id) {
+        return { ...a, ...data, ...(data.lote_id ? { lot: data.lote_id, lote_id: data.lote_id } : {}) };
+      }
+      return a;
+    });
+    saveDataCache('animals', updatedCache);
+
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       addPendingAction({ method: 'updateAnimal', args: [id, data] });
       return;
@@ -654,8 +687,14 @@ export const store = {
   deleteAnimal: async (id: string) => {
     const user = auth.getCurrentUser();
     if (!user) return;
-    const { error } = await supabase.from('animals').delete().eq('id', id).eq('user_id', user.id);
-    if (error) toast.error("Erro ao deletar animal");
+    try {
+      const { error } = await supabase.from('animals').delete().eq('id', id).eq('user_id', user.id);
+      if (error) toast.error("Erro ao deletar animal");
+    } catch {
+      // ignore
+    }
+    const currentCache = getDataCache('animals');
+    saveDataCache('animals', currentCache.filter((a: any) => a.id !== id));
   },
   getAnimal: async (id: string) => {
     const user = auth.getCurrentUser();
@@ -1195,44 +1234,297 @@ export const store = {
   // Market Price Robot (Scraper)
   fetchMarketPrice: async (): Promise<number | null> => {
     try {
-      // Usando allorigins para evitar CORS
+      // Usando allorigins com timeout para evitar travamentos e erros não tratados
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
       const targetUrl = encodeURIComponent("https://www.scotconsultoria.com.br/cotacoes/boi-gordo/");
       const proxyUrl = `https://api.allorigins.win/get?url=${targetUrl}`;
 
-      const response = await fetch(proxyUrl);
-      const data = await response.json();
-      const html = data.contents;
+      const response = await fetch(proxyUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-      // Na Scot, o valor geralmente está em tabelas. 
-      const match = html.match(/(?:Teresina|Piauí).*?(\d{3}(?:,\d{2})?)/i);
+      if (response.ok) {
+        const data = await response.json();
+        const html = data?.contents || "";
 
-      if (match && match[1]) {
-        return parseFloat(match[1].replace(',', '.'));
+        // Na Scot, o valor geralmente está em tabelas. 
+        const match = html.match(/(?:Teresina|Piauí|São Paulo|SP|Goiás).*?(\d{3}(?:,\d{2})?)/i);
+
+        if (match && match[1]) {
+          return parseFloat(match[1].replace(',', '.'));
+        }
       }
-      return null;
     } catch (err) {
-      console.error("Market fetch failed:", err);
-      return null;
+      console.warn("Market fetch proxy unavailable, using fallback reference price:", err instanceof Error ? err.message : err);
     }
+
+    try {
+      const settings = await store.getSettings();
+      const savedPrice = settings.find(s => s.key === 'preco_arroba_pi')?.value;
+      if (savedPrice && !isNaN(parseFloat(savedPrice))) {
+        return parseFloat(savedPrice);
+      }
+    } catch {
+      // ignore
+    }
+
+    return 295.0;
   },
 
   fetchRainfallAuto: async (lat: number, lng: number, startDate: string, endDate: string): Promise<any[]> => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
       // O Open-Meteo Historical API é gratuito e não requer chave
       const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${startDate}&end_date=${endDate}&daily=precipitation_sum&timezone=auto`;
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.daily && data.daily.time) {
-        return data.daily.time.map((time: string, index: number) => ({
-          date: time,
-          mm: data.daily.precipitation_sum[index] || 0
-        }));
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.daily && data.daily.time) {
+          return data.daily.time.map((time: string, index: number) => ({
+            date: time,
+            mm: data.daily.precipitation_sum[index] || 0
+          }));
+        }
       }
       return [];
     } catch (err) {
-      console.error("Auto rainfall fetch failed:", err);
+      console.warn("Auto rainfall fetch unavailable:", err instanceof Error ? err.message : err);
       return [];
     }
+  },
+
+  // Pastos & Mapa de Pastagem
+  getPastures: async (): Promise<Pasture[]> => {
+    const user = auth.getCurrentUser();
+    if (!user) return [];
+
+    const cacheKey = `pastures_${user.id}`;
+    const pastures = getDataCache(cacheKey);
+
+    if (!pastures || pastures.length === 0) {
+      // Pastos padrão da Fazenda Dois Irmãos identificados na foto do Google Earth
+      const defaultPastures: Pasture[] = [
+        {
+          id: "pasture-01",
+          number: "01",
+          name: "Pasto Riacho Tamanduá (Oliva)",
+          area_ha: 34.0,
+          grass_type: "Brachiaria Marandu",
+          status: "ocupado",
+          current_lot: "Lote Confinamento A",
+          x: 50,
+          y: 30,
+          rest_days: 0,
+          entry_date: new Date(Date.now() - 10 * 86400000).toISOString().split("T")[0],
+          water_source: "Riacho Tamanduá / Bebedouro",
+          capacity_ua: 45,
+          notes: "Pasto amplo superior com acesso ao riacho",
+          user_id: user.id
+        },
+        {
+          id: "pasture-02",
+          number: "02",
+          name: "Pasto da Represa / Sede",
+          area_ha: 8.5,
+          grass_type: "Mombaça",
+          status: "ocupado",
+          current_lot: "Maternidade",
+          x: 63,
+          y: 33,
+          rest_days: 0,
+          entry_date: new Date(Date.now() - 4 * 86400000).toISOString().split("T")[0],
+          water_source: "Açude Fazenda Dois Irmãos",
+          capacity_ua: 18,
+          notes: "Piquete de alta fertilidade ao lado da represa e curral",
+          user_id: user.id
+        },
+        {
+          id: "pasture-03",
+          number: "03",
+          name: "Piquete Corredor Central",
+          area_ha: 11.0,
+          grass_type: "Tifton 85",
+          status: "descanso",
+          x: 62,
+          y: 40,
+          rest_days: 22,
+          water_source: "Bebedouro Central",
+          capacity_ua: 22,
+          notes: "Piquete plano cortado pelo corredor de manejo",
+          user_id: user.id
+        },
+        {
+          id: "pasture-04",
+          number: "04",
+          name: "Retiro Oeste (Bordô)",
+          area_ha: 21.5,
+          grass_type: "Brachiaria Decumbens",
+          status: "ocupado",
+          x: 47,
+          y: 67,
+          rest_days: 0,
+          water_source: "Bebedouro Australiano",
+          capacity_ua: 30,
+          notes: "Área intermediária oeste bem formada",
+          user_id: user.id
+        },
+        {
+          id: "pasture-05",
+          number: "05",
+          name: "Retiro Leste (Bordô)",
+          area_ha: 18.0,
+          grass_type: "Piatã",
+          status: "descanso",
+          x: 58,
+          y: 69,
+          rest_days: 35,
+          water_source: "Bebedouro Australiano",
+          capacity_ua: 28,
+          notes: "Em descanso após rotação de lote",
+          user_id: user.id
+        },
+        {
+          id: "pasture-06",
+          number: "06",
+          name: "Piquete Sul 01 (Amarelo NO)",
+          area_ha: 7.5,
+          grass_type: "Tifton 85",
+          status: "descanso",
+          x: 49,
+          y: 81,
+          rest_days: 28,
+          water_source: "Bebedouro Coletivo Sul",
+          capacity_ua: 15,
+          notes: "Módulo rotacionado intensivo",
+          user_id: user.id
+        },
+        {
+          id: "pasture-07",
+          number: "07",
+          name: "Piquete Sul 02 (Amarelo NE)",
+          area_ha: 7.5,
+          grass_type: "Tifton 85",
+          status: "vedado",
+          x: 56,
+          y: 81,
+          rest_days: 42,
+          water_source: "Bebedouro Coletivo Sul",
+          capacity_ua: 15,
+          notes: "Vedado para reserva",
+          user_id: user.id
+        },
+        {
+          id: "pasture-08",
+          number: "08",
+          name: "Piquete Sul 03 (Amarelo SO)",
+          area_ha: 7.0,
+          grass_type: "Brachiaria Humidicola",
+          status: "descanso",
+          x: 49,
+          y: 89,
+          rest_days: 14,
+          water_source: "Bebedouro Coletivo Sul",
+          capacity_ua: 14,
+          notes: "Parte baixa drenada",
+          user_id: user.id
+        },
+        {
+          id: "pasture-09",
+          number: "09",
+          name: "Piquete Sul 04 (Amarelo SE)",
+          area_ha: 7.0,
+          grass_type: "Brachiaria Humidicola",
+          status: "descanso",
+          x: 56,
+          y: 89,
+          rest_days: 14,
+          water_source: "Bebedouro Coletivo Sul",
+          capacity_ua: 14,
+          notes: "Parte baixa drenada",
+          user_id: user.id
+        }
+      ];
+      saveDataCache(cacheKey, defaultPastures);
+      return defaultPastures;
+    }
+
+    return pastures;
+  },
+
+  addPasture: async (p: Omit<Pasture, "id">): Promise<Pasture> => {
+    const user = auth.getCurrentUser();
+    if (!user) throw new Error("Não autenticado");
+
+    const cacheKey = `pastures_${user.id}`;
+    const current = getDataCache(cacheKey) || [];
+
+    const newPasture: Pasture = {
+      ...p,
+      id: v4(),
+      user_id: user.id,
+      number: String(p.number || current.length + 1).padStart(2, "0")
+    };
+
+    saveDataCache(cacheKey, [newPasture, ...current]);
+    return newPasture;
+  },
+
+  updatePasture: async (id: string, data: Partial<Pasture>): Promise<void> => {
+    const user = auth.getCurrentUser();
+    if (!user) return;
+
+    const cacheKey = `pastures_${user.id}`;
+    const current = getDataCache(cacheKey) || [];
+    const updated = current.map((p: Pasture) => (p.id === id ? { ...p, ...data } : p));
+    saveDataCache(cacheKey, updated);
+  },
+
+  deletePasture: async (id: string): Promise<void> => {
+    const user = auth.getCurrentUser();
+    if (!user) return;
+
+    const cacheKey = `pastures_${user.id}`;
+    const current = getDataCache(cacheKey) || [];
+    const updated = current.filter((p: Pasture) => p.id !== id);
+    saveDataCache(cacheKey, updated);
+  },
+
+  getPastureMapImage: (): string | null => {
+    const user = auth.getCurrentUser();
+    if (!user) return null;
+    try {
+      return localStorage.getItem(`fc_pasture_image_${user.id}`);
+    } catch {
+      return null;
+    }
+  },
+
+  setPastureMapImage: (img: string | null): void => {
+    const user = auth.getCurrentUser();
+    if (!user) return;
+    try {
+      if (!img) {
+        localStorage.removeItem(`fc_pasture_image_${user.id}`);
+      } else {
+        localStorage.setItem(`fc_pasture_image_${user.id}`, img);
+      }
+    } catch {
+      // storage error
+    }
+  },
+
+  resetPasturesToFazendaDoisIrmaos: async (): Promise<Pasture[]> => {
+    const user = auth.getCurrentUser();
+    if (!user) return [];
+    const cacheKey = `pastures_${user.id}`;
+    localStorage.removeItem(cacheKey);
+    localStorage.removeItem(`fc_pasture_image_${user.id}`);
+    return await store.getPastures();
   },
 
   // System

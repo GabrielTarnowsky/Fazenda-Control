@@ -1,0 +1,8 @@
+{
+  "name": "FazendaControl",
+  "description": "Gestão Pecuária Inteligente e Eficiente. O sistema definitivo para gestão de rebanho, nutrição e financeiro da sua fazenda.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

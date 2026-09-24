@@ -116,6 +116,29 @@ export default function Login() {
                   </span>
                 )}
               </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  setIdentifier("produtor@fazendacontrol.com");
+                  setPassword("Fazenda@2026");
+                  setLoading(true);
+                  try {
+                    await store.auth.login("produtor@fazendacontrol.com", "Fazenda@2026");
+                    toast.success("Acesso com perfil de demonstração!");
+                    await store.sync();
+                    navigate("/");
+                  } catch (err: any) {
+                    toast.error(err.message || "Erro no acesso");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="w-full h-12 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10 font-bold rounded-2xl transition-all text-xs tracking-wider uppercase"
+              >
+                Acesso com Conta Demonstração
+              </Button>
             </form>
 
             <div className="mt-10 flex flex-col items-center gap-6">

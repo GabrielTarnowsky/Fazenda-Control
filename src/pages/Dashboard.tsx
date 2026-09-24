@@ -1,20 +1,40 @@
 import { useEffect, useState, useMemo } from "react";
-import { store, Animal, Financial, AnimalEvent, parseDateSafe, Rainfall } from "@/lib/store";
+import { store, Animal, Financial, AnimalEvent, parseDateSafe, Rainfall, Insemination } from "@/lib/store";
 import { useNavigate } from "react-router-dom";
-import { Plus, BarChart3, TrendingUp, Users, Scale, DollarSign, ArrowUpRight, ArrowDownRight, Wheat, Package, PackagePlus, Activity, Calendar, Weight, Cloud, Database, RefreshCw, Upload, Download, CloudRain, Droplets, ChevronRight } from "lucide-react";
+import { 
+  Plus, 
+  TrendingUp, 
+  Users, 
+  BarChart3, 
+  ArrowDownRight, 
+  PackagePlus, 
+  Activity, 
+  Calendar, 
+  Weight, 
+  CloudRain, 
+  Droplets, 
+  ChevronRight, 
+  Target, 
+  AlertTriangle, 
+  Scale, 
+  CheckCircle2, 
+  ArrowRight, 
+  Clock, 
+  Coins, 
+  Beef,
+  MapPin
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import PurchaseForm from "@/components/PurchaseForm";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -25,6 +45,7 @@ export default function Dashboard() {
   const [financials, setFinancials] = useState<Financial[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [events, setEvents] = useState<AnimalEvent[]>([]);
+  const [inseminations, setInseminations] = useState<Insemination[]>([]);
   const [rainfall, setRainfall] = useState<Rainfall[]>([]);
   const [autoRainfall, setAutoRainfall] = useState<any[]>([]);
   const [isAutoEnabled, setIsAutoEnabled] = useState(false);
@@ -32,6 +53,7 @@ export default function Dashboard() {
   const [showRainfallDialog, setShowRainfallDialog] = useState(false);
   const [newRainfall, setNewRainfall] = useState({ mm: "", date: new Date().toISOString().split("T")[0] });
   const [marketPrice, setMarketPrice] = useState(280);
+  const [curralTab, setCurralTab] = useState<'abate' | 'alertas'>('abate');
   
   const navigate = useNavigate();
 
@@ -40,10 +62,16 @@ export default function Dashboard() {
     store.getFinancials().then(setFinancials);
     store.getIngredients().then(setIngredients);
     store.getEvents().then(setEvents);
+    store.getInseminations().then(setInseminations);
     store.getRainfall().then(setRainfall);
     store.fetchMarketPrice().then(preco => { if (preco) setMarketPrice(preco); });
 
     store.getSettings().then(async settings => {
+      const savedPrice = settings.find(s => s.key === 'preco_arroba_pi')?.value;
+      if (savedPrice && !isNaN(parseFloat(savedPrice))) {
+        setMarketPrice(parseFloat(savedPrice));
+      }
+
       const useAuto = settings.find(s => s.key === 'use_auto_rainfall')?.value === 'true';
       const lat = settings.find(s => s.key === 'farm_lat')?.value;
       const lng = settings.find(s => s.key === 'farm_lng')?.value;
@@ -87,16 +115,13 @@ export default function Dashboard() {
 
   const activeAnimals = useMemo(() => animals.filter(a => a.status === "ativo"), [animals]);
   const totalAnimals = activeAnimals.length;
-  
-  const projectedProfit = useMemo(() => {
-    return activeAnimals.reduce((sum, a) => {
-      const revenue = (a.weight / 15) * (a.preco_arroba || marketPrice);
-      const profit = revenue - (a.valor_compra || 0);
-      return sum + profit;
-    }, 0);
-  }, [activeAnimals, marketPrice]);
 
-  // Rainfall calculations
+  const projectedProfit = activeAnimals.reduce((sum, a) => {
+    const revenue = (a.weight / 15) * (a.preco_arroba || marketPrice);
+    const profit = revenue - (a.valor_compra || 0);
+    return sum + profit;
+  }, 0);
+
   const rainfallStats = useMemo(() => {
     const now = new Date();
     const currentMonthStr = now.toISOString().substring(0, 7);
@@ -106,10 +131,6 @@ export default function Dashboard() {
     startOfWeek.setHours(0, 0, 0, 0);
     const startOfWeekStr = startOfWeek.toISOString().split("T")[0];
 
-    // Se auto habilitado, usa autoData. Se não, usa manual.
-    // Ou melhor: soma ambos? Geralmente o usuário quer um ou outro.
-    // Vamos priorizar o Auto se habilitado para evitar duplicidade visual, mas permitir manual se o usuário quiser registrar algo específico.
-    
     let monthly = 0;
     let weekly = 0;
 
@@ -124,7 +145,6 @@ export default function Dashboard() {
     return { monthly: monthly.toFixed(1), weekly: weekly.toFixed(1) };
   }, [rainfall, autoRainfall, isAutoEnabled]);
 
-  // Consider current month for "Gasto Mensal"
   const currentMonth = new Date().toISOString().substring(0, 7);
   const monthlyExpenses = financials
     .filter(f => f.type === "despesa" && f.date.startsWith(currentMonth))
@@ -134,54 +154,54 @@ export default function Dashboard() {
   const totalExpense = financials.filter(f => f.type === "despesa").reduce((sum, f) => sum + f.value, 0);
   const profit = totalRevenue - totalExpense;
 
-  // Transformation for Monthly Production (@ Produzidas)
-  const productionData = useMemo(() => {
-    const months: string[] = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push(d.toISOString().substring(0, 7));
-    }
+  // Curral & Terminação (Ponto de Abate & Alertas)
+  const slaughterFunnel = useMemo(() => {
+    const ready = activeAnimals.filter(a => a.weight >= 480);
+    const near = activeAnimals.filter(a => a.weight >= 400 && a.weight < 480);
+    const growing = activeAnimals.filter(a => a.weight < 400);
 
-    const result = months.map(m => ({ name: m, value: 0 }));
+    const readyWeight = ready.reduce((sum, a) => sum + (a.weight || 0), 0);
+    const readyArrobas = readyWeight / 15;
+    const readyValue = readyArrobas * marketPrice;
 
-    activeAnimals.forEach(a => {
-      const animalEvents = events
-        .filter(e => e.animal_id === a.id && e.type === "pesagem")
-        .sort((e1, e2) => e1.date.localeCompare(e2.date));
-      
-      const entryWeight = a.peso_entrada || a.weight;
-      const entryDate = a.data_compra || a.birth_date || "2000-01-01";
+    // Ordena os animais mais pesados para exibição
+    const topAnimals = [...activeAnimals].sort((a, b) => b.weight - a.weight).slice(0, 5);
 
-      months.forEach((m, idx) => {
-        const lastInM = animalEvents.filter(e => e.date.startsWith(m)).reverse()[0];
-        const lastBeforeM = animalEvents.filter(e => e.date < m).reverse()[0];
+    return {
+      ready,
+      near,
+      growing,
+      readyCount: ready.length,
+      readyWeight,
+      readyArrobas,
+      readyValue,
+      topAnimals,
+      totalCount: activeAnimals.length
+    };
+  }, [activeAnimals, marketPrice]);
 
-        let weightEnd = 0;
-        let weightStart = 0;
-
-        if (lastInM) {
-          weightEnd = lastInM.weight;
-        } else if (lastBeforeM) {
-          weightEnd = lastBeforeM.weight;
-        } else if (entryDate.startsWith(m) || entryDate < m) {
-          weightEnd = entryWeight;
-        }
-
-        if (lastBeforeM) {
-          weightStart = lastBeforeM.weight;
-        } else if (entryDate < m) {
-          weightStart = entryWeight;
-        }
-
-        if (weightEnd > weightStart && weightStart > 0) {
-          result[idx].value += (weightEnd - weightStart) / 15;
-        }
-      });
+  // Alertas do Curral (pesagens pendentes > 35 dias ou matrizes aguardando toque)
+  const curralAlerts = useMemo(() => {
+    const now = new Date().getTime();
+    
+    // Animais ativos sem pesagem há mais de 35 dias
+    const pendingWeighing = activeAnimals.filter(a => {
+      const animalWeighings = events.filter(e => e.animal_id === a.id && e.type === "pesagem");
+      if (animalWeighings.length === 0) return true; // Nunca pesado no curral
+      const lastWeighing = animalWeighings.sort((e1, e2) => e2.date.localeCompare(e1.date))[0];
+      const days = (now - parseDateSafe(lastWeighing.date).getTime()) / (1000 * 3600 * 24);
+      return days > 35;
     });
 
-    return result.map(r => ({ ...r, value: Number(r.value.toFixed(1)) }));
-  }, [activeAnimals, events]);
+    // Inseminações aguardando diagnóstico
+    const pendingTouch = inseminations.filter(i => i.status === "aguardando");
+
+    return {
+      pendingWeighing,
+      pendingTouch,
+      totalCount: pendingWeighing.length + pendingTouch.length
+    };
+  }, [activeAnimals, events, inseminations]);
 
   const herdComposition = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -255,19 +275,18 @@ export default function Dashboard() {
   const formatMonthName = (monthStr: string) => {
     const [year, month] = monthStr.split("-");
     const date = new Date(parseInt(year), parseInt(month) - 1);
-    const name = date.toLocaleDateString("pt-BR", { month: "long" });
-    return name.charAt(0).toUpperCase() + name.slice(1) + "/" + year.slice(2);
+    return date.toLocaleDateString("pt-BR", { month: "long" });
   };
 
   return (
-    <div className="space-y-6 animate-fade-in sm:px-2 pb-10">
-      {/* Header */}
+    <div className="space-y-6 animate-fade-in">
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black italic tracking-tighter text-foreground leading-none uppercase">
             {user?.farm_name || "FAZENDA CONTROL"}
           </h1>
-          <p className="text-muted-foreground text-sm mt-1 flex items-center gap-2">
+          <div className="text-muted-foreground text-sm mt-1 flex items-center gap-2">
             Bem-vindo, <span className="text-primary font-bold">{user?.name || "Produtor"}</span>
             {lastSync && (
               <Badge variant="outline" className="text-[10px] font-bold text-muted-foreground bg-muted/50 border-none ml-2">
@@ -275,9 +294,12 @@ export default function Dashboard() {
                 Sincronizado {new Date(lastSync).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
               </Badge>
             )}
-          </p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={() => navigate("/pastos")} className="font-semibold border-border/80 shadow-sm">
+            <MapPin className="mr-2 h-4 w-4 text-emerald-600" /> Pastos & Mapa
+          </Button>
           <Button onClick={() => setShowPurchase(!showPurchase)} className="font-bold shadow-lg">
             <PackagePlus className="mr-2 h-4 w-4" /> Comprar Insumo
           </Button>
@@ -298,7 +320,7 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Metric Cards */}
+      {/* 4 Metric Cards Originais */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -350,7 +372,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Pluviometria Section - Compact Version */}
+      {/* Pluviometria Section */}
       <div className="animate-fade-in-up" style={{ animationDelay: '150ms' }}>
         <Card 
           onClick={() => navigate('/rainfall')}
@@ -430,80 +452,360 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* NOVO: Ponto de Abate & Alertas do Curral (Substitui o gráfico duplicado de @ produzidas) */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        {/* Expenses Chart -> Agora @ Produzidas */}
-        <Card className="lg:col-span-4 rounded-xl shadow-sm border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>@ Produzidas por Mês</span>
-              <Weight className="h-4 w-4 text-emerald-600" />
-            </CardTitle>
+        <Card className="lg:col-span-4 rounded-xl shadow-sm border-border/50 overflow-hidden flex flex-col justify-between">
+          <CardHeader className="border-b border-border/40 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <Target className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <span>Manejo & Ponto de Venda</span>
+                  </CardTitle>
+                  <p className="text-[11px] text-muted-foreground">
+                    Engorda para abate e ações pendentes no curral
+                  </p>
+                </div>
+              </div>
+
+              {/* Seletor de visualização */}
+              <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg">
+                <button
+                  onClick={() => setCurralTab('abate')}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${
+                    curralTab === 'abate'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Coins className="h-3.5 w-3.5 text-emerald-600" />
+                  Ponto de Venda
+                </button>
+                <button
+                  onClick={() => setCurralTab('alertas')}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${
+                    curralTab === 'alertas'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <AlertTriangle className={`h-3.5 w-3.5 ${curralAlerts.totalCount > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
+                  Alertas
+                  {curralAlerts.totalCount > 0 && (
+                    <span className="h-4 px-1.5 rounded-full bg-amber-500/20 text-amber-700 text-[10px] font-black">
+                      {curralAlerts.totalCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="pl-0">
-            {productionData.length === 0 ? (
-              <div className="min-h-[250px] flex items-center justify-center text-muted-foreground text-sm">
-                Aguardando pesagens para gerar gráfico.
+
+          <CardContent className="pt-4 flex-1 flex flex-col justify-between">
+            {curralTab === 'abate' ? (
+              <div className="space-y-4">
+                {/* 3 Caixas do Funil de Engorda */}
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                    <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider block">
+                      Prontos p/ Venda
+                    </span>
+                    <p className="text-2xl font-black text-emerald-700 mt-0.5 tabular-nums">
+                      {slaughterFunnel.readyCount} <span className="text-xs font-normal">cab.</span>
+                    </p>
+                    <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">
+                      $\ge 480$ kg (16+ @)
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider block">
+                      Terminação
+                    </span>
+                    <p className="text-2xl font-black text-amber-700 mt-0.5 tabular-nums">
+                      {slaughterFunnel.near.length} <span className="text-xs font-normal">cab.</span>
+                    </p>
+                    <span className="text-[10px] text-amber-600 font-semibold block mt-0.5">
+                      400 a 479 kg
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                    <span className="text-[10px] font-black uppercase text-blue-700 tracking-wider block">
+                      Em Recria
+                    </span>
+                    <p className="text-2xl font-black text-blue-700 mt-0.5 tabular-nums">
+                      {slaughterFunnel.growing.length} <span className="text-xs font-normal">cab.</span>
+                    </p>
+                    <span className="text-[10px] text-blue-600 font-semibold block mt-0.5">
+                      &lt; 400 kg
+                    </span>
+                  </div>
+                </div>
+
+                {/* Barra Proporcional de Engorda */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                    <span>Distribuição de Peso do Rebanho</span>
+                    <span>{slaughterFunnel.totalCount} cabeças ativas</span>
+                  </div>
+                  <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
+                    <div 
+                      style={{ width: `${(slaughterFunnel.readyCount / (slaughterFunnel.totalCount || 1)) * 100}%` }} 
+                      className="bg-emerald-500 transition-all" 
+                      title="Prontos" 
+                    />
+                    <div 
+                      style={{ width: `${(slaughterFunnel.near.length / (slaughterFunnel.totalCount || 1)) * 100}%` }} 
+                      className="bg-amber-500 transition-all" 
+                      title="Terminação" 
+                    />
+                    <div 
+                      style={{ width: `${(slaughterFunnel.growing.length / (slaughterFunnel.totalCount || 1)) * 100}%` }} 
+                      className="bg-blue-500 transition-all" 
+                      title="Recria" 
+                    />
+                  </div>
+                </div>
+
+                {/* Destaque do Lote Pronto */}
+                <div className="p-3 rounded-xl bg-muted/30 border border-muted/60 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+                      <Beef className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">
+                        {slaughterFunnel.readyCount > 0 
+                          ? `Receita Estimada do Lote Pronto (${slaughterFunnel.readyCount} cab.)`
+                          : "Animais Mais Pesados da Fazenda"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {slaughterFunnel.readyCount > 0 
+                          ? `${slaughterFunnel.readyArrobas.toFixed(1)} @ totais · R$ ${marketPrice.toFixed(2)}/@`
+                          : "Acompanhe os bois mais próximos do ganho final"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-black text-emerald-600">
+                      R$ {slaughterFunnel.readyCount > 0 
+                        ? slaughterFunnel.readyValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : ((slaughterFunnel.topAnimals[0]?.weight || 0) / 15 * marketPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                      {slaughterFunnel.readyCount > 0 ? "Venda Imediata" : "Top animal"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Lista Rápida dos Animais Prontos / Mais Pesados */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground px-1 font-semibold">
+                    <span>Animal (Brinco)</span>
+                    <span className="text-right">Peso Atual · @ Líquida</span>
+                  </div>
+                  <div className="divide-y divide-border/50 border border-border/50 rounded-lg overflow-hidden">
+                    {slaughterFunnel.topAnimals.map(a => {
+                      const isReady = a.weight >= 480;
+                      return (
+                        <div 
+                          key={a.id} 
+                          onClick={() => navigate(`/animals/${a.id}`)}
+                          className="flex items-center justify-between p-2.5 bg-card hover:bg-muted/40 cursor-pointer transition-colors text-xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-foreground">Brinco #{a.tag}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">
+                              {a.lote_id || "Sem Lote"} · {a.breed}
+                            </span>
+                            {isReady && (
+                              <Badge className="bg-emerald-500/20 text-emerald-700 border-none text-[9px] font-black uppercase px-1.5 h-4">
+                                Pronto
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-right font-medium">
+                            <span className="font-bold text-foreground">{a.weight} kg</span>
+                            <span className="text-muted-foreground ml-1.5">({(a.weight / 15).toFixed(1)} @)</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs font-bold text-primary hover:text-primary p-0 h-auto"
+                    onClick={() => navigate("/simulator")}
+                  >
+                    Simular Venda no Simulador <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 text-xs font-semibold"
+                    onClick={() => navigate("/animals")}
+                  >
+                    Ver Todos os Animais
+                  </Button>
+                </div>
               </div>
             ) : (
-              <div className="h-[250px] w-full pr-4">
+              /* Aba Alertas do Curral */
+              <div className="space-y-4">
+                {curralAlerts.totalCount === 0 ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-center">
+                    <div className="h-12 w-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-2">
+                      <CheckCircle2 className="h-6 w-6" />
+                    </div>
+                    <p className="font-bold text-sm text-foreground">Manejo em Dia!</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Todos os animais foram pesados recentemente e não há toques pendentes.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Alerta de Pesagem */}
+                    {curralAlerts.pendingWeighing.length > 0 && (
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Scale className="h-4 w-4 text-amber-600" />
+                            <span className="text-xs font-bold text-amber-900 dark:text-amber-300">
+                              {curralAlerts.pendingWeighing.length} animais sem pesagem há mais de 35 dias
+                            </span>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className="h-7 text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white"
+                            onClick={() => navigate("/events/new?type=pesagem")}
+                          >
+                            Pesar Agora
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {curralAlerts.pendingWeighing.slice(0, 8).map(a => (
+                            <span 
+                              key={a.id}
+                              onClick={() => navigate(`/animals/${a.id}`)}
+                              className="px-2 py-0.5 rounded bg-background/80 text-[11px] font-bold text-foreground border border-amber-200 cursor-pointer hover:bg-background"
+                            >
+                              #{a.tag}
+                            </span>
+                          ))}
+                          {curralAlerts.pendingWeighing.length > 8 && (
+                            <span className="text-[11px] text-muted-foreground font-semibold self-center">
+                              +{curralAlerts.pendingWeighing.length - 8} outros
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Alerta Reprodutivo */}
+                    {curralAlerts.pendingTouch.length > 0 && (
+                      <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-blue-600" />
+                            <div>
+                              <p className="text-xs font-bold text-blue-900 dark:text-blue-300">
+                                {curralAlerts.pendingTouch.length} fêmeas aguardando toque / diagnóstico
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Inseminações recentes sem confirmação de prenhez
+                              </p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="outline"
+                            size="sm" 
+                            className="h-7 text-[11px] font-bold border-blue-300 text-blue-700 hover:bg-blue-50"
+                            onClick={() => navigate("/insemination")}
+                          >
+                            Ver Reprodução
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Mantenha o curral atualizado para cálculos precisos de GMD.</span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs font-bold text-primary p-0 h-auto"
+                    onClick={() => navigate("/events")}
+                  >
+                    Histórico de Manejo <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Lotes Performance (Mantido no lado direito) */}
+        <Card className="lg:col-span-3 rounded-xl shadow-sm border-border/50">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>GMD Médio por Lote (kg/dia)</span>
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lotPerformance.length === 0 ? (
+              <div className="min-h-[250px] flex items-center justify-center text-muted-foreground text-sm">
+                Aguardando dados de ganho por lote.
+              </div>
+            ) : (
+              <div className="h-[250px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={productionData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                    <defs>
-                      <linearGradient id="colorProd" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.2}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.4} />
-                    <XAxis 
-                      dataKey="name" 
-                      fontSize={11} 
-                      fontWeight="bold"
-                      tickLine={false} 
-                      axisLine={false}
-                      tickFormatter={(value) => {
-                        const [year, month] = value.split("-");
-                        return `${month}/${year.slice(2)}`;
-                      }}
-                    />
-                    <YAxis 
-                      fontSize={11}
-                      fontWeight="bold"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `${value}@`}
-                    />
+                  <BarChart data={lotPerformance} layout="vertical" margin={{ left: 0, right: 20, top: 10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.05)" />
+                    <XAxis type="number" fontSize={10} hide />
+                    <YAxis dataKey="name" type="category" fontSize={11} width={80} tickLine={false} axisLine={false} />
                     <Tooltip 
-                      cursor={{ fill: 'rgba(16, 185, 129, 0.05)', radius: 4 }}
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                      formatter={(value: number) => [`${value} @`, "Produzido"]}
+                      formatter={(val: number) => [`${val} kg/dia`, 'GMD']}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                     />
-                    <Bar dataKey="value" fill="url(#colorProd)" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="gmd" fill="#3b82f6" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fill: '#666' }} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
           </CardContent>
         </Card>
+      </div>
 
-        {/* Ingredients Summary */}
-        <Card className="lg:col-span-3 rounded-xl shadow-sm border-border/50 bg-primary/5 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center justify-between">
-              <span>Insumos e Preços</span>
-              <Package className="h-4 w-4 text-primary" />
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+        {/* Estoque / Insumos */}
+        <Card className="lg:col-span-4 rounded-xl shadow-sm border-border/50">
+          <CardHeader>
+            <CardTitle className="text-base font-bold flex items-center justify-between">
+              <span>Insumos & Nutrição Cadastrados</span>
+              <Button variant="link" onClick={() => navigate("/ingredients")} className="text-xs p-0 h-auto">Ver Todos</Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {ingredients.length === 0 ? (
-                <p className="text-xs text-center py-4 text-muted-foreground">Nemhum insumo cadastrado.</p>
+                <p className="text-xs text-center py-4 text-muted-foreground">Nenhum insumo cadastrado.</p>
               ) : (
                 ingredients.slice(0, 5).map(ing => (
-                  <div key={ing.id} className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/50">
-                    <div className="flex items-center gap-2">
-                      <Wheat className="h-4 w-4 text-primary opacity-70" />
-                      <span className="font-bold text-sm">{ing.name}</span>
+                  <div key={ing.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-muted/50">
+                    <div>
+                      <p className="font-bold text-sm leading-none">{ing.name}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Estoque/Uso Ativo</p>
                     </div>
                     <div className="text-right">
                       <p className="font-black text-primary text-sm">R$ {ing.cost_per_kg.toFixed(2)}</p>
@@ -512,47 +814,16 @@ export default function Dashboard() {
                   </div>
                 ))
               )}
-              {ingredients.length > 5 && (
-                <Button variant="ghost" size="sm" className="w-full text-[10px] uppercase font-bold text-muted-foreground" onClick={() => navigate("/rations")}>
-                  Ver todos os insumos
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* PERFORMANCE POR LOTE */}
-        <Card className="lg:col-span-4 rounded-xl shadow-sm border-border/50">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center justify-between">
-               <span>Performance por Lote (GMD Médio)</span>
-               <TrendingUp className="h-4 w-4 text-primary" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={lotPerformance} layout="vertical" margin={{ left: 20, right: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.2} />
-                  <XAxis type="number" fontSize={10} hide />
-                  <YAxis dataKey="name" type="category" fontSize={10} width={80} fontWeight="bold" axisLine={false} tickLine={false} />
-                  <Tooltip 
-                    cursor={{ fill: 'rgba(0,0,0,0.02)' }}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  />
-                  <Bar dataKey="gmd" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fontWeight: 'bold', formatter: (val: any) => `${val}kg/d` }} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* COMPOSIÇÃO DO REBANHO */}
+        {/* Categoria Distribution */}
         <Card className="lg:col-span-3 rounded-xl shadow-sm border-border/50">
            <CardHeader>
-              <CardTitle className="text-lg">Composição do Rebanho</CardTitle>
+              <CardTitle className="text-base font-bold">Composição do Rebanho</CardTitle>
            </CardHeader>
-           <CardContent className="flex flex-col items-center justify-center pt-0">
+           <CardContent className="flex flex-col items-center justify-center">
               <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -570,7 +841,6 @@ export default function Dashboard() {
                       ))}
                     </Pie>
                     <Tooltip />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -582,53 +852,46 @@ export default function Dashboard() {
         </Card>
       </div>
 
-       {/* Gastos Mensais */}
-       <Card className="rounded-2xl shadow-xl border-none bg-slate-900 text-white overflow-hidden">
-         <CardHeader className="bg-slate-800/50 border-b border-white/5 pb-4">
-           <CardTitle className="text-lg font-black italic uppercase tracking-wider flex items-center justify-between">
-             <div className="flex items-center gap-2">
-               <Calendar className="h-5 w-5 text-rose-500" />
-               Fluxo de Gastos Anual ({new Date().getFullYear()})
-             </div>
-             <Badge className="bg-rose-500/20 text-rose-400 border-rose-500/30">Jan - Dez</Badge>
-           </CardTitle>
-         </CardHeader>
-         <CardContent className="p-0">
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-             {monthlyConsolidated.map((item, i) => {
-               const hasValue = item.total > 0;
-               return (
-                 <div 
-                   key={i} 
-                   className={`p-5 border-b border-r border-white/5 transition-all hover:bg-white/5 group relative ${!hasValue ? 'opacity-40' : ''}`}
-                 >
-                   <div className="flex flex-col gap-1">
-                     <span className="text-[10px] font-black uppercase text-slate-500 group-hover:text-rose-400 transition-colors">
-                       {formatMonthName(item.month).split("/")[0]}
-                     </span>
-                     <div className="flex items-end gap-1">
-                        <span className="text-xs font-bold text-slate-400 mb-1">R$</span>
-                        <span className={`text-2xl font-black italic tracking-tighter ${hasValue ? 'text-white' : 'text-slate-600'}`}>
-                          {item.total.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </span>
-                     </div>
-                     <div className="flex items-center justify-between mt-2">
-                       <span className="text-[9px] font-bold text-slate-500 uppercase">
-                         {item.count} {item.count === 1 ? 'Lançamento' : 'Lançamentos'}
-                       </span>
-                       {hasValue && (
-                         <div className="h-1 w-12 bg-rose-500/20 rounded-full overflow-hidden">
-                           <div className="h-full bg-rose-500 w-full animate-pulse" />
-                         </div>
-                       )}
-                     </div>
-                   </div>
-                 </div>
-               );
-             })}
-           </div>
-         </CardContent>
-       </Card>
+      {/* Gastos Mensais */}
+      <Card className="rounded-2xl shadow-xl border-none bg-slate-900 text-white overflow-hidden">
+        <CardHeader className="bg-slate-800/50 border-b border-white/5 pb-4">
+          <CardTitle className="text-lg font-black italic uppercase tracking-wider flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-rose-500" />
+              Fluxo de Gastos Anual ({new Date().getFullYear()})
+            </div>
+            <Badge className="bg-rose-500/20 text-rose-400 border-rose-500/30">Jan - Dez</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {monthlyConsolidated.map((item, i) => {
+              const hasValue = item.total > 0;
+              return (
+                <div 
+                  key={i} 
+                  className={`p-5 border-b border-r border-white/5 transition-all hover:bg-white/5 group relative ${!hasValue ? 'opacity-40' : ''}`}
+                >
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-400 group-hover:text-rose-400 transition-colors">
+                      {formatMonthName(item.month)}
+                    </span>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xs text-rose-500 font-bold">R$</span>
+                      <span className="text-2xl font-black italic tracking-tighter">
+                        {item.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                      {item.count} {item.count === 1 ? 'registro' : 'registros'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

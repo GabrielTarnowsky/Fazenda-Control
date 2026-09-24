@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { store, Animal } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck } from "lucide-react";
+import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck, Beef, LandPlot } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -52,7 +52,12 @@ export default function LoteDetail() {
     mediaArroba: 0,
     custoAlimentacao: 0,
     totalVendas: 0,
-    lucroTotalVendas: 0
+    lucroTotalVendas: 0,
+    custoPorCabeca: 0,
+    custoOpPorCabeca: 0,
+    custoPorHa: 0,
+    areaHa: 0,
+    pastureNames: ""
   });
 
   const [bulkMode, setBulkMode] = useState<{
@@ -156,12 +161,13 @@ export default function LoteDetail() {
     if (!nomeDecodificado) return;
     setLoading(true);
     const loteNome = nomeDecodificado;
-    const [allAnimals, allEvents, allFinancials, feedingLogsData, settings] = await Promise.all([
+    const [allAnimals, allEvents, allFinancials, feedingLogsData, settings, allPastures] = await Promise.all([
       store.getAnimals(),
       store.getEvents(),
       store.getFinancials(),
       store.getFeedingLogs(),
-      store.getSettings()
+      store.getSettings(),
+      store.getPastures()
     ]);
 
     const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
@@ -254,9 +260,21 @@ export default function LoteDetail() {
     const mediaArroba = enriched.length > 0 ? (arrobasTotal / enriched.length) : 0;
 
     let custoTotal = 0;
+    let sumMaint = 0;
+
+    // Despesas de animais do lote e despesas gerais marcadas para este lote no financeiro
     allFinancials.forEach(f => {
-      if (f.type === "despesa" && f.animal_id && loteAnimalIds.includes(f.animal_id)) {
-        custoTotal += f.value;
+      if (f.type === "despesa") {
+        const isAnimalExpense = f.animal_id && loteAnimalIds.includes(f.animal_id);
+        const descLower = (f.description || "").toLowerCase();
+        const isLoteExpense = descLower.includes(`[lote: ${loteNome.toLowerCase()}]`) ||
+                              descLower.includes(`[lote:${loteNome.toLowerCase()}]`);
+        if (isAnimalExpense || isLoteExpense) {
+          custoTotal += f.value;
+          if (!descLower.includes("compra")) {
+            sumMaint += f.value;
+          }
+        }
       }
     });
 
@@ -271,17 +289,26 @@ export default function LoteDetail() {
     const cycleDaysAvg = enriched.reduce((acc, ea) => acc + ea.diasPermanencia, 0) / (enriched.length || 1);
     const totalFeeding = feedingLogs.reduce((acc, l) => acc + (l.total_cost || 0), 0);
     
-    let sumMaint = 0;
-    allFinancials.forEach(f => {
-      if (f.type === "despesa" && f.animal_id && loteAnimalIds.includes(f.animal_id) && !f.description.includes("Compra")) {
-        sumMaint += f.value;
-      }
-    });
-
     const totalOp = totalFeeding + sumMaint;
     const costPerDayPC = (enriched.length > 0 && cycleDaysAvg > 0) ? (totalOp / enriched.length) / cycleDaysAvg : 0;
     const totalLuc = enriched.reduce((acc, ea) => acc + ea.lucro, 0);
     const gmdLote = cycleDaysAvg > 0 ? ganhoTotalKg / cycleDaysAvg : 0;
+
+    // Pastos alocados ao lote e área (ha)
+    const lotePastures = allPastures.filter(p => p.current_lot === loteNome);
+    const loteAreaHa = lotePastures.reduce((acc, p) => acc + (Number(p.area_ha) || 0), 0);
+    const totalFarmPastureArea = allPastures.reduce((acc, p) => acc + (Number(p.area_ha) || 0), 0);
+    const activeFarmAnimals = allAnimals.filter(a => a.status === "ativo").length;
+
+    // Área efetiva do lote (usa pastos alocados ou área proporcional da fazenda)
+    const effectiveAreaHa = loteAreaHa > 0
+      ? loteAreaHa
+      : (activeFarmAnimals > 0 && totalFarmPastureArea > 0 ? (totalFarmPastureArea * (enriched.length / activeFarmAnimals)) : 0);
+
+    const custoPorCabeca = enriched.length > 0 ? (custoTotal / enriched.length) : 0;
+    const custoOpPorCabeca = enriched.length > 0 ? (totalOp / enriched.length) : 0;
+    const custoPorHa = effectiveAreaHa > 0 ? (custoTotal / effectiveAreaHa) : 0;
+    const pastureNames = lotePastures.map(p => p.name || `Pasto ${p.number}`).join(", ");
 
     let totalVendasCalc = 0;
     let lucroVendasCalc = 0;
@@ -319,7 +346,12 @@ export default function LoteDetail() {
       mediaArroba,
       custoAlimentacao: totalFeeding,
       totalVendas: totalVendasCalc,
-      lucroTotalVendas: lucroVendasCalc
+      lucroTotalVendas: lucroVendasCalc,
+      custoPorCabeca,
+      custoOpPorCabeca,
+      custoPorHa,
+      areaHa: effectiveAreaHa,
+      pastureNames
     });
     setLoading(false);
   };
@@ -342,7 +374,14 @@ export default function LoteDetail() {
 
       <div>
         <h1 className="font-display text-2xl font-bold">Relatório do Lote</h1>
-        <p className="text-muted-foreground">{nomeDecodificado} — {animals.length} cabeças</p>
+        <p className="text-muted-foreground flex flex-wrap items-center gap-1.5 mt-0.5">
+          <span>{nomeDecodificado} — {animals.length} cabeças</span>
+          {metrics.pastureNames && (
+            <Badge variant="outline" className="text-[10px] font-bold border-blue-500/40 text-blue-700 bg-blue-500/10">
+              Pasto: {metrics.pastureNames} ({metrics.areaHa.toFixed(1)} ha)
+            </Badge>
+          )}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -391,6 +430,38 @@ export default function LoteDetail() {
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Custo do Lote</p>
             <p className="text-base font-bold">R$ {metrics.custoTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
             <p className="text-[9px] text-muted-foreground mt-1 uppercase font-bold">Ração: R$ {metrics.custoAlimentacao.toLocaleString("pt-BR")}</p>
+          </CardContent>
+        </Card>
+
+        {/* Custo por Cabeça */}
+        <Card className="bg-emerald-500/5 border-emerald-500/20">
+          <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
+            <Beef className="h-5 w-5 text-emerald-600 mb-1" />
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Custo / Cabeça</p>
+            <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">
+              R$ {metrics.custoPorCabeca.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <div className="flex flex-col mt-1 border-t pt-1 w-full text-[10px] text-muted-foreground">
+              <p>Operacional: R$ {metrics.custoOpPorCabeca.toFixed(2)}/cab</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Custo por Hectare */}
+        <Card className="bg-blue-500/5 border-blue-500/20">
+          <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
+            <LandPlot className="h-5 w-5 text-blue-600 mb-1" />
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Custo / Hectare</p>
+            <p className="text-base font-bold text-blue-700 dark:text-blue-400">
+              R$ {metrics.custoPorHa.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <div className="flex flex-col mt-1 border-t pt-1 w-full text-[10px] text-muted-foreground truncate" title={metrics.pastureNames || "Área proporcional"}>
+              {metrics.areaHa > 0 ? (
+                <p className="truncate">{metrics.areaHa.toFixed(1)} ha {metrics.pastureNames ? `(${metrics.pastureNames})` : ""}</p>
+              ) : (
+                <p>Sem pasto alocado</p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
