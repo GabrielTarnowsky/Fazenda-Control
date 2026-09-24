@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { store, Financial, formatDateDisplay, parseDateSafe, Animal, Pasture } from "@/lib/store";
+import { store, Financial, formatDateDisplay, parseDateSafe, Animal } from "@/lib/store";
 import {
   Plus,
   TrendingUp,
@@ -18,8 +18,6 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Beef,
-  LandPlot,
   Wheat,
   Calendar,
   DollarSign,
@@ -121,7 +119,6 @@ function buildFinancialDescription(cleanDescription: string, isPending: boolean,
 export default function FinancialPage() {
   const [records, setRecords] = useState<Financial[]>([]);
   const [animals, setAnimals] = useState<Animal[]>([]);
-  const [pastures, setPastures] = useState<Pasture[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewScope, setViewScope] = useState<"month" | "year">("month");
@@ -165,14 +162,12 @@ export default function FinancialPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [finData, animData, pastData] = await Promise.all([
+      const [finData, animData] = await Promise.all([
         store.getFinancials(),
-        store.getAnimals(),
-        store.getPastures()
+        store.getAnimals()
       ]);
       setRecords(finData);
       setAnimals(animData);
-      setPastures(pastData);
     } catch {
       toast.error("Erro ao carregar dados financeiros.");
     } finally {
@@ -199,15 +194,6 @@ export default function FinancialPage() {
     animals.filter(a => a.status === "ativo" && a.lote_id).forEach(a => lotSet.add(a.lote_id!));
     return Array.from(lotSet).sort();
   }, [animals]);
-
-  // Contagem de cabeças ativas e hectares totais
-  const activeAnimalsCount = useMemo(() => {
-    return animals.filter(a => a.status === "ativo").length;
-  }, [animals]);
-
-  const totalPastureArea = useMemo(() => {
-    return pastures.reduce((sum, p) => sum + (Number(p.area_ha) || 0), 0);
-  }, [pastures]);
 
   // Registros filtrados pelo período (Mês ou Ano)
   const periodRecords = useMemo(() => {
@@ -280,15 +266,6 @@ export default function FinancialPage() {
     return periodRecords.filter(r => r.type === "receita" && parseFinancialMetadata(r.description).isPending)
       .reduce((acc, r) => acc + r.value, 0);
   }, [periodRecords]);
-
-  // Indicadores Zootécnicos Chave
-  const costPerHead = useMemo(() => {
-    return activeAnimalsCount > 0 ? totalExpense / activeAnimalsCount : 0;
-  }, [totalExpense, activeAnimalsCount]);
-
-  const costPerHectare = useMemo(() => {
-    return totalPastureArea > 0 ? totalExpense / totalPastureArea : 0;
-  }, [totalExpense, totalPastureArea]);
 
   const operatingMargin = useMemo(() => {
     return totalRevenue > 0 ? ((totalRevenue - totalExpense) / totalRevenue) * 100 : 0;
@@ -690,8 +667,8 @@ export default function FinancialPage() {
         </div>
       )}
 
-      {/* CARDS DE INDICADORES PRINCIPAIS & ZOOTÉCNICOS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+      {/* CARDS DE INDICADORES PRINCIPAIS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Receitas */}
         <Card className="border shadow-sm bg-card relative overflow-hidden">
           <CardHeader className="pb-1 pt-3.5 px-4">
@@ -756,42 +733,6 @@ export default function FinancialPage() {
               Margem: <strong className={operatingMargin >= 0 ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
                 {operatingMargin.toFixed(1)}%
               </strong>
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Custo por Cabeça / Mês */}
-        <Card className="border shadow-sm bg-card relative overflow-hidden">
-          <CardHeader className="pb-1 pt-3.5 px-4">
-            <p className="text-[10px] uppercase font-black text-slate-700 dark:text-slate-300 tracking-wider flex items-center justify-between">
-              <span>Custo / Cabeça</span>
-              <Beef className="h-3.5 w-3.5 text-emerald-600" />
-            </p>
-          </CardHeader>
-          <CardContent className="px-4 pb-3.5">
-            <div className="text-xl font-black text-foreground tracking-tight">
-              R$ {costPerHead.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {activeAnimalsCount} animais ativos
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Custo por Hectare */}
-        <Card className="border shadow-sm bg-card relative overflow-hidden">
-          <CardHeader className="pb-1 pt-3.5 px-4">
-            <p className="text-[10px] uppercase font-black text-slate-700 dark:text-slate-300 tracking-wider flex items-center justify-between">
-              <span>Custo / Hectare</span>
-              <LandPlot className="h-3.5 w-3.5 text-blue-600" />
-            </p>
-          </CardHeader>
-          <CardContent className="px-4 pb-3.5">
-            <div className="text-xl font-black text-foreground tracking-tight">
-              R$ {costPerHectare.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {totalPastureArea.toFixed(1)} ha de pastos
             </p>
           </CardContent>
         </Card>
