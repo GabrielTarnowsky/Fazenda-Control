@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, TrendingUp, DollarSign, Activity, Target, Weight, ChevronRight, Award, AlertCircle, BarChart3, LandPlot, Beef, Utensils, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 export default function Reports() {
@@ -33,7 +34,7 @@ export default function Reports() {
         setPastures(pasts || []);
         setFeedingLogs(feeds || []);
         
-        const price = settings.find(s => s.key === 'preco_arroba_pi')?.value;
+        const price = Array.isArray(settings) ? settings.find(s => s.key === 'preco_arroba_pi')?.value : undefined;
         if (price) setMarketPrice(Number(price));
       } finally {
         setLoading(false);
@@ -474,7 +475,14 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50 font-medium">
-                {lotPerformance.map(l => (
+                {lotPerformance.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-xs text-muted-foreground font-semibold">
+                      Nenhum lote com animais ativos no momento.
+                    </td>
+                  </tr>
+                ) : (
+                  lotPerformance.map(l => (
                   <tr key={l.name} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 font-bold text-foreground">
                       <div className="flex items-center gap-2">
@@ -532,7 +540,7 @@ export default function Reports() {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

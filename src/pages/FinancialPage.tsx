@@ -275,8 +275,13 @@ export default function FinancialPage() {
     return periodRecords
       .filter(r => r.type === "despesa" && (
         r.category === "Alimentação" ||
+        r.category === "Nutrição" ||
         r.category?.toLowerCase().includes("alimento") ||
-        r.category?.toLowerCase().includes("ração")
+        r.category?.toLowerCase().includes("ração") ||
+        r.category?.toLowerCase().includes("nutri") ||
+        (r.description || "").toLowerCase().includes("trato") ||
+        (r.description || "").toLowerCase().includes("ração") ||
+        (r.description || "").toLowerCase().includes("suplemento")
       ))
       .reduce((acc, r) => acc + r.value, 0);
   }, [periodRecords]);
