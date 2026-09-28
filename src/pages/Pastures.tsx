@@ -186,16 +186,16 @@ export default function PasturesPage() {
 
     setLoading(true);
     try {
-      const [pasturesData, animalsData] = await Promise.all([
+      const [pasturesData, animalsData, cloudMapImg] = await Promise.all([
         store.getPastures(),
-        store.getAnimals()
+        store.getAnimals(),
+        store.fetchPastureMapImage()
       ]);
       setPastures(pasturesData);
       setAnimals(animalsData);
 
-      const savedImg = store.getPastureMapImage();
-      if (savedImg && !savedImg.includes("unsplash")) {
-        setMapImage(savedImg);
+      if (cloudMapImg && !cloudMapImg.includes("unsplash")) {
+        setMapImage(cloudMapImg);
       }
     } catch (e) {
       toast.error("Erro ao carregar dados dos pastos");
@@ -271,12 +271,12 @@ export default function PasturesPage() {
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const base64 = event.target?.result as string;
       if (base64) {
         setMapImage(base64);
-        store.setPastureMapImage(base64);
-        toast.success("Foto de satélite / Google Earth atualizada com sucesso!");
+        await store.setPastureMapImage(base64);
+        toast.success("Foto do pasto salva e sincronizada na sua conta!");
       }
     };
     reader.readAsDataURL(file);
@@ -284,7 +284,7 @@ export default function PasturesPage() {
 
   const handleResetImage = async () => {
     setMapImage(DEFAULT_SATELLITE_BG);
-    store.setPastureMapImage(null);
+    await store.setPastureMapImage(null);
     const defaultPastures = await store.resetPasturesToFazendaDoisIrmaos();
     setPastures(defaultPastures);
     toast.success("Foto e 9 piquetes da Fazenda Dois Irmãos sincronizados!");

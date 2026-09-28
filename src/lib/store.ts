@@ -14,6 +14,41 @@ const v4 = () => {
   });
 };
 
+export function compressImageBase64(base64: string, maxWidth = 1920, maxHeight = 1080, quality = 0.85): Promise<string> {
+  return new Promise((resolve) => {
+    if (!base64 || typeof window === 'undefined' || !base64.startsWith("data:image")) {
+      resolve(base64);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+      if (width > maxWidth || height > maxHeight) {
+        if (width / height > maxWidth / maxHeight) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        } else {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(base64);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => resolve(base64);
+    img.src = base64;
+  });
+}
+
 
 export interface Animal {
   id: string;
@@ -1304,156 +1339,183 @@ export const store = {
     if (!user) return [];
 
     const cacheKey = `pastures_${user.id}`;
-    const pastures = getDataCache(cacheKey);
+    const localPastures = getDataCache(cacheKey);
 
-    if (!pastures || pastures.length === 0) {
-      // Pastos padrão da Fazenda Dois Irmãos identificados na foto do Google Earth
-      const defaultPastures: Pasture[] = [
-        {
-          id: "pasture-01",
-          number: "01",
-          name: "Pasto Riacho Tamanduá (Oliva)",
-          area_ha: 34.0,
-          grass_type: "Brachiaria Marandu",
-          status: "ocupado",
-          current_lot: "Lote Confinamento A",
-          x: 50,
-          y: 30,
-          rest_days: 0,
-          entry_date: new Date(Date.now() - 10 * 86400000).toISOString().split("T")[0],
-          water_source: "Riacho Tamanduá / Bebedouro",
-          capacity_ua: 45,
-          notes: "Pasto amplo superior com acesso ao riacho",
-          user_id: user.id
-        },
-        {
-          id: "pasture-02",
-          number: "02",
-          name: "Pasto da Represa / Sede",
-          area_ha: 8.5,
-          grass_type: "Mombaça",
-          status: "ocupado",
-          current_lot: "Maternidade",
-          x: 63,
-          y: 33,
-          rest_days: 0,
-          entry_date: new Date(Date.now() - 4 * 86400000).toISOString().split("T")[0],
-          water_source: "Açude Fazenda Dois Irmãos",
-          capacity_ua: 18,
-          notes: "Piquete de alta fertilidade ao lado da represa e curral",
-          user_id: user.id
-        },
-        {
-          id: "pasture-03",
-          number: "03",
-          name: "Piquete Corredor Central",
-          area_ha: 11.0,
-          grass_type: "Tifton 85",
-          status: "descanso",
-          x: 62,
-          y: 40,
-          rest_days: 22,
-          water_source: "Bebedouro Central",
-          capacity_ua: 22,
-          notes: "Piquete plano cortado pelo corredor de manejo",
-          user_id: user.id
-        },
-        {
-          id: "pasture-04",
-          number: "04",
-          name: "Retiro Oeste (Bordô)",
-          area_ha: 21.5,
-          grass_type: "Brachiaria Decumbens",
-          status: "ocupado",
-          x: 47,
-          y: 67,
-          rest_days: 0,
-          water_source: "Bebedouro Australiano",
-          capacity_ua: 30,
-          notes: "Área intermediária oeste bem formada",
-          user_id: user.id
-        },
-        {
-          id: "pasture-05",
-          number: "05",
-          name: "Retiro Leste (Bordô)",
-          area_ha: 18.0,
-          grass_type: "Piatã",
-          status: "descanso",
-          x: 58,
-          y: 69,
-          rest_days: 35,
-          water_source: "Bebedouro Australiano",
-          capacity_ua: 28,
-          notes: "Em descanso após rotação de lote",
-          user_id: user.id
-        },
-        {
-          id: "pasture-06",
-          number: "06",
-          name: "Piquete Sul 01 (Amarelo NO)",
-          area_ha: 7.5,
-          grass_type: "Tifton 85",
-          status: "descanso",
-          x: 49,
-          y: 81,
-          rest_days: 28,
-          water_source: "Bebedouro Coletivo Sul",
-          capacity_ua: 15,
-          notes: "Módulo rotacionado intensivo",
-          user_id: user.id
-        },
-        {
-          id: "pasture-07",
-          number: "07",
-          name: "Piquete Sul 02 (Amarelo NE)",
-          area_ha: 7.5,
-          grass_type: "Tifton 85",
-          status: "vedado",
-          x: 56,
-          y: 81,
-          rest_days: 42,
-          water_source: "Bebedouro Coletivo Sul",
-          capacity_ua: 15,
-          notes: "Vedado para reserva",
-          user_id: user.id
-        },
-        {
-          id: "pasture-08",
-          number: "08",
-          name: "Piquete Sul 03 (Amarelo SO)",
-          area_ha: 7.0,
-          grass_type: "Brachiaria Humidicola",
-          status: "descanso",
-          x: 49,
-          y: 89,
-          rest_days: 14,
-          water_source: "Bebedouro Coletivo Sul",
-          capacity_ua: 14,
-          notes: "Parte baixa drenada",
-          user_id: user.id
-        },
-        {
-          id: "pasture-09",
-          number: "09",
-          name: "Piquete Sul 04 (Amarelo SE)",
-          area_ha: 7.0,
-          grass_type: "Brachiaria Humidicola",
-          status: "descanso",
-          x: 56,
-          y: 89,
-          rest_days: 14,
-          water_source: "Bebedouro Coletivo Sul",
-          capacity_ua: 14,
-          notes: "Parte baixa drenada",
-          user_id: user.id
+    // 1. Tentar buscar pastos salvos na nuvem (Supabase) sob a conta do usuário
+    try {
+      const { data: settingData } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('user_id', user.id)
+        .eq('key', 'user_pastures')
+        .maybeSingle();
+
+      if (settingData && settingData.value) {
+        const cloudPastures = JSON.parse(settingData.value);
+        if (Array.isArray(cloudPastures) && cloudPastures.length > 0) {
+          saveDataCache(cacheKey, cloudPastures);
+          return cloudPastures;
         }
-      ];
-      saveDataCache(cacheKey, defaultPastures);
-      return defaultPastures;
+      }
+    } catch (err) {
+      console.warn("Could not fetch pastures from cloud settings:", err);
     }
 
-    return pastures;
+    // 2. Se a nuvem não tinha mas este aparelho tem dados locais salvos, sobe para a nuvem
+    if (localPastures && Array.isArray(localPastures) && localPastures.length > 0) {
+      try {
+        await store.updateSetting('user_pastures', JSON.stringify(localPastures));
+      } catch {}
+      return localPastures;
+    }
+
+    // 3. Fallback inicial: Pastos padrão da Fazenda Dois Irmãos identificados na foto do Google Earth
+    const defaultPastures: Pasture[] = [
+      {
+        id: "pasture-01",
+        number: "01",
+        name: "Pasto Riacho Tamanduá (Oliva)",
+        area_ha: 34.0,
+        grass_type: "Brachiaria Marandu",
+        status: "ocupado",
+        current_lot: "Lote Confinamento A",
+        x: 50,
+        y: 30,
+        rest_days: 0,
+        entry_date: new Date(Date.now() - 10 * 86400000).toISOString().split("T")[0],
+        water_source: "Riacho Tamanduá / Bebedouro",
+        capacity_ua: 45,
+        notes: "Pasto amplo superior com acesso ao riacho",
+        user_id: user.id
+      },
+      {
+        id: "pasture-02",
+        number: "02",
+        name: "Pasto da Represa / Sede",
+        area_ha: 8.5,
+        grass_type: "Mombaça",
+        status: "ocupado",
+        current_lot: "Maternidade",
+        x: 63,
+        y: 33,
+        rest_days: 0,
+        entry_date: new Date(Date.now() - 4 * 86400000).toISOString().split("T")[0],
+        water_source: "Açude Fazenda Dois Irmãos",
+        capacity_ua: 18,
+        notes: "Piquete de alta fertilidade ao lado da represa e curral",
+        user_id: user.id
+      },
+      {
+        id: "pasture-03",
+        number: "03",
+        name: "Piquete Corredor Central",
+        area_ha: 11.0,
+        grass_type: "Tifton 85",
+        status: "descanso",
+        x: 62,
+        y: 40,
+        rest_days: 22,
+        water_source: "Bebedouro Central",
+        capacity_ua: 22,
+        notes: "Piquete plano cortado pelo corredor de manejo",
+        user_id: user.id
+      },
+      {
+        id: "pasture-04",
+        number: "04",
+        name: "Retiro Oeste (Bordô)",
+        area_ha: 21.5,
+        grass_type: "Brachiaria Decumbens",
+        status: "ocupado",
+        x: 47,
+        y: 67,
+        rest_days: 0,
+        water_source: "Bebedouro Australiano",
+        capacity_ua: 30,
+        notes: "Área intermediária oeste bem formada",
+        user_id: user.id
+      },
+      {
+        id: "pasture-05",
+        number: "05",
+        name: "Retiro Leste (Bordô)",
+        area_ha: 18.0,
+        grass_type: "Piatã",
+        status: "descanso",
+        x: 58,
+        y: 69,
+        rest_days: 35,
+        water_source: "Bebedouro Australiano",
+        capacity_ua: 28,
+        notes: "Em descanso após rotação de lote",
+        user_id: user.id
+      },
+      {
+        id: "pasture-06",
+        number: "06",
+        name: "Piquete Sul 01 (Amarelo NO)",
+        area_ha: 7.5,
+        grass_type: "Tifton 85",
+        status: "descanso",
+        x: 49,
+        y: 81,
+        rest_days: 28,
+        water_source: "Bebedouro Coletivo Sul",
+        capacity_ua: 15,
+        notes: "Módulo rotacionado intensivo",
+        user_id: user.id
+      },
+      {
+        id: "pasture-07",
+        number: "07",
+        name: "Piquete Sul 02 (Amarelo NE)",
+        area_ha: 7.5,
+        grass_type: "Tifton 85",
+        status: "vedado",
+        x: 56,
+        y: 81,
+        rest_days: 42,
+        water_source: "Bebedouro Coletivo Sul",
+        capacity_ua: 15,
+        notes: "Vedado para reserva",
+        user_id: user.id
+      },
+      {
+        id: "pasture-08",
+        number: "08",
+        name: "Piquete Sul 03 (Amarelo SO)",
+        area_ha: 7.0,
+        grass_type: "Brachiaria Humidicola",
+        status: "descanso",
+        x: 49,
+        y: 89,
+        rest_days: 14,
+        water_source: "Bebedouro Coletivo Sul",
+        capacity_ua: 14,
+        notes: "Parte baixa drenada",
+        user_id: user.id
+      },
+      {
+        id: "pasture-09",
+        number: "09",
+        name: "Piquete Sul 04 (Amarelo SE)",
+        area_ha: 7.0,
+        grass_type: "Brachiaria Humidicola",
+        status: "descanso",
+        x: 56,
+        y: 89,
+        rest_days: 14,
+        water_source: "Bebedouro Coletivo Sul",
+        capacity_ua: 14,
+        notes: "Parte baixa drenada",
+        user_id: user.id
+      }
+    ];
+    saveDataCache(cacheKey, defaultPastures);
+    try {
+      await store.updateSetting('user_pastures', JSON.stringify(defaultPastures));
+    } catch {}
+    return defaultPastures;
   },
 
   addPasture: async (p: Omit<Pasture, "id">): Promise<Pasture> => {
@@ -1470,7 +1532,13 @@ export const store = {
       number: String(p.number || current.length + 1).padStart(2, "0")
     };
 
-    saveDataCache(cacheKey, [newPasture, ...current]);
+    const updated = [newPasture, ...current];
+    saveDataCache(cacheKey, updated);
+    try {
+      await store.updateSetting('user_pastures', JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Could not sync added pasture to cloud:", e);
+    }
     return newPasture;
   },
 
@@ -1482,6 +1550,11 @@ export const store = {
     const current = getDataCache(cacheKey) || [];
     const updated = current.map((p: Pasture) => (p.id === id ? { ...p, ...data } : p));
     saveDataCache(cacheKey, updated);
+    try {
+      await store.updateSetting('user_pastures', JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Could not sync updated pasture to cloud:", e);
+    }
   },
 
   deletePasture: async (id: string): Promise<void> => {
@@ -1492,23 +1565,62 @@ export const store = {
     const current = getDataCache(cacheKey) || [];
     const updated = current.filter((p: Pasture) => p.id !== id);
     saveDataCache(cacheKey, updated);
+    try {
+      await store.updateSetting('user_pastures', JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Could not sync deleted pasture to cloud:", e);
+    }
+  },
+
+  fetchPastureMapImage: async (): Promise<string | null> => {
+    const user = auth.getCurrentUser();
+    if (!user) return store.getPastureMapImage();
+
+    try {
+      // 1. Tentar buscar imagem na nuvem sob a conta do usuário
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('user_id', user.id)
+        .eq('key', 'pasture_map_image')
+        .maybeSingle();
+
+      if (data && data.value && data.value.length > 20) {
+        const cloudImg = data.value;
+        localStorage.setItem("fc_pasture_image_current", cloudImg);
+        localStorage.setItem(`fc_pasture_image_${user.id}`, cloudImg);
+        return cloudImg;
+      }
+    } catch (err) {
+      console.warn("Could not fetch pasture map image from cloud:", err);
+    }
+
+    // 2. Se a nuvem não tem, mas o aparelho local tem uma imagem salva, sobe para a nuvem
+    const localImg = store.getPastureMapImage();
+    if (localImg && !localImg.includes("unsplash") && localImg !== "/fazenda_dois_irmaos.jpg") {
+      try {
+        await store.updateSetting('pasture_map_image', localImg);
+      } catch {}
+      return localImg;
+    }
+
+    return localImg;
   },
 
   getPastureMapImage: (): string | null => {
     try {
-      const current = localStorage.getItem("fc_pasture_image_current");
-      if (current) return current;
-
       const user = auth.getCurrentUser();
       if (user) {
         const userImg = localStorage.getItem(`fc_pasture_image_${user.id}`);
         if (userImg) return userImg;
       }
 
+      const current = localStorage.getItem("fc_pasture_image_current");
+      if (current) return current;
+
       const globalImg = localStorage.getItem("fc_pasture_image");
       if (globalImg) return globalImg;
 
-      // Busca qualquer chave de imagem de pasto salva no storage
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith("fc_pasture_image_")) {
@@ -1522,20 +1634,31 @@ export const store = {
     }
   },
 
-  setPastureMapImage: (img: string | null): void => {
+  setPastureMapImage: async (img: string | null): Promise<void> => {
     try {
       const user = auth.getCurrentUser();
-      if (!img) {
+      let processedImg = img;
+      if (img && img.startsWith("data:image")) {
+        processedImg = await compressImageBase64(img, 1920, 1080, 0.85);
+      }
+
+      if (!processedImg) {
         localStorage.removeItem("fc_pasture_image_current");
         localStorage.removeItem("fc_pasture_image");
         if (user) localStorage.removeItem(`fc_pasture_image_${user.id}`);
+        if (user) {
+          await store.updateSetting('pasture_map_image', '');
+        }
       } else {
-        localStorage.setItem("fc_pasture_image_current", img);
-        localStorage.setItem("fc_pasture_image", img);
-        if (user) localStorage.setItem(`fc_pasture_image_${user.id}`, img);
+        localStorage.setItem("fc_pasture_image_current", processedImg);
+        localStorage.setItem("fc_pasture_image", processedImg);
+        if (user) localStorage.setItem(`fc_pasture_image_${user.id}`, processedImg);
+        if (user) {
+          await store.updateSetting('pasture_map_image', processedImg);
+        }
       }
-    } catch {
-      // storage error
+    } catch (e) {
+      console.error("Error setting pasture map image:", e);
     }
   },
 
@@ -1547,6 +1670,10 @@ export const store = {
     localStorage.removeItem("fc_pasture_image_current");
     localStorage.removeItem("fc_pasture_image");
     localStorage.removeItem(`fc_pasture_image_${user.id}`);
+    try {
+      await store.updateSetting('pasture_map_image', '');
+      await store.updateSetting('user_pastures', '');
+    } catch {}
     return await store.getPastures();
   },
 
