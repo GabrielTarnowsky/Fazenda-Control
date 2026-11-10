@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, DollarSign, Beef, Target, FileText, Settings, Wheat, Baby, Calculator, User, LogOut, MapPin } from "lucide-react";
+import { Home, DollarSign, Beef, Target, FileText, Settings, Wheat, Baby, Calculator, User, LogOut, MapPin, Scale } from "lucide-react";
 import { store } from "@/lib/store";
 import {
   Sidebar,
@@ -18,6 +18,7 @@ const navItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Gastos", url: "/financial", icon: DollarSign },
   { title: "Animais", url: "/animals", icon: Beef },
+  { title: "Pesagem Balança", url: "/weighing", icon: Scale },
   { title: "Lotes", url: "/lotes", icon: Target },
   { title: "Pastos & Mapa", url: "/pastos", icon: MapPin },
   { title: "Rações", url: "/rations", icon: Wheat },

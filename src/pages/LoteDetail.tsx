@@ -564,7 +564,16 @@ export default function LoteDetail() {
             </CardTitle>
             <p className="text-xs text-muted-foreground">Registre o peso em sequência</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => navigate(`/weighing?lote=${encodeURIComponent(nomeDecodificado)}`)}
+              className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-sm"
+            >
+              <Scale className="h-3.5 w-3.5" />
+              Balança Alfa 3102C.S
+            </Button>
             <Input 
               type="date" 
               className="w-[125px] h-8 text-[11px] bg-white border-primary/20" 

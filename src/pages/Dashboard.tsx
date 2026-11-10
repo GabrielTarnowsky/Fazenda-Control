@@ -687,9 +687,9 @@ export default function Dashboard() {
                           <Button 
                             size="sm" 
                             className="h-7 text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white"
-                            onClick={() => navigate("/events/new?type=pesagem")}
+                            onClick={() => navigate("/weighing")}
                           >
-                            Pesar Agora
+                            Pesagem Automática
                           </Button>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1.5">

@@ -27,6 +27,7 @@ import SettingsPage from "./pages/Settings";
 import Simulator from "./pages/Simulator";
 import RainfallDetails from "./pages/RainfallDetails";
 import PasturesPage from "./pages/Pastures";
+import AutomaticWeighing from "./pages/AutomaticWeighing";
 import { store } from "./lib/store";
 import { Loader2 } from "lucide-react";
 
@@ -116,6 +117,8 @@ const App = () => {
               <Route path="/insemination" element={<ProtectedRoute><Insemination /></ProtectedRoute>} />
               <Route path="/pastos" element={<ProtectedRoute><PasturesPage /></ProtectedRoute>} />
               <Route path="/pastures" element={<ProtectedRoute><PasturesPage /></ProtectedRoute>} />
+              <Route path="/weighing" element={<ProtectedRoute><AutomaticWeighing /></ProtectedRoute>} />
+              <Route path="/pesagem" element={<ProtectedRoute><AutomaticWeighing /></ProtectedRoute>} />
               <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
               <Route path="/rainfall" element={<ProtectedRoute><RainfallDetails /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
