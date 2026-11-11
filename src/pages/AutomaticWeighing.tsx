@@ -12,8 +12,8 @@ import {
   Scale, Wifi, WifiOff, Terminal, Sliders, Play, Pause, 
   RotateCcw, Download, Check, AlertCircle, ArrowRight, ArrowLeft, 
   Beef, Sparkles, Volume2, VolumeX, Clock, Calendar, 
-  TrendingUp, TrendingDown, FileSpreadsheet, RefreshCw, Zap,
-  CheckCircle2, AlertTriangle, ShieldCheck, ChevronRight, Activity, ExternalLink
+  TrendingUp, FileSpreadsheet, RefreshCw, Zap,
+  CheckCircle2, AlertTriangle, ShieldCheck, ChevronRight, Activity, ExternalLink, Lock
 } from "lucide-react";
 
 import { ScaleReading, SerialConfig, StabilityConfig, WeighingRecord, WeighingState, DEFAULT_SERIAL_CONFIG, DEFAULT_STABILITY_CONFIG } from "@/services/scale/types";
@@ -79,6 +79,18 @@ export default function AutomaticWeighing() {
   const [stabilityMessage, setStabilityMessage] = useState<string>("Aguardando entrada do animal...");
   const [rawTelemetry, setRawTelemetry] = useState<string>("--");
   const [softwareTareOffset, setSoftwareTareOffset] = useState<number>(0);
+
+  // Contagem regressiva de travamento de 5 segundos
+  const [freezeCountdown, setFreezeCountdown] = useState<number | null>(null);
+  const freezeCountdownTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (freezeCountdownTimerRef.current) {
+        clearInterval(freezeCountdownTimerRef.current);
+      }
+    };
+  }, []);
 
   // Histórico de Pesagens da Sessão
   const [sessionRecords, setSessionRecords] = useState<WeighingRecord[]>(() => {
@@ -203,36 +215,6 @@ export default function AutomaticWeighing() {
     };
   }, [currentAnimal, events]);
 
-  // Cálculo de ganho e GMD com o peso que está na balança (ou congelado)
-  const realTimePerformance = useMemo(() => {
-    const targetWeightToCompare = frozenWeight !== null ? frozenWeight : currentWeight;
-    if (!previousWeighing || targetWeightToCompare <= 0) return null;
-
-    const gainKg = Math.round((targetWeightToCompare - previousWeighing.weight) * 10) / 10;
-    
-    let days = 1;
-    if (previousWeighing.date && previousWeighing.date.includes("-")) {
-      const prevDate = new Date(previousWeighing.date);
-      const today = new Date();
-      const diffMs = today.getTime() - prevDate.getTime();
-      days = Math.max(1, Math.floor(diffMs / (1000 * 3600 * 24)));
-    } else {
-      days = 30; // fallback padrão
-    }
-
-    const gmdKgPerDay = gainKg / days;
-    const gmdGramsPerDay = Math.round(gmdKgPerDay * 1000);
-
-    return {
-      previousWeight: previousWeighing.weight,
-      previousDate: previousWeighing.date,
-      currentWeight: targetWeightToCompare,
-      gainKg,
-      days,
-      gmdKgPerDay: Math.round(gmdKgPerDay * 100) / 100,
-      gmdGramsPerDay
-    };
-  }, [previousWeighing, frozenWeight, currentWeight]);
 
   // Garante que selectedAnimalId aponte sempre para um animal válido se houver animais disponíveis
   useEffect(() => {
@@ -298,6 +280,22 @@ export default function AutomaticWeighing() {
 
   const advanceToNextAnimalRef = useRef(advanceToNextAnimal);
   advanceToNextAnimalRef.current = advanceToNextAnimal;
+
+  const handleResetPlatformAndNext = useCallback(() => {
+    if (freezeCountdownTimerRef.current) {
+      clearInterval(freezeCountdownTimerRef.current);
+      freezeCountdownTimerRef.current = null;
+    }
+    setFreezeCountdown(null);
+    detectorRef.current?.reset();
+    setFrozenWeight(null);
+    if (defaultScaleSimulator.getStatus().isActive) {
+      defaultScaleSimulator.simulateAnimalExit();
+    }
+    setWeighingState("IDLE_EMPTY");
+    advanceToNextAnimalRef.current();
+    toast.info("Plataforma liberada (0.0 kg). Próximo boi pronto!");
+  }, []);
 
   // 4. CAPTURA AUTOMÁTICA E REGISTRO NO SUPABASE / STORE
   const handleAutomaticCapture = useCallback(async (capturedWeight: number, reading: ScaleReading) => {
@@ -404,11 +402,28 @@ export default function AutomaticWeighing() {
         `Pesagem capturada com sucesso: ${capturedWeight.toFixed(1)} kg no brinco ${animal.tag}!`,
         { duration: 4000 }
       );
+
+      // Inicia travamento de 5 segundos na tela com contagem regressiva
+      if (freezeCountdownTimerRef.current) {
+        clearInterval(freezeCountdownTimerRef.current);
+      }
+      setFreezeCountdown(5);
+      freezeCountdownTimerRef.current = setInterval(() => {
+        setFreezeCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            clearInterval(freezeCountdownTimerRef.current);
+            freezeCountdownTimerRef.current = null;
+            handleResetPlatformAndNext();
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } catch (err: any) {
       console.error("Erro ao salvar pesagem:", err);
       toast.error(`Erro ao salvar pesagem: ${err.message || "Falha na sincronização"}`);
     }
-  }, [loadDatabaseData]);
+  }, [loadDatabaseData, handleResetPlatformAndNext]);
 
   const handleAutomaticCaptureRef = useRef(handleAutomaticCapture);
   handleAutomaticCaptureRef.current = handleAutomaticCapture;
@@ -1050,6 +1065,41 @@ export default function AutomaticWeighing() {
                   {stabilityMessage}
                 </p>
               </div>
+
+              {/* PAINEL DE PESO TRAVADO COM CONTAGEM E BOTÃO PRÓXIMO BOI */}
+              {(frozenWeight !== null || freezeCountdown !== null) && (
+                <div className="mt-4 p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/50 w-full flex flex-col sm:flex-row items-center justify-between gap-3 z-10 animate-in fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                      <Lock className="h-5 w-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                          PESO GRAVADO & TRAVADO
+                        </span>
+                        {freezeCountdown !== null && (
+                          <Badge className="bg-emerald-500 text-slate-950 text-[10px] font-black animate-pulse">
+                            Liberando em {freezeCountdown}s
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        Animal registrado no histórico e relatório.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleResetPlatformAndNext}
+                    className="h-11 px-5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider gap-2 shadow-xl hover:scale-105 active:scale-95 transition-all shrink-0 w-full sm:w-auto"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                    PRÓXIMO BOI (ZERAR AGORA)
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Rodapé de Comandos Manuais do Visor */}
@@ -1281,39 +1331,6 @@ export default function AutomaticWeighing() {
                     </div>
                   </div>
 
-                  {/* Resumo de Ganho de Peso & GMD */}
-                  {realTimePerformance && realTimePerformance.gainKg !== 0 && (
-                    <div className={`p-3.5 rounded-xl border flex items-center justify-between ${
-                      realTimePerformance.gainKg >= 0 
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300"
-                        : "bg-rose-500/10 border-rose-500/20 text-rose-800 dark:text-rose-300"
-                    }`}>
-                      <div>
-                        <div className="flex items-center gap-1.5 font-black text-xs">
-                          {realTimePerformance.gainKg >= 0 ? (
-                            <TrendingUp className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 text-rose-600" />
-                          )}
-                          <span>
-                            {realTimePerformance.gainKg >= 0 ? "+" : ""}{realTimePerformance.gainKg.toFixed(1)} kg no período
-                          </span>
-                        </div>
-                        <p className="text-[10px] opacity-80 mt-0.5">
-                          Intervalo de {realTimePerformance.days} dias entre pesagens
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-xs font-black uppercase tracking-wider block opacity-70">
-                          GMD Médio
-                        </span>
-                        <span className="text-base font-black">
-                          {realTimePerformance.gmdGramsPerDay > 0 ? "+" : ""}{realTimePerformance.gmdGramsPerDay} g/dia
-                        </span>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Botão de Avanço Rápido */}
                   <Button

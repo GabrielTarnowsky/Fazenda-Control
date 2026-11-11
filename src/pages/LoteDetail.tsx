@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { store, Animal } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck, Beef, LandPlot, Plus, Utensils, Wifi, WifiOff, Lock, Unlock, Radio, Zap, ExternalLink } from "lucide-react";
+import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck, Beef, LandPlot, Plus, Utensils, Wifi, WifiOff, Lock, Unlock, Radio, Zap, ExternalLink, FileSpreadsheet, SkipForward } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,29 @@ export default function LoteDetail() {
   const isLiveAutoFillRef = useRef<boolean>(true);
   isLiveAutoFillRef.current = isLiveAutoFill;
 
+  // Estado de travamento pós-pesagem (5 segundos na tela com contagem e próximo boi)
+  const [frozenWeighing, setFrozenWeighing] = useState<{
+    tag: string;
+    animalName?: string;
+    weight: number;
+    prevWeight?: number;
+    gainKg?: number;
+    gmdKg?: number;
+    countdown: number;
+  } | null>(null);
+  const frozenWeighingRef = useRef<boolean>(false);
+  frozenWeighingRef.current = Boolean(frozenWeighing);
+  const countdownTimerRef = useRef<any>(null);
+
+  // Limpa o timer de 5s ao desmontar
+  useEffect(() => {
+    return () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     // Configura o serviço para Alfa TRC 9600 8N1
     defaultWebSerialService.setConfig({
@@ -69,6 +92,10 @@ export default function LoteDetail() {
     });
 
     const unsubReading = defaultWebSerialService.onReading((reading) => {
+      // Se a tela estiver travada nos 5 segundos após pesagem, mantém o valor congelado
+      if (frozenWeighingRef.current) {
+        return;
+      }
       setLiveScaleWeight(reading.weight);
       setIsScaleStable(reading.isStable);
       // Se a sincronização ao vivo estiver ativa, preenche o campo input em tempo real
@@ -160,10 +187,39 @@ export default function LoteDetail() {
 
   const [loading, setLoading] = useState(true);
 
-  const handleQuickWeight = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAdvanceNextBoi = (knownReportIds?: string[]) => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setFrozenWeighing(null);
+
+    const weighedSet = new Set(knownReportIds || reportAnimalIds);
+    const activeAnimals = animals.filter(a => a.status === "ativo");
+    const unweighed = activeAnimals.filter(a => !weighedSet.has(a.id));
+
+    // Zera o peso da balança na tela e seleciona o próximo animal não pesado
+    setLiveScaleWeight(0);
+    setQuickWeight(prev => ({
+      ...prev,
+      weight: 0,
+      tag: unweighed.length > 0 ? unweighed[0].tag : ""
+    }));
+
+    setIsLiveAutoFill(true);
+
+    if (unweighed.length > 0) {
+      toast.info(`Balança zerada (0.0 kg). Próximo boi na fila: Brinco #${unweighed[0].tag}`);
+    } else {
+      toast.success("Balança zerada! Todos os animais ativos deste lote já foram pesados.");
+      tagInputRef.current?.focus();
+    }
+  };
+
+  const handleQuickWeight = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!quickWeight.tag || quickWeight.weight <= 0) {
-      toast.error("Preencha o número e o peso");
+      toast.error("Preencha o número do brinco e o peso");
       return;
     }
 
@@ -173,26 +229,70 @@ export default function LoteDetail() {
       return;
     }
 
-    await store.addEvent({
-      animal_id: animal.id,
-      type: "pesagem",
-      date: quickWeight.date,
-      description: "Pesagem Rápida no Lote",
-      weight: quickWeight.weight,
-      value: 0
-    });
-
-    setReportAnimalIds(prev => [...new Set([...prev, animal.id])]);
-    setIsReportOpen(true);
-    toast.success("Peso registrado!");
-
-    setSuccessMsg(`Animal #${quickWeight.tag}: ${quickWeight.weight}kg salvo!`);
-    setQuickWeight({ ...quickWeight, tag: "", weight: 0 });
+    const weighedWeight = quickWeight.weight;
+    const prevWeight = animal.weight || animal.peso_entrada || 0;
+    const gainKg = prevWeight > 0 ? Math.round((weighedWeight - prevWeight) * 10) / 10 : 0;
     
-    // Refresh
-    loadData();
-    tagInputRef.current?.focus();
-    setTimeout(() => setSuccessMsg(""), 3000);
+    // Cálculo do GMD
+    const lastDate = animal.data_compra || animal.birth_date || quickWeight.date;
+    const diffDays = Math.max(1, Math.round((new Date(quickWeight.date).getTime() - new Date(lastDate).getTime()) / (1000 * 3600 * 24)));
+    const gmdKg = gainKg / diffDays;
+
+    try {
+      // 1. Atualiza no store e banco
+      await store.updateAnimal(animal.id, { weight: weighedWeight });
+
+      // 2. Registra o evento de pesagem
+      await store.addEvent({
+        animal_id: animal.id,
+        type: "pesagem",
+        date: quickWeight.date,
+        description: `Pesagem Balança Alfa 3102C.S - Brinco #${animal.tag} - GMD: ${Math.round(gmdKg * 1000)}g/dia`,
+        weight: weighedWeight,
+        value: weighedWeight
+      });
+
+      // 3. Adiciona animal ao relatório da sessão
+      const updatedReportIds = Array.from(new Set([...reportAnimalIds, animal.id]));
+      setReportAnimalIds(updatedReportIds);
+
+      // 4. Atualiza estado local imediatamente e recarrega dados para atualizar todas as outras abas (Ativos, GMD, etc.)
+      setAnimals(prev => prev.map(a => a.id === animal.id ? { ...a, weight: weighedWeight } : a));
+      await loadData();
+
+      toast.success(`Animal #${animal.tag} pesado com sucesso: ${weighedWeight.toFixed(1)} kg!`);
+
+      // 5. Trava na tela por 5 segundos com contagem regressiva
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+
+      setFrozenWeighing({
+        tag: animal.tag,
+        animalName: animal.categoria || animal.breed,
+        weight: weighedWeight,
+        prevWeight: prevWeight > 0 ? prevWeight : undefined,
+        gainKg,
+        gmdKg,
+        countdown: 5
+      });
+
+      countdownTimerRef.current = setInterval(() => {
+        setFrozenWeighing(prev => {
+          if (!prev || prev.countdown <= 1) {
+            clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+            // Ao término dos 5 segundos, zera automaticamente e avança para o próximo boi
+            handleAdvanceNextBoi(updatedReportIds);
+            return null;
+          }
+          return { ...prev, countdown: prev.countdown - 1 };
+        });
+      }, 1000);
+
+    } catch (err: any) {
+      toast.error(`Erro ao salvar pesagem: ${err.message || "Tente novamente"}`);
+    }
   };
 
   const handleBulkAction = async () => {
@@ -669,6 +769,20 @@ export default function LoteDetail() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Botão Ver Relatório da Sessão Atual */}
+            {reportAnimalIds.length > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setIsReportOpen(true)}
+                className="h-8 text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 gap-1.5 shadow-sm"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                Relatório ({reportAnimalIds.length} pesados)
+              </Button>
+            )}
+
             {/* Botão Conectar / Desconectar Balança via Web Serial API */}
             {scaleStatus === "connected" ? (
               <Button
@@ -735,8 +849,61 @@ export default function LoteDetail() {
             </div>
           )}
 
+          {/* PAINEL DE PESO TRAVADO PÓS-PESAGEM (5 SEGUNDOS COM BOTÃO PRÓXIMO BOI) */}
+          {frozenWeighing && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 text-white border-2 border-emerald-500/60 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Lock className="h-6 w-6 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                      PESO GRAVADO NO SISTEMA & TRAVADO
+                    </span>
+                    <Badge className="bg-emerald-500 text-slate-950 text-[10px] font-black animate-pulse">
+                      Liberando em {frozenWeighing.countdown}s
+                    </Badge>
+                  </div>
+                  <p className="text-2xl font-black italic tracking-tight text-white mt-0.5">
+                    Brinco #{frozenWeighing.tag} — <span className="text-emerald-400">{frozenWeighing.weight.toFixed(1)} kg</span>
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 mt-1 font-medium">
+                    {frozenWeighing.prevWeight && (
+                      <span className="text-slate-400">Anterior: {frozenWeighing.prevWeight.toFixed(1)} kg</span>
+                    )}
+                    {frozenWeighing.gainKg !== undefined && (
+                      <span className={frozenWeighing.gainKg >= 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                        Ganho: {frozenWeighing.gainKg >= 0 ? "+" : ""}{frozenWeighing.gainKg.toFixed(1)} kg
+                      </span>
+                    )}
+                    {frozenWeighing.gmdKg !== undefined && (
+                      <span className="text-blue-400 font-bold">
+                        GMD: {frozenWeighing.gmdKg.toFixed(2)} kg/dia
+                      </span>
+                    )}
+                    <span className="text-emerald-400/80 text-[11px]">
+                      • Atualizado nas abas Ativos e Relatório
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                <Button
+                  type="button"
+                  onClick={() => handleAdvanceNextBoi()}
+                  className="h-12 px-6 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider gap-2 shadow-2xl hover:scale-105 active:scale-95 transition-all w-full md:w-auto"
+                >
+                  <ArrowRight className="h-5 w-5" />
+                  PRÓXIMO BOI (ZERAR AGORA)
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Painel do Visor Digital da Balança quando Conectada */}
-          {scaleStatus === "connected" && (
+          {scaleStatus === "connected" && !frozenWeighing && (
             <div className="p-3.5 rounded-2xl bg-slate-900 text-white border border-slate-800 shadow-inner flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-slate-800 flex items-center justify-center text-emerald-400">
@@ -799,7 +966,18 @@ export default function LoteDetail() {
             className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end"
           >
             <div className="space-y-1.5 text-left col-span-2 sm:col-span-1">
-              <Label className="text-xs font-black uppercase text-muted-foreground ml-1">Brinco</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-black uppercase text-muted-foreground ml-1">Brinco</Label>
+                {reportAnimalIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleAdvanceNextBoi()}
+                    className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                  >
+                    <SkipForward className="h-3 w-3" /> Próximo
+                  </button>
+                )}
+              </div>
               <Input 
                 ref={tagInputRef}
                 placeholder="Ex: 123" 
@@ -812,7 +990,7 @@ export default function LoteDetail() {
             <div className="space-y-1.5 text-left col-span-2 sm:col-span-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-black uppercase text-muted-foreground ml-1">Peso (kg)</Label>
-                {scaleStatus === "connected" && liveScaleWeight !== null && (
+                {scaleStatus === "connected" && liveScaleWeight !== null && !frozenWeighing && (
                   <button
                     type="button"
                     onClick={handleCaptureWeight}
@@ -834,7 +1012,7 @@ export default function LoteDetail() {
                   }}
                   className="h-12 text-xl font-black italic bg-white border-primary/30 focus-visible:ring-primary pr-20"
                 />
-                {scaleStatus === "connected" && (
+                {scaleStatus === "connected" && !frozenWeighing && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -848,9 +1026,19 @@ export default function LoteDetail() {
               </div>
             </div>
 
-            <Button type="submit" className="h-12 font-black italic uppercase tracking-widest col-span-2 md:col-span-1 shadow-xl bg-primary hover:bg-primary/90">
-              <Save className="mr-2 h-5 w-5" /> SALVAR
-            </Button>
+            {frozenWeighing ? (
+              <Button 
+                type="button" 
+                onClick={() => handleAdvanceNextBoi()} 
+                className="h-12 font-black italic uppercase tracking-widest col-span-2 md:col-span-1 shadow-xl bg-emerald-600 hover:bg-emerald-500 text-white gap-2"
+              >
+                <ArrowRight className="h-5 w-5" /> PRÓXIMO BOI
+              </Button>
+            ) : (
+              <Button type="submit" className="h-12 font-black italic uppercase tracking-widest col-span-2 md:col-span-1 shadow-xl bg-primary hover:bg-primary/90">
+                <Save className="mr-2 h-5 w-5" /> SALVAR PESO
+              </Button>
+            )}
           </form>
 
           {successMsg && (
