@@ -230,8 +230,8 @@ export const ScaleSettingsModal: React.FC<ScaleSettingsModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
               {/* Protocolo */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-foreground">Protocolo da Balança</Label>
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-xs font-bold text-foreground">Protocolo da Balança Alfa</Label>
                 <Select 
                   value={serial.protocol} 
                   onValueChange={(val: ScaleProtocol) => setSerial(s => ({ ...s, protocol: val }))}
@@ -240,17 +240,114 @@ export const ScaleSettingsModal: React.FC<ScaleSettingsModalProps> = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="alfa_t02">Alfa Instrumentos T02 (Padrão 3102C.S)</SelectItem>
-                    <SelectItem value="alfa_continuous">Alfa Contínuo Simples (ST/US)</SelectItem>
-                    <SelectItem value="auto_detect">Auto-detectar Inteligente</SelectItem>
+                    <SelectItem value="alfa_trc">Alfa TRC - Transmissão Reduzida Contínua (Recomendado)</SelectItem>
+                    <SelectItem value="alfa_t02">Alfa Instrumentos T02 Estrito (ST,GS,+00450.5kg)</SelectItem>
+                    <SelectItem value="alfa_continuous">Alfa Contínuo Simples (ST 00450.5 kg)</SelectItem>
+                    <SelectItem value="modbus_rtu">Modbus RTU Binário (Industrial RS-485/RS-232)</SelectItem>
+                    <SelectItem value="modbus_ascii">Modbus ASCII (:0103...)</SelectItem>
                     <SelectItem value="generic_ascii">ASCII Genérico / Numérico</SelectItem>
-                    <SelectItem value="modbus_rtu">Modbus RTU</SelectItem>
+                    <SelectItem value="auto_detect">Auto-detectar Inteligente</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-muted-foreground">
-                  Estrutura dos telegramas transmitidos pela saída serial.
+                  O modo TRC transmite o peso continuamente com quebra de linha CRLF.
                 </p>
               </div>
+
+              {/* Se Modbus estiver ativo, exibe campos configuráveis */}
+              {(serial.protocol === "modbus_rtu" || serial.protocol === "modbus_ascii") && (
+                <div className="md:col-span-2 p-3 bg-muted/40 border border-primary/20 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-primary">
+                    <Cpu className="h-4 w-4" />
+                    <span>Configuração do Mapa de Registradores Modbus</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Ajuste a posição dos registradores, formato dos bytes e escala conforme manual da Alfa 3102C.S:
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold">Offset (Bytes)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="64"
+                        value={serial.modbusConfig?.registerOffset ?? 0}
+                        onChange={e => setSerial(s => ({
+                          ...s,
+                          modbusConfig: {
+                            ...(s.modbusConfig || { slaveAddress: 1, functionCode: 3, registerOffset: 0, dataEncoding: "int32", byteOrder: "BE", scaleFactor: 0.1, hasStabilityField: false }),
+                            registerOffset: Math.max(0, parseInt(e.target.value) || 0)
+                          }
+                        }))}
+                        className="h-8 text-xs font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold">Formato de Dados</Label>
+                      <Select
+                        value={serial.modbusConfig?.dataEncoding || "int32"}
+                        onValueChange={v => setSerial(s => ({
+                          ...s,
+                          modbusConfig: {
+                            ...(s.modbusConfig || { slaveAddress: 1, functionCode: 3, registerOffset: 0, dataEncoding: "int32", byteOrder: "BE", scaleFactor: 0.1, hasStabilityField: false }),
+                            dataEncoding: v as any
+                          }
+                        }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="int32">32-bit Inteiro (2 Regs)</SelectItem>
+                          <SelectItem value="uint32">32-bit Unsigned</SelectItem>
+                          <SelectItem value="float32">32-bit Float IEEE</SelectItem>
+                          <SelectItem value="int16">16-bit Inteiro (1 Reg)</SelectItem>
+                          <SelectItem value="uint16">16-bit Unsigned</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold">Ordem dos Bytes</Label>
+                      <Select
+                        value={serial.modbusConfig?.byteOrder || "BE"}
+                        onValueChange={v => setSerial(s => ({
+                          ...s,
+                          modbusConfig: {
+                            ...(s.modbusConfig || { slaveAddress: 1, functionCode: 3, registerOffset: 0, dataEncoding: "int32", byteOrder: "BE", scaleFactor: 0.1, hasStabilityField: false }),
+                            byteOrder: v as any
+                          }
+                        }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="BE">Big-Endian (ABCD)</SelectItem>
+                          <SelectItem value="LE">Little-Endian (DCBA)</SelectItem>
+                          <SelectItem value="CDAB">Mid-Big / Word swap (CDAB)</SelectItem>
+                          <SelectItem value="BADC">Byte swap (BADC)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold">Fator de Escala</Label>
+                      <Select
+                        value={String(serial.modbusConfig?.scaleFactor ?? 0.1)}
+                        onValueChange={v => setSerial(s => ({
+                          ...s,
+                          modbusConfig: {
+                            ...(s.modbusConfig || { slaveAddress: 1, functionCode: 3, registerOffset: 0, dataEncoding: "int32", byteOrder: "BE", scaleFactor: 0.1, hasStabilityField: false }),
+                            scaleFactor: parseFloat(v) || 1.0
+                          }
+                        }))}
+                      >
+                        <SelectTrigger className="h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0.1">0.1 (÷ 10 - 1 decimal)</SelectItem>
+                          <SelectItem value="0.01">0.01 (÷ 100 - 2 dec)</SelectItem>
+                          <SelectItem value="1">1.0 (Direto em kg)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Baud Rate */}
               <div className="space-y-1.5">
@@ -310,7 +407,7 @@ export const ScaleSettingsModal: React.FC<ScaleSettingsModalProps> = ({
               </div>
 
               {/* Paridade */}
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 md:col-span-2">
                 <Label className="text-xs font-bold text-foreground">Paridade</Label>
                 <Select 
                   value={serial.parity} 
@@ -320,7 +417,7 @@ export const ScaleSettingsModal: React.FC<ScaleSettingsModalProps> = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Nenhuma (None - Padrão)</SelectItem>
+                    <SelectItem value="none">Nenhuma (None - Padrão Alfa 3102C.S)</SelectItem>
                     <SelectItem value="even">Par (Even)</SelectItem>
                     <SelectItem value="odd">Ímpar (Odd)</SelectItem>
                   </SelectContent>

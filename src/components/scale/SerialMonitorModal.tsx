@@ -134,6 +134,11 @@ export const SerialMonitorModal: React.FC<SerialMonitorModalProps> = ({
                   <span className="text-amber-300 font-bold tracking-wide">
                     "{frame.rawAscii.replace(/\r/g, "\\r").replace(/\n/g, "\\n")}"
                   </span>
+                  {frame.statusNote && (
+                    <span className="ml-2 text-[10px] text-slate-400 italic">
+                      ({frame.statusNote})
+                    </span>
+                  )}
                 </div>
 
                 <div className="text-[10px] text-slate-500 shrink-0 font-mono hidden md:block">

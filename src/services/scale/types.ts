@@ -1,10 +1,12 @@
 // Tipos e Interfaces para o Módulo de Pesagem Automática e Balança Alfa 3102C.S
 
 export type ScaleProtocol = 
-  | "alfa_t02"          // Protocolo T02 Contínuo padrão Alfa Instrumentos (ex: ST,GS,+00450.5kg\r\n)
+  | "alfa_trc"          // Protocolo Alfa TRC (Transmissão Reduzida Contínua: ex: +00450.5 kg\r\n ou ST +00450.5 kg\r\n)
+  | "alfa_t02"          // Protocolo Alfa T02 Contínuo (ex: ST,GS,+00450.5kg\r\n)
   | "alfa_continuous"   // Protocolo Contínuo Alfa Simples (ex: ST  00450.5 kg\r\n)
+  | "modbus_rtu"        // Protocolo industrial Modbus RTU binário (Função 0x03 ou 0x04)
+  | "modbus_ascii"      // Protocolo industrial Modbus ASCII (ex: :010304...LRC\r\n)
   | "generic_ascii"     // ASCII genérico com auto-detecção de números e decimais
-  | "modbus_rtu"        // Protocolo industrial Modbus RTU
   | "auto_detect";      // Auto-detecção inteligente de padrão
 
 export type SerialBaudRate = 1200 | 2400 | 4800 | 9600 | 19200 | 38400 | 57600 | 115200;
@@ -12,12 +14,38 @@ export type SerialDataBits = 7 | 8;
 export type SerialStopBits = 1 | 2;
 export type SerialParity = "none" | "even" | "odd";
 
+export type ModbusDataEncoding = "int16" | "uint16" | "int32" | "uint32" | "float32";
+export type ModbusByteOrder = "BE" | "LE" | "CDAB" | "BADC";
+
+export interface ModbusRegisterConfig {
+  slaveAddress: number;           // Endereço escravo (padrão 1)
+  functionCode: number;           // 3 (Holding Registers) ou 4 (Input Registers)
+  registerOffset: number;         // Offset em bytes no payload de dados retornado (ex: 0 para o 1º registrador)
+  dataEncoding: ModbusDataEncoding; // "int16" | "uint16" | "int32" | "uint32" | "float32"
+  byteOrder: ModbusByteOrder;     // Ordem dos bytes / palavras
+  scaleFactor: number;            // Fator multiplicador para conversão em kg (ex: 1.0, 0.1 para dividir por 10, 0.01)
+  hasStabilityField: boolean;     // Se o mapa de registradores possui campo de estabilidade confirmado
+  stabilityByteOffset?: number;   // Offset do byte de status de estabilidade se confirmado
+  stabilityBitMask?: number;      // Bitmask para testar estabilidade (ex: 0x01)
+}
+
+export const DEFAULT_MODBUS_CONFIG: ModbusRegisterConfig = {
+  slaveAddress: 1,
+  functionCode: 3,
+  registerOffset: 0,
+  dataEncoding: "int32",
+  byteOrder: "BE",
+  scaleFactor: 0.1,
+  hasStabilityField: false
+};
+
 export interface SerialConfig {
   baudRate: SerialBaudRate;
   dataBits: SerialDataBits;
   stopBits: SerialStopBits;
   parity: SerialParity;
   protocol: ScaleProtocol;
+  modbusConfig?: ModbusRegisterConfig;
 }
 
 export interface StabilityConfig {
@@ -99,5 +127,6 @@ export const DEFAULT_SERIAL_CONFIG: SerialConfig = {
   dataBits: 8,
   stopBits: 1,
   parity: "none",
-  protocol: "alfa_t02"
+  protocol: "alfa_trc",
+  modbusConfig: { ...DEFAULT_MODBUS_CONFIG }
 };

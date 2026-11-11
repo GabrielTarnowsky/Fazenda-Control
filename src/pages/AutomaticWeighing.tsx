@@ -13,11 +13,11 @@ import {
   RotateCcw, Download, Check, AlertCircle, ArrowRight, ArrowLeft, 
   Beef, Sparkles, Volume2, VolumeX, Clock, Calendar, 
   TrendingUp, TrendingDown, FileSpreadsheet, RefreshCw, Zap,
-  CheckCircle2, AlertTriangle, ShieldCheck, ChevronRight, Activity
+  CheckCircle2, AlertTriangle, ShieldCheck, ChevronRight, Activity, ExternalLink
 } from "lucide-react";
 
 import { ScaleReading, SerialConfig, StabilityConfig, WeighingRecord, WeighingState, DEFAULT_SERIAL_CONFIG, DEFAULT_STABILITY_CONFIG } from "@/services/scale/types";
-import { defaultWebSerialService, SerialDebugFrame } from "@/services/scale/webSerialService";
+import { defaultWebSerialService, SerialDebugFrame, isRunningInIframe } from "@/services/scale/webSerialService";
 import { StabilityDetector, StabilityStatus } from "@/services/scale/stabilityDetector";
 import { defaultScaleSimulator, SimulatorStatus } from "@/services/scale/scaleSimulator";
 import { soundEffects } from "@/services/scale/audioFeedback";
@@ -60,6 +60,7 @@ export default function AutomaticWeighing() {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectedPortLabel, setConnectedPortLabel] = useState<string>("");
 
   // Modo Simulador
   const [isSimulatorActive, setIsSimulatorActive] = useState<boolean>(false);
@@ -104,6 +105,22 @@ export default function AutomaticWeighing() {
     detectorRef.current = new StabilityDetector(stabilityConfig);
   }
 
+  // Refs mutáveis para evitar problemas de stale closures em callbacks da serial e detector
+  const selectedAnimalIdRef = useRef<string>(selectedAnimalId);
+  selectedAnimalIdRef.current = selectedAnimalId;
+
+  const animalsRef = useRef<Animal[]>(animals);
+  animalsRef.current = animals;
+
+  const eventsRef = useRef<AnimalEvent[]>(events);
+  eventsRef.current = events;
+
+  const sessionRecordsRef = useRef<WeighingRecord[]>(sessionRecords);
+  sessionRecordsRef.current = sessionRecords;
+
+  const stabilityConfigRef = useRef<StabilityConfig>(stabilityConfig);
+  stabilityConfigRef.current = stabilityConfig;
+
   // 1. CARREGAR DADOS INICIAIS
   const loadDatabaseData = useCallback(async () => {
     try {
@@ -112,22 +129,40 @@ export default function AutomaticWeighing() {
         store.getEvents()
       ]);
 
-      const activeList = (animList || []).filter(a => a.status === "ativo");
+      // Filtra animais excluindo apenas baixados/vendidos/mortos
+      const activeList = (animList || []).filter(a => {
+        const s = (a.status || "").toLowerCase().trim();
+        return s !== "vendido" && s !== "morto" && s !== "abatido" && s !== "inativo";
+      });
+
       setAnimals(activeList);
+      animalsRef.current = activeList;
+
       setEvents(eventList || []);
+      eventsRef.current = eventList || [];
 
       // Extrai lotes únicos
-      const uniqueLotes = Array.from(new Set(activeList.map(a => a.lote_id || a.lot || "Sem Lote"))).filter(Boolean);
+      const uniqueLotes = Array.from(new Set(activeList.map(a => a.lote_id || a.lot || "Sem Lote"))).filter(Boolean) as string[];
       setLotes(uniqueLotes);
 
-      // Se não tiver selecionado animal, seleciona o primeiro
-      if (!selectedAnimalId && activeList.length > 0) {
-        setSelectedAnimalId(activeList[0].id);
-      }
+      // Auto-seleciona animal se ainda não houver nenhum ou se o selecionado não existir
+      setSelectedAnimalId(prev => {
+        if (prev && activeList.some(a => a.id === prev)) return prev;
+        if (queryLote && queryLote !== "all") {
+          const match = activeList.find(a => (a.lote_id || a.lot || "Sem Lote") === queryLote);
+          if (match) {
+            selectedAnimalIdRef.current = match.id;
+            return match.id;
+          }
+        }
+        const firstId = activeList.length > 0 ? activeList[0].id : "";
+        selectedAnimalIdRef.current = firstId;
+        return firstId;
+      });
     } catch (err) {
       console.error("Erro ao carregar animais:", err);
     }
-  }, [selectedAnimalId]);
+  }, [queryLote]);
 
   useEffect(() => {
     loadDatabaseData();
@@ -140,43 +175,6 @@ export default function AutomaticWeighing() {
     } catch {}
   }, [sessionRecords]);
 
-  // 2. CONFIGURAR DETECTOR DE ESTABILIDADE E CALLBACKS
-  useEffect(() => {
-    const detector = detectorRef.current;
-    if (!detector) return;
-
-    detector.updateConfig(stabilityConfig);
-
-    // Callback quando o peso é estabilizado e capturado com sucesso!
-    detector.onCaptured((capturedWeight, reading) => {
-      handleAutomaticCapture(capturedWeight, reading);
-    });
-
-    // Callback de mudança de status / progresso
-    detector.onStateChange((status) => {
-      setWeighingState(status.state);
-      setStabilityProgress(status.stabilityProgressPct);
-      setStabilityMessage(status.message);
-      if (status.frozenWeight !== null) {
-        setFrozenWeight(status.frozenWeight);
-      }
-    });
-
-    // Callback quando a plataforma zera (animal desceu)
-    detector.onZeroReturn(() => {
-      setFrozenWeight(null);
-      if (stabilityConfig.soundEnabled) {
-        soundEffects.playZeroReleaseTone();
-      }
-      toast.info("Plataforma liberada. Pronto para o próximo animal!");
-
-      // Avanço automático opcional para o próximo animal não pesado do lote
-      if (stabilityConfig.autoAdvanceAnimal) {
-        advanceToNextAnimal();
-      }
-    });
-  }, [stabilityConfig]);
-
   // 3. ANIMAL SELECIONADO & CÁLCULO DE GANHO ANTERIOR
   const currentAnimal = useMemo(() => {
     return animals.find(a => a.id === selectedAnimalId);
@@ -184,14 +182,13 @@ export default function AutomaticWeighing() {
 
   // Última pesagem registrada deste animal
   const previousWeighing = useMemo(() => {
-    if (!selectedAnimalId) return null;
+    if (!currentAnimal) return null;
     const animalEvents = events
-      .filter(e => e.animal_id === selectedAnimalId && e.type === "pesagem")
+      .filter(e => e.animal_id === currentAnimal.id && e.type === "pesagem")
       .sort((a, b) => b.date.localeCompare(a.date));
 
     if (animalEvents.length === 0) {
-      // Se não houver eventos, verifica se o animal tem peso inicial cadastrado
-      if (currentAnimal && currentAnimal.peso_entrada) {
+      if (currentAnimal.peso_entrada && currentAnimal.peso_entrada > 0) {
         return {
           weight: currentAnimal.peso_entrada,
           date: currentAnimal.data_compra || currentAnimal.birth_date || "Cadastro Inicial"
@@ -201,10 +198,10 @@ export default function AutomaticWeighing() {
     }
 
     return {
-      weight: animalEvents[0].weight,
+      weight: animalEvents[0].weight || animalEvents[0].value || 0,
       date: animalEvents[0].date
     };
-  }, [selectedAnimalId, events, currentAnimal]);
+  }, [currentAnimal, events]);
 
   // Cálculo de ganho e GMD com o peso que está na balança (ou congelado)
   const realTimePerformance = useMemo(() => {
@@ -213,7 +210,6 @@ export default function AutomaticWeighing() {
 
     const gainKg = Math.round((targetWeightToCompare - previousWeighing.weight) * 10) / 10;
     
-    // Dias entre pesagens
     let days = 1;
     if (previousWeighing.date && previousWeighing.date.includes("-")) {
       const prevDate = new Date(previousWeighing.date);
@@ -238,12 +234,25 @@ export default function AutomaticWeighing() {
     };
   }, [previousWeighing, frozenWeight, currentWeight]);
 
+  // Garante que selectedAnimalId aponte sempre para um animal válido se houver animais disponíveis
+  useEffect(() => {
+    if (animals.length > 0) {
+      const exists = animals.some(a => a.id === selectedAnimalId);
+      if (!exists) {
+        const inLote = animals.filter(a => selectedLote === "all" || (a.lote_id || a.lot || "Sem Lote") === selectedLote);
+        const nextId = inLote.length > 0 ? inLote[0].id : animals[0].id;
+        setSelectedAnimalId(nextId);
+        selectedAnimalIdRef.current = nextId;
+      }
+    }
+  }, [animals, selectedAnimalId, selectedLote]);
+
   // Lista de animais filtrada por lote e busca
   const filteredAnimals = useMemo(() => {
     return animals.filter(a => {
       const loteName = a.lote_id || a.lot || "Sem Lote";
       const matchesLote = selectedLote === "all" || loteName === selectedLote;
-      const query = searchAnimalQuery.toLowerCase();
+      const query = searchAnimalQuery.toLowerCase().trim();
       const matchesSearch = !query || 
         a.tag.toLowerCase().includes(query) || 
         (a.categoria || "").toLowerCase().includes(query) ||
@@ -252,33 +261,65 @@ export default function AutomaticWeighing() {
     });
   }, [animals, selectedLote, searchAnimalQuery]);
 
+  const filteredAnimalsRef = useRef<Animal[]>(filteredAnimals);
+  filteredAnimalsRef.current = filteredAnimals;
+
   // IDs de animais já pesados nesta sessão
   const weighedAnimalIdsInSession = useMemo(() => {
     return new Set(sessionRecords.map(r => r.animalId));
   }, [sessionRecords]);
 
   // Função para avançar automaticamente para o próximo animal da fila
-  const advanceToNextAnimal = () => {
-    const unweighed = filteredAnimals.filter(a => !weighedAnimalIdsInSession.has(a.id));
+  const advanceToNextAnimal = useCallback(() => {
+    const list = filteredAnimalsRef.current.length > 0 ? filteredAnimalsRef.current : animalsRef.current;
+    if (list.length === 0) return;
+
+    const weighedIds = new Set(sessionRecordsRef.current.map(r => r.animalId));
+    const unweighed = list.filter(a => !weighedIds.has(a.id));
+
     if (unweighed.length > 0) {
-      // Pega o primeiro não pesado diferente do atual
-      const next = unweighed.find(a => a.id !== selectedAnimalId) || unweighed[0];
+      const next = unweighed.find(a => a.id !== selectedAnimalIdRef.current) || unweighed[0];
       if (next) {
         setSelectedAnimalId(next.id);
+        selectedAnimalIdRef.current = next.id;
         toast.info(`Próximo na fila selecionado: Brinco ${next.tag}`);
       }
+    } else {
+      // Se todos foram pesados, avança para o próximo circular
+      const currentIndex = list.findIndex(a => a.id === selectedAnimalIdRef.current);
+      const nextIndex = (currentIndex + 1) % list.length;
+      const next = list[nextIndex];
+      if (next) {
+        setSelectedAnimalId(next.id);
+        selectedAnimalIdRef.current = next.id;
+      }
     }
-  };
+  }, []);
+
+  const advanceToNextAnimalRef = useRef(advanceToNextAnimal);
+  advanceToNextAnimalRef.current = advanceToNextAnimal;
 
   // 4. CAPTURA AUTOMÁTICA E REGISTRO NO SUPABASE / STORE
-  const handleAutomaticCapture = async (capturedWeight: number, reading: ScaleReading) => {
-    if (!currentAnimal) {
-      toast.error("Nenhum animal selecionado na tela para registrar a pesagem!");
+  const handleAutomaticCapture = useCallback(async (capturedWeight: number, reading: ScaleReading) => {
+    // 1. Obtém o animal pelo ref sempre atualizado
+    let animal = animalsRef.current.find(a => a.id === selectedAnimalIdRef.current);
+
+    // Fallback inteligente: se não encontrou, pega o primeiro da lista filtrada ou geral
+    if (!animal) {
+      animal = filteredAnimalsRef.current[0] || animalsRef.current[0];
+      if (animal) {
+        setSelectedAnimalId(animal.id);
+        selectedAnimalIdRef.current = animal.id;
+      }
+    }
+
+    if (!animal) {
+      toast.error("Nenhum animal cadastrado encontrado para registrar a pesagem!");
       return;
     }
 
     // Toca som confirmatório
-    if (stabilityConfig.soundEnabled) {
+    if (stabilityConfigRef.current.soundEnabled) {
       soundEffects.playWeightCapturedBeep();
     }
 
@@ -286,24 +327,42 @@ export default function AutomaticWeighing() {
     const dateStr = now.toISOString().split("T")[0];
     const timeStr = now.toLocaleTimeString("pt-BR", { hour12: false });
 
-    // Calcula ganho em relação à pesagem anterior
-    const prevW = previousWeighing ? previousWeighing.weight : currentAnimal.peso_entrada || 0;
+    // Histórico de pesagens deste animal
+    const animalEvents = eventsRef.current
+      .filter(e => e.animal_id === animal.id && e.type === "pesagem")
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    let prevW = 0;
+    let prevDateStr: string | undefined;
+
+    if (animalEvents.length > 0) {
+      prevW = animalEvents[0].weight || animalEvents[0].value || 0;
+      prevDateStr = animalEvents[0].date;
+    } else if (animal.peso_entrada && animal.peso_entrada > 0) {
+      prevW = animal.peso_entrada;
+      prevDateStr = animal.data_compra || animal.birth_date || undefined;
+    } else if (animal.weight && animal.weight > 0) {
+      prevW = animal.weight;
+    }
+
     const gainKg = prevW > 0 ? Math.round((capturedWeight - prevW) * 10) / 10 : 0;
     
     let days = 1;
-    if (previousWeighing && previousWeighing.date.includes("-")) {
-      const prevDate = new Date(previousWeighing.date);
+    if (prevDateStr && prevDateStr.includes("-")) {
+      const prevDate = new Date(prevDateStr);
       const diffMs = now.getTime() - prevDate.getTime();
       days = Math.max(1, Math.floor(diffMs / (1000 * 3600 * 24)));
+    } else {
+      days = 30; // fallback padrão
     }
     const gmdGrams = Math.round((gainKg / days) * 1000);
 
-    const description = `[Pesagem Automática Alfa 3102C.S] ${timeStr} - Brinco: ${currentAnimal.tag} - GMD: ${gmdGrams}g/dia`;
+    const description = `[Pesagem Automática Alfa 3102C.S] ${timeStr} - Brinco: ${animal.tag} - GMD: ${gmdGrams}g/dia`;
 
     try {
-      // 1. Salva evento no banco de dados Supabase / Store (atualiza o animal automaticamente)
+      // 1. Salva evento no Supabase / Store (atualiza o animal automaticamente)
       await store.addEvent({
-        animal_id: currentAnimal.id,
+        animal_id: animal.id,
         type: "pesagem",
         date: dateStr,
         description,
@@ -311,18 +370,22 @@ export default function AutomaticWeighing() {
         weight: capturedWeight
       });
 
-      // 2. Cria registro detalhado para a sessão de pesagem
+      // 2. Atualiza peso do animal no estado local imediatamente
+      const updatedWeight = capturedWeight;
+      setAnimals(prev => prev.map(a => a.id === animal.id ? { ...a, weight: updatedWeight } : a));
+
+      // 3. Cria registro detalhado para a sessão de pesagem
       const record: WeighingRecord = {
         id: Math.random().toString(36).substring(2, 9),
-        animalId: currentAnimal.id,
-        tag: currentAnimal.tag,
-        animalName: currentAnimal.categoria || "Bovino",
-        loteNome: currentAnimal.lote_id || currentAnimal.lot || "Sem Lote",
-        categoria: currentAnimal.categoria,
-        raca: currentAnimal.breed,
+        animalId: animal.id,
+        tag: animal.tag,
+        animalName: animal.categoria || "Bovino",
+        loteNome: animal.lote_id || animal.lot || "Sem Lote",
+        categoria: animal.categoria,
+        raca: animal.breed,
         currentWeight: capturedWeight,
         previousWeight: prevW > 0 ? prevW : undefined,
-        previousDate: previousWeighing?.date,
+        previousDate: prevDateStr,
         weightGainKg: prevW > 0 ? gainKg : undefined,
         daysBetween: days,
         gmdGramsPerDay: gmdGrams,
@@ -334,18 +397,55 @@ export default function AutomaticWeighing() {
 
       setSessionRecords(prev => [record, ...prev]);
 
-      // Atualiza localmente a lista de eventos e animais para refletir na hora
-      await loadDatabaseData();
+      // Atualiza eventos no background
+      loadDatabaseData();
 
       toast.success(
-        `Pesagem capturada com sucesso: ${capturedWeight.toFixed(1)} kg no brinco ${currentAnimal.tag}!`,
+        `Pesagem capturada com sucesso: ${capturedWeight.toFixed(1)} kg no brinco ${animal.tag}!`,
         { duration: 4000 }
       );
     } catch (err: any) {
       console.error("Erro ao salvar pesagem:", err);
       toast.error(`Erro ao salvar pesagem: ${err.message || "Falha na sincronização"}`);
     }
-  };
+  }, [loadDatabaseData]);
+
+  const handleAutomaticCaptureRef = useRef(handleAutomaticCapture);
+  handleAutomaticCaptureRef.current = handleAutomaticCapture;
+
+  // 2. CONFIGURAR DETECTOR DE ESTABILIDADE E CALLBACKS COM REFS
+  useEffect(() => {
+    const detector = detectorRef.current;
+    if (!detector) return;
+
+    detector.updateConfig(stabilityConfig);
+
+    // Registra callbacks que invocam os refs mais recentes (sem stale closures)
+    detector.onCaptured((capturedWeight, reading) => {
+      handleAutomaticCaptureRef.current(capturedWeight, reading);
+    });
+
+    detector.onStateChange((status) => {
+      setWeighingState(status.state);
+      setStabilityProgress(status.stabilityProgressPct);
+      setStabilityMessage(status.message);
+      if (status.frozenWeight !== null) {
+        setFrozenWeight(status.frozenWeight);
+      }
+    });
+
+    detector.onZeroReturn(() => {
+      setFrozenWeight(null);
+      if (stabilityConfigRef.current.soundEnabled) {
+        soundEffects.playZeroReleaseTone();
+      }
+      toast.info("Plataforma liberada. Pronto para o próximo animal!");
+
+      if (stabilityConfigRef.current.autoAdvanceAnimal) {
+        advanceToNextAnimalRef.current();
+      }
+    });
+  }, [stabilityConfig]);
 
   // 5. PROCESSAMENTO DE LEITURAS SERIAIS DA BALANÇA
   const handleScaleReading = useCallback((reading: ScaleReading) => {
@@ -368,14 +468,19 @@ export default function AutomaticWeighing() {
   // Listener para WebSerialService
   useEffect(() => {
     const unsubReading = defaultWebSerialService.onReading(handleScaleReading);
-    const unsubStatus = defaultWebSerialService.onStatusChange((status, error) => {
+    const unsubStatus = defaultWebSerialService.onStatusChange((status, error, portInfo) => {
       setIsConnected(status === "connected");
       setIsConnecting(status === "connecting");
       setConnectionError(error || null);
+      if (portInfo) {
+        setConnectedPortLabel(portInfo);
+      } else if (status === "disconnected") {
+        setConnectedPortLabel("");
+      }
 
       if (status === "connected") {
         soundEffects.playConnectedTone();
-        toast.success("Balança Alfa 3102C.S conectada com sucesso!");
+        toast.success(`Balança Alfa 3102C.S conectada com sucesso! ${portInfo ? `(${portInfo})` : ""}`);
       } else if (status === "disconnected" && error) {
         toast.error(error);
       }
@@ -412,15 +517,33 @@ export default function AutomaticWeighing() {
       setIsConnected(false);
       detectorRef.current?.reset();
       setWeighingState("DISCONNECTED");
-      toast.info("Balança desconectada.");
+      toast.info("Balança Alfa desconectada.");
       return;
+    }
+
+    // 1. Verificação nativa da Web Serial API antes de tentar abrir o seletor
+    if (!defaultWebSerialService.isWebSerialSupported()) {
+      toast.error(
+        "Web Serial API indisponível! É necessário utilizar o Google Chrome ou Microsoft Edge (notebook/computador) e acessar via HTTPS.",
+        { duration: 7000 }
+      );
+      return;
+    }
+
+    // Desativa o simulador se estiver ativo para garantir independência
+    if (isSimulatorActive) {
+      defaultScaleSimulator.stop();
+      setIsSimulatorActive(false);
+      detectorRef.current?.reset();
     }
 
     try {
       defaultWebSerialService.setConfig(serialConfig);
       await defaultWebSerialService.connectSerial();
     } catch (err: any) {
-      // O erro já é tratado no listener de status
+      if (err.message && !err.message.includes("Nenhuma porta serial foi selecionada")) {
+        toast.error(err.message, { duration: 6000 });
+      }
     }
   };
 
@@ -440,7 +563,92 @@ export default function AutomaticWeighing() {
     }
   };
 
+  const handleSimulateSubirBoi = () => {
+    // 1. Ativa o simulador se ainda não estiver ativo
+    if (!isSimulatorActive) {
+      if (isConnected) {
+        defaultWebSerialService.disconnect();
+      }
+      setIsSimulatorActive(true);
+      defaultScaleSimulator.start();
+    }
+
+    // 2. Garante que exista um animal selecionado
+    let target = animalsRef.current.find(a => a.id === selectedAnimalIdRef.current);
+    if (!target) {
+      target = filteredAnimalsRef.current[0] || animalsRef.current[0];
+      if (target) {
+        setSelectedAnimalId(target.id);
+        selectedAnimalIdRef.current = target.id;
+        toast.info(`Animal Brinco ${target.tag} selecionado para o teste.`);
+      } else {
+        toast.error("Nenhum animal cadastrado encontrado para testar a pesagem.");
+        return;
+      }
+    }
+
+    // 3. Se a balança estiver congelada de pesagem anterior, destrava primeiro
+    if (weighingState === "WEIGHT_CAPTURED" || weighingState === "WAITING_ZERO_RELEASE") {
+      detectorRef.current?.reset();
+      setFrozenWeight(null);
+    }
+
+    // 4. Calcula peso alvo coerente com o animal selecionado
+    const baseWeight = target.weight > 30 
+      ? target.weight 
+      : (target.peso_entrada && target.peso_entrada > 30 ? target.peso_entrada : 450);
+    
+    // Pequena variação simulando ganho de peso realista (± 2.5 kg)
+    const simulatedWeight = Math.round((baseWeight + (Math.random() * 5 - 1)) * 10) / 10;
+    
+    toast.info(`Animal Brinco ${target.tag} subindo na balança...`);
+    defaultScaleSimulator.simulateAnimalCycle(simulatedWeight);
+  };
+
+  const handleLoteChange = (newLote: string) => {
+    setSelectedLote(newLote);
+    setSearchAnimalQuery("");
+
+    const candidateList = animals.filter(a => {
+      const loteName = a.lote_id || a.lot || "Sem Lote";
+      return newLote === "all" || loteName === newLote;
+    });
+
+    if (candidateList.length > 0) {
+      const isCurrentInLote = candidateList.some(a => a.id === selectedAnimalIdRef.current);
+      if (!isCurrentInLote) {
+        setSelectedAnimalId(candidateList[0].id);
+        selectedAnimalIdRef.current = candidateList[0].id;
+      }
+    }
+  };
+
+  const handleResetPlatform = () => {
+    detectorRef.current?.reset();
+    setFrozenWeight(null);
+    if (isSimulatorActive) {
+      defaultScaleSimulator.simulateAnimalExit();
+    }
+    setWeighingState("IDLE_EMPTY");
+    toast.info("Plataforma liberada manualmente para nova pesagem.");
+  };
+
   const handleManualForceCapture = () => {
+    let animal = animalsRef.current.find(a => a.id === selectedAnimalIdRef.current);
+    if (!animal) {
+      const fallback = filteredAnimalsRef.current[0] || animalsRef.current[0];
+      if (fallback) {
+        animal = fallback;
+        setSelectedAnimalId(fallback.id);
+        selectedAnimalIdRef.current = fallback.id;
+      }
+    }
+
+    if (!animal) {
+      toast.error("Selecione um animal antes de forçar a captura!");
+      return;
+    }
+
     if (currentWeight < stabilityConfig.minWeightKg) {
       toast.warning(`Peso na balança (${currentWeight} kg) é inferior ao mínimo (${stabilityConfig.minWeightKg} kg)`);
       return;
@@ -668,7 +876,7 @@ export default function AutomaticWeighing() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
-              onClick={() => defaultScaleSimulator.simulateAnimalCycle()}
+              onClick={handleSimulateSubirBoi}
               disabled={simStatus.isAutoCycleRunning}
               className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-9 gap-1.5 shadow-sm"
             >
@@ -689,6 +897,28 @@ export default function AutomaticWeighing() {
         </div>
       )}
 
+      {/* Aviso caso esteja rodando dentro do iframe do AI Studio Preview */}
+      {isRunningInIframe() && !isConnected && (
+        <div className="p-3.5 bg-blue-500/10 border border-blue-500/25 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-blue-900 dark:text-blue-200">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="h-4 w-4 text-blue-600 shrink-0" />
+            <span>
+              <strong>Balança conectada ao notebook via USB/Serial?</strong> O preview do AI Studio roda dentro de um iframe com políticas de segurança que podem restringir portas seriais. Para conectar diretamente à balança física Alfa 3102C.S, abra a aplicação em uma nova aba.
+            </span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(window.location.href, "_blank")}
+            className="text-xs font-bold shrink-0 bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-700 gap-1.5 h-8 shadow-sm"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Abrir em Nova Aba
+          </Button>
+        </div>
+      )}
+
       {/* 2. GRID PRINCIPAL: VISOR INDUSTRIAL + CARD DO ANIMAL */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
@@ -700,13 +930,26 @@ export default function AutomaticWeighing() {
             <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className={`h-3 w-3 rounded-full ${
-                  isConnected ? "bg-emerald-500 animate-pulse" : (isSimulatorActive ? "bg-amber-400 animate-pulse" : "bg-rose-500")
+                  isConnected 
+                    ? "bg-emerald-500 animate-pulse" 
+                    : isConnecting 
+                      ? "bg-amber-400 animate-ping" 
+                      : (isSimulatorActive ? "bg-amber-400 animate-pulse" : "bg-rose-500")
                 }`} />
-                <span className="text-xs font-black tracking-widest uppercase text-slate-300 font-mono">
-                  {isConnected ? "ALFA 3102C.S ONLINE" : (isSimulatorActive ? "SIMULADOR VIRTUAL" : "OFFLINE")}
+                <span className="text-xs font-black tracking-widest uppercase font-mono">
+                  {isConnected ? (
+                    <span className="text-emerald-400">ALFA 3102C.S CONECTADA</span>
+                  ) : isConnecting ? (
+                    <span className="text-amber-400">CONECTANDO À PORTA SERIAL...</span>
+                  ) : isSimulatorActive ? (
+                    <span className="text-amber-400">SIMULADOR VIRTUAL (MODO TESTE)</span>
+                  ) : (
+                    <span className="text-rose-400">BALANÇA DESCONECTADA</span>
+                  )}
                 </span>
                 <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
-                  {serialConfig.baudRate} 8N1 • {serialConfig.protocol.toUpperCase()}
+                  {serialConfig.baudRate} {serialConfig.dataBits}N{serialConfig.stopBits} • {serialConfig.protocol.toUpperCase()}
+                  {connectedPortLabel ? ` • ${connectedPortLabel}` : ""}
                 </span>
               </div>
 
@@ -746,15 +989,25 @@ export default function AutomaticWeighing() {
                 <div className="absolute inset-0 bg-emerald-500/10 blur-3xl pointer-events-none" />
               )}
 
-              {/* Rótulo superior */}
+              {/* Rótulo superior com Telemetria Bruta em Tempo Real */}
               <div className="w-full flex items-center justify-between text-xs text-slate-400 font-mono mb-2">
                 <span className="flex items-center gap-1 text-[11px] font-bold">
                   {softwareTareOffset > 0 && <span className="text-amber-400">(TARA: {softwareTareOffset.toFixed(1)}kg)</span>}
                   PESO BRUTO
                 </span>
-                <span className="text-[10px] text-slate-500 truncate max-w-[200px]" title={rawTelemetry}>
-                  FRAME: {rawTelemetry}
-                </span>
+                
+                <button
+                  type="button"
+                  onClick={() => setIsMonitorModalOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-mono hover:border-primary/50 transition-colors group cursor-pointer"
+                  title="Clique para abrir o Monitor de Dados Seriais Brutos"
+                >
+                  <Terminal className="h-3 w-3 text-emerald-400 group-hover:text-primary shrink-0" />
+                  <span className="text-slate-400 hidden xs:inline">TELEMETRIA BRUTA:</span>
+                  <span className="text-emerald-400 font-bold truncate max-w-[200px]">
+                    {rawTelemetry || "--"}
+                  </span>
+                </button>
               </div>
 
               {/* DÍGITOS GIGANTES */}
@@ -820,6 +1073,16 @@ export default function AutomaticWeighing() {
                     Reset Tara
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleResetPlatform}
+                  className="h-8 text-xs font-bold text-slate-300 border-slate-700 bg-slate-800/80 hover:bg-slate-700 gap-1"
+                  title="Libera a balança e destrava o peso congelado"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Destravar Visor
+                </Button>
               </div>
 
               {/* Botão de Forçar Captura Manual */}
@@ -879,7 +1142,7 @@ export default function AutomaticWeighing() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-[10px] font-black uppercase text-muted-foreground">Filtrar por Lote</Label>
-                  <Select value={selectedLote} onValueChange={setSelectedLote}>
+                  <Select value={selectedLote} onValueChange={handleLoteChange}>
                     <SelectTrigger className="font-bold text-xs h-9">
                       <SelectValue placeholder="Todos os Lotes" />
                     </SelectTrigger>
@@ -904,12 +1167,18 @@ export default function AutomaticWeighing() {
               </div>
 
               {/* Seletor do Animal Ativo */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[10px] font-black uppercase text-muted-foreground">
                   <span>Selecionar Animal</span>
                   <span>{filteredAnimals.length} animais disponíveis</span>
                 </div>
-                <Select value={selectedAnimalId} onValueChange={setSelectedAnimalId}>
+                <Select 
+                  value={selectedAnimalId} 
+                  onValueChange={(val) => {
+                    setSelectedAnimalId(val);
+                    selectedAnimalIdRef.current = val;
+                  }}
+                >
                   <SelectTrigger className="font-black text-sm h-11 bg-muted/40 border-primary/30">
                     <SelectValue placeholder="Escolha o animal..." />
                   </SelectTrigger>
@@ -931,6 +1200,41 @@ export default function AutomaticWeighing() {
                     })}
                   </SelectContent>
                 </Select>
+
+                {/* Atalhos rápidos por chip de brinco */}
+                {filteredAnimals.length > 0 && (
+                  <div className="pt-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase mb-1">
+                      <span>Fila de pesagem rápida:</span>
+                      <span className="text-[9px] lowercase font-normal opacity-80">(toque no brinco para selecionar)</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                      {filteredAnimals.slice(0, 10).map(a => {
+                        const isSelected = a.id === selectedAnimalId;
+                        const isWeighed = weighedAnimalIdsInSession.has(a.id);
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedAnimalId(a.id);
+                              selectedAnimalIdRef.current = a.id;
+                            }}
+                            className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition-all ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary/30"
+                                : isWeighed
+                                  ? "bg-muted/40 text-muted-foreground border-border/60 opacity-60 line-through"
+                                  : "bg-card text-foreground border-border hover:border-primary/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            {isWeighed ? "✓ " : ""}{a.tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Cartão de Detalhes do Animal Selecionado */}

@@ -2,13 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { store, Animal } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck, Beef, LandPlot, Plus, Utensils } from "lucide-react";
+import { ArrowLeft, TrendingUp, Scale, DollarSign, Activity, ChevronRight, Calendar, Coins, Save, CheckCircle, Weight, AlertTriangle, ArrowRight, BarChart3, Syringe, RefreshCw, Truck, Beef, LandPlot, Plus, Utensils, Wifi, WifiOff, Lock, Unlock, Radio, Zap, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { defaultWebSerialService, isRunningInIframe } from "@/services/scale/webSerialService";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,90 @@ export default function LoteDetail() {
 
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportAnimalIds, setReportAnimalIds] = useState<string[]>([]);
+
+  // Integração Web Serial Balança Alfa 3102C.S (Protocolo TRC - 9600 8N1)
+  const [scaleStatus, setScaleStatus] = useState<"disconnected" | "connecting" | "connected" | "error">(() => defaultWebSerialService.getStatus());
+  const [scalePortLabel, setScalePortLabel] = useState<string>("");
+  const [liveScaleWeight, setLiveScaleWeight] = useState<number | null>(null);
+  const [isScaleStable, setIsScaleStable] = useState<boolean>(false);
+  const [isLiveAutoFill, setIsLiveAutoFill] = useState<boolean>(true); // Atualização ao vivo no input de peso
+  const isLiveAutoFillRef = useRef<boolean>(true);
+  isLiveAutoFillRef.current = isLiveAutoFill;
+
+  useEffect(() => {
+    // Configura o serviço para Alfa TRC 9600 8N1
+    defaultWebSerialService.setConfig({
+      baudRate: 9600,
+      dataBits: 8,
+      stopBits: 1,
+      parity: "none",
+      protocol: "alfa_trc"
+    });
+
+    const unsubStatus = defaultWebSerialService.onStatusChange((status, err, info) => {
+      setScaleStatus(status);
+      if (info) setScalePortLabel(info);
+      if (status === "connected") {
+        toast.success("Balança Alfa 3102C.S conectada com sucesso (Protocolo TRC / 9600 8N1)!");
+      } else if (status === "disconnected" && err) {
+        toast.error(err);
+      }
+    });
+
+    const unsubReading = defaultWebSerialService.onReading((reading) => {
+      setLiveScaleWeight(reading.weight);
+      setIsScaleStable(reading.isStable);
+      // Se a sincronização ao vivo estiver ativa, preenche o campo input em tempo real
+      if (isLiveAutoFillRef.current && reading.weight > 0) {
+        setQuickWeight(prev => ({ ...prev, weight: reading.weight }));
+      }
+    });
+
+    return () => {
+      unsubStatus();
+      unsubReading();
+    };
+  }, []);
+
+  const handleConnectScale = async () => {
+    if (!("serial" in navigator)) {
+      toast.error(
+        "A Web Serial API não está disponível neste navegador. Abra o sistema no Google Chrome ou Microsoft Edge pelo notebook/PC e certifique-se de acessar via HTTPS.",
+        { duration: 7000 }
+      );
+      return;
+    }
+
+    try {
+      defaultWebSerialService.setConfig({
+        baudRate: 9600,
+        dataBits: 8,
+        stopBits: 1,
+        parity: "none",
+        protocol: "alfa_trc"
+      });
+      await defaultWebSerialService.connectSerial();
+    } catch (err: any) {
+      if (err.message && !err.message.includes("Nenhuma porta")) {
+        toast.error(err.message);
+      }
+    }
+  };
+
+  const handleDisconnectScale = async () => {
+    await defaultWebSerialService.disconnect();
+    toast.info("Balança desconectada da porta serial.");
+  };
+
+  const handleCaptureWeight = () => {
+    if (liveScaleWeight !== null && liveScaleWeight > 0) {
+      setQuickWeight(prev => ({ ...prev, weight: liveScaleWeight }));
+      setIsLiveAutoFill(false);
+      toast.success(`Peso de ${liveScaleWeight} kg capturado e travado no formulário!`);
+    } else {
+      toast.info("Aguardando leitura de peso da balança...");
+    }
+  };
 
   const [metrics, setMetrics] = useState({
     gmd: 0,
@@ -557,37 +642,163 @@ export default function LoteDetail() {
       </div>
 
       <Card className="border-primary bg-primary/5 ring-1 ring-primary/20 shadow-lg overflow-hidden rounded-2xl">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between bg-white/50 backdrop-blur-sm">
+        <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/50 backdrop-blur-sm border-b">
           <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Scale className="h-5 w-5 text-primary" /> Pesagem Rápida
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">Registre o peso em sequência</p>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Scale className="h-5 w-5 text-primary" /> Pesagem Rápida no Lote
+              </CardTitle>
+              {scaleStatus === "connected" ? (
+                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-black uppercase tracking-wider gap-1.5 py-0.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Alfa Conectada (TRC 9600 8N1)
+                </Badge>
+              ) : scaleStatus === "connecting" ? (
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30 text-[10px] font-bold gap-1 py-0.5">
+                  <RefreshCw className="h-3 w-3 animate-spin" /> Conectando...
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground border-dashed text-[10px] font-semibold gap-1 py-0.5">
+                  <WifiOff className="h-3 w-3" /> Balança Desconectada
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Conexão serial direta com o indicador Alfa Instrumentos 3102C.S
+            </p>
           </div>
+
           <div className="flex flex-wrap items-center gap-2">
+            {/* Botão Conectar / Desconectar Balança via Web Serial API */}
+            {scaleStatus === "connected" ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDisconnectScale}
+                className="h-8 text-xs font-bold text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5"
+              >
+                <WifiOff className="h-3.5 w-3.5" /> Desconectar
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                disabled={scaleStatus === "connecting"}
+                onClick={handleConnectScale}
+                className="h-8 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white gap-1.5 shadow-sm"
+              >
+                <Wifi className="h-3.5 w-3.5" /> Conectar Balança Alfa
+              </Button>
+            )}
+
             <Button
               type="button"
+              variant="outline"
               size="sm"
               onClick={() => navigate(`/weighing?lote=${encodeURIComponent(nomeDecodificado)}`)}
-              className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-sm"
+              className="h-8 text-xs font-bold text-emerald-700 border-emerald-600/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 gap-1.5"
             >
-              <Scale className="h-3.5 w-3.5" />
-              Balança Alfa 3102C.S
+              <Zap className="h-3.5 w-3.5 text-emerald-600" />
+              Módulo Curral Automático
             </Button>
+
             <Input 
               type="date" 
-              className="w-[125px] h-8 text-[11px] bg-white border-primary/20" 
+              className="w-[125px] h-8 text-[11px] bg-white border-primary/20 font-bold" 
               value={quickWeight.date} 
               onChange={e => setQuickWeight({ ...quickWeight, date: e.target.value })} 
             />
           </div>
         </CardHeader>
-        <CardContent className="pt-4">
+
+        <CardContent className="pt-4 space-y-4">
+          {/* Aviso instrutivo caso esteja executando dentro do iframe do AI Studio */}
+          {isRunningInIframe() && scaleStatus !== "connected" && (
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-blue-900 dark:text-blue-200">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-blue-600 shrink-0" />
+                <span>
+                  <strong>Balança conectada ao notebook?</strong> O preview do AI Studio roda em um iframe com restrição de portas seriais pelo navegador. Se o seletor não abrir, acesse em uma nova aba para liberar a porta COM da balança Alfa.
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => window.open(window.location.href, "_blank")}
+                className="text-xs font-bold shrink-0 bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-700 gap-1.5 h-8"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Abrir em Nova Aba
+              </Button>
+            </div>
+          )}
+
+          {/* Painel do Visor Digital da Balança quando Conectada */}
+          {scaleStatus === "connected" && (
+            <div className="p-3.5 rounded-2xl bg-slate-900 text-white border border-slate-800 shadow-inner flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-slate-800 flex items-center justify-center text-emerald-400">
+                  <Radio className="h-5 w-5 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Visor Alfa 3102C.S</span>
+                    <Badge className={isScaleStable ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-[9px] font-black" : "bg-amber-500/20 text-amber-400 border-amber-500/40 text-[9px] font-black"}>
+                      {isScaleStable ? "ESTÁVEL" : "OSCILANDO"}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-400 truncate max-w-[200px]">
+                    {scalePortLabel || "RS-232 / USB Serial (TRC)"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Peso em tempo real no visor digital */}
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight">
+                  {(liveScaleWeight !== null ? liveScaleWeight : 0).toFixed(1)}
+                </span>
+                <span className="text-sm font-bold text-slate-400">kg</span>
+              </div>
+
+              {/* Botões de controle de captura rápida */}
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={isLiveAutoFill ? "secondary" : "outline"}
+                  onClick={() => {
+                    setIsLiveAutoFill(!isLiveAutoFill);
+                    if (!isLiveAutoFill && liveScaleWeight !== null) {
+                      setQuickWeight(prev => ({ ...prev, weight: liveScaleWeight }));
+                    }
+                  }}
+                  className="h-8 text-xs font-bold gap-1.5"
+                >
+                  {isLiveAutoFill ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                  {isLiveAutoFill ? "Ao Vivo (Ligado)" : "Travado"}
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCaptureWeight}
+                  className="h-8 text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 shadow"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Capturar Peso
+                </Button>
+              </div>
+            </div>
+          )}
+
           <form 
             onSubmit={handleQuickWeight}
-            className="grid grid-cols-2 md:grid-cols-3 gap-4 items-end"
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end"
           >
-            <div className="space-y-1.5 text-left">
+            <div className="space-y-1.5 text-left col-span-2 sm:col-span-1">
               <Label className="text-xs font-black uppercase text-muted-foreground ml-1">Brinco</Label>
               <Input 
                 ref={tagInputRef}
@@ -597,21 +808,51 @@ export default function LoteDetail() {
                 className="h-12 text-xl font-black italic bg-white border-primary/30 focus-visible:ring-primary"
               />
             </div>
-            <div className="space-y-1.5 text-left">
-              <Label className="text-xs font-black uppercase text-muted-foreground ml-1">Peso (kg)</Label>
-              <Input 
-                type="number" 
-                step="0.1"
-                placeholder="0.0" 
-                value={quickWeight.weight || ""}
-                onChange={e => setQuickWeight({ ...quickWeight, weight: Number(e.target.value) })}
-                className="h-12 text-xl font-black italic bg-white border-primary/30 focus-visible:ring-primary"
-              />
+
+            <div className="space-y-1.5 text-left col-span-2 sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-black uppercase text-muted-foreground ml-1">Peso (kg)</Label>
+                {scaleStatus === "connected" && liveScaleWeight !== null && (
+                  <button
+                    type="button"
+                    onClick={handleCaptureWeight}
+                    className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                  >
+                    Usar Balança ({liveScaleWeight.toFixed(1)} kg)
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Input 
+                  type="number" 
+                  step="0.1"
+                  placeholder="0.0" 
+                  value={quickWeight.weight || ""}
+                  onChange={e => {
+                    setIsLiveAutoFill(false);
+                    setQuickWeight({ ...quickWeight, weight: Number(e.target.value) });
+                  }}
+                  className="h-12 text-xl font-black italic bg-white border-primary/30 focus-visible:ring-primary pr-20"
+                />
+                {scaleStatus === "connected" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCaptureWeight}
+                    className="absolute right-1 top-1 h-10 text-[11px] font-black text-emerald-700 hover:bg-emerald-50 px-2"
+                  >
+                    TRAVAR
+                  </Button>
+                )}
+              </div>
             </div>
+
             <Button type="submit" className="h-12 font-black italic uppercase tracking-widest col-span-2 md:col-span-1 shadow-xl bg-primary hover:bg-primary/90">
               <Save className="mr-2 h-5 w-5" /> SALVAR
             </Button>
           </form>
+
           {successMsg && (
             <div className="mt-4 p-3 bg-white/80 rounded-xl border border-success/30 flex items-center gap-2 animate-in slide-in-from-top-2">
               <CheckCircle className="h-4 w-4 text-success" />
