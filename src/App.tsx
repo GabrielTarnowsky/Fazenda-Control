@@ -30,6 +30,7 @@ import PasturesPage from "./pages/Pastures";
 import AutomaticWeighing from "./pages/AutomaticWeighing";
 import { store } from "./lib/store";
 import { Loader2 } from "lucide-react";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -89,43 +90,45 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner theme="dark" richColors />
-        <BrowserRouter>
-          <Routes>
-            {/* Rotas Públicas */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+        <ErrorBoundary>
+          <BrowserRouter>
+            <Routes>
+              {/* Rotas Públicas */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* Rotas Protegidas */}
-            <Route element={<SidebarLayout />}>
-              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/animals" element={<ProtectedRoute><Animals /></ProtectedRoute>} />
-              <Route path="/animals/new" element={<ProtectedRoute><AddAnimal /></ProtectedRoute>} />
-              <Route path="/animals/:id/edit" element={<ProtectedRoute><AddAnimal /></ProtectedRoute>} />
-              <Route path="/animals/:id" element={<ProtectedRoute><AnimalDetail /></ProtectedRoute>} />
-              <Route path="/lotes" element={<ProtectedRoute><Lotes /></ProtectedRoute>} />
-              <Route path="/lotes/:nome" element={<ProtectedRoute><LoteDetail /></ProtectedRoute>} />
-              <Route path="/events/new" element={<ProtectedRoute><AddEvent /></ProtectedRoute>} />
-              <Route path="/events/:id/edit" element={<ProtectedRoute><AddEvent /></ProtectedRoute>} />
-              <Route path="/financial" element={<ProtectedRoute><FinancialPage /></ProtectedRoute>} />
-              <Route path="/rations" element={<ProtectedRoute><Rations /></ProtectedRoute>} />
-              <Route path="/rations/new" element={<ProtectedRoute><AddRation /></ProtectedRoute>} />
-              <Route path="/rations/:id/edit" element={<ProtectedRoute><AddRation /></ProtectedRoute>} />
-              <Route path="/ingredients" element={<ProtectedRoute><Ingredients /></ProtectedRoute>} />
-              <Route path="/rations/log/new" element={<ProtectedRoute><AddFeedingLog /></ProtectedRoute>} />
-              <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-              <Route path="/insemination" element={<ProtectedRoute><Insemination /></ProtectedRoute>} />
-              <Route path="/pastos" element={<ProtectedRoute><PasturesPage /></ProtectedRoute>} />
-              <Route path="/pastures" element={<ProtectedRoute><PasturesPage /></ProtectedRoute>} />
-              <Route path="/weighing" element={<ProtectedRoute><AutomaticWeighing /></ProtectedRoute>} />
-              <Route path="/pesagem" element={<ProtectedRoute><AutomaticWeighing /></ProtectedRoute>} />
-              <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
-              <Route path="/rainfall" element={<ProtectedRoute><RainfallDetails /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-              <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+              {/* Rotas Protegidas */}
+              <Route element={<SidebarLayout />}>
+                <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/animals" element={<ProtectedRoute><Animals /></ProtectedRoute>} />
+                <Route path="/animals/new" element={<ProtectedRoute><AddAnimal /></ProtectedRoute>} />
+                <Route path="/animals/:id/edit" element={<ProtectedRoute><AddAnimal /></ProtectedRoute>} />
+                <Route path="/animals/:id" element={<ProtectedRoute><AnimalDetail /></ProtectedRoute>} />
+                <Route path="/lotes" element={<ProtectedRoute><Lotes /></ProtectedRoute>} />
+                <Route path="/lotes/:nome" element={<ProtectedRoute><LoteDetail /></ProtectedRoute>} />
+                <Route path="/events/new" element={<ProtectedRoute><AddEvent /></ProtectedRoute>} />
+                <Route path="/events/:id/edit" element={<ProtectedRoute><AddEvent /></ProtectedRoute>} />
+                <Route path="/financial" element={<ProtectedRoute><FinancialPage /></ProtectedRoute>} />
+                <Route path="/rations" element={<ProtectedRoute><Rations /></ProtectedRoute>} />
+                <Route path="/rations/new" element={<ProtectedRoute><AddRation /></ProtectedRoute>} />
+                <Route path="/rations/:id/edit" element={<ProtectedRoute><AddRation /></ProtectedRoute>} />
+                <Route path="/ingredients" element={<ProtectedRoute><Ingredients /></ProtectedRoute>} />
+                <Route path="/rations/log/new" element={<ProtectedRoute><AddFeedingLog /></ProtectedRoute>} />
+                <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                <Route path="/insemination" element={<ProtectedRoute><Insemination /></ProtectedRoute>} />
+                <Route path="/pastos" element={<ProtectedRoute><PasturesPage /></ProtectedRoute>} />
+                <Route path="/pastures" element={<ProtectedRoute><PasturesPage /></ProtectedRoute>} />
+                <Route path="/weighing" element={<ProtectedRoute><AutomaticWeighing /></ProtectedRoute>} />
+                <Route path="/pesagem" element={<ProtectedRoute><AutomaticWeighing /></ProtectedRoute>} />
+                <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
+                <Route path="/rainfall" element={<ProtectedRoute><RainfallDetails /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+                <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </ErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>
   );

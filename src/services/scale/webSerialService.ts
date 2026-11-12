@@ -285,6 +285,9 @@ export class WebSerialService {
 
           if (value) {
             textBuffer += value;
+            if (textBuffer.length > 2048) {
+              textBuffer = textBuffer.slice(-256);
+            }
             // Separa por quebra de linha CRLF padrão da transmissão contínua TRC da Alfa
             const lines = textBuffer.split(/\r?\n/);
             // Mantém no buffer o fragmento incompleto que ainda não recebeu quebra de linha
@@ -309,6 +312,9 @@ export class WebSerialService {
 
           if (value && value.length > 0) {
             textBuffer += decoder.decode(value);
+            if (textBuffer.length > 2048) {
+              textBuffer = textBuffer.slice(-256);
+            }
             const lines = textBuffer.split(/\r?\n/);
             textBuffer = lines.pop() ?? "";
 
@@ -351,6 +357,10 @@ export class WebSerialService {
           combined.set(modbusBuffer);
           combined.set(value, modbusBuffer.length);
           modbusBuffer = combined;
+
+          if (modbusBuffer.length > 2048) {
+            modbusBuffer = modbusBuffer.slice(-256);
+          }
 
           // Alinhamento e extração de múltiplos quadros no buffer binário
           while (modbusBuffer.length >= 5) {

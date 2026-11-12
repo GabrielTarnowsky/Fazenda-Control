@@ -40,10 +40,13 @@ export default function WeighingReport({ isOpen, onClose, loteId, weightedAnimal
       const today = events[0];
       const prev = events[1];
       
-      const gain = today.weight - prev.weight;
-      const msDiff = new Date(today.date).getTime() - new Date(prev.date).getTime();
-      const days = Math.max(1, Math.floor(msDiff / (1000 * 3600 * 24)));
-      const gmd = gain / days;
+      const todayW = today.weight || today.value || 0;
+      const prevW = prev.weight || prev.value || 0;
+      const gain = Math.round((todayW - prevW) * 10) / 10;
+      const msDiff = Math.abs(new Date(today.date).getTime() - new Date(prev.date).getTime());
+      const days = Math.max(1, Math.floor(msDiff / (1000 * 3600 * 24)) || 1);
+      const rawGmd = gain / days;
+      const gmd = Number.isFinite(rawGmd) ? rawGmd : 0;
       const isAlert = gmd < THRESHOLD;
 
       data.push({
@@ -52,13 +55,13 @@ export default function WeighingReport({ isOpen, onClose, loteId, weightedAnimal
         gmd,
         isAlert,
         days,
-        currentWeight: today.weight,
-        prevWeight: prev.weight
+        currentWeight: todayW,
+        prevWeight: prevW
       });
     });
 
     return data;
-  }, [weightedAnimalIds, isOpen]);
+  }, [weightedAnimalIds]);
 
   const stats = useMemo(() => {
     if (performanceData.length === 0) return null;
@@ -88,7 +91,7 @@ export default function WeighingReport({ isOpen, onClose, loteId, weightedAnimal
           <div className="grid grid-cols-2 gap-4 mt-6">
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
               <p className="text-[10px] font-black uppercase opacity-70 mb-1">Ganho Médio Lote</p>
-              <p className="text-xl font-black italic leading-none">{stats.avgGmd.toFixed(2)}kg/dia</p>
+              <p className="text-xl font-black italic leading-none">{(stats.avgGmd ?? 0).toFixed(2)}kg/dia</p>
             </div>
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
               <p className="text-[10px] font-black uppercase opacity-70 mb-1">Animais Analisados</p>

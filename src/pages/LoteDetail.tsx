@@ -233,10 +233,12 @@ export default function LoteDetail() {
     const prevWeight = animal.weight || animal.peso_entrada || 0;
     const gainKg = prevWeight > 0 ? Math.round((weighedWeight - prevWeight) * 10) / 10 : 0;
     
-    // Cálculo do GMD
+    // Cálculo do GMD com proteção contra datas inválidas e divisão por zero
     const lastDate = animal.data_compra || animal.birth_date || quickWeight.date;
-    const diffDays = Math.max(1, Math.round((new Date(quickWeight.date).getTime() - new Date(lastDate).getTime()) / (1000 * 3600 * 24)));
-    const gmdKg = gainKg / diffDays;
+    const rawDiffMs = new Date(quickWeight.date).getTime() - new Date(lastDate).getTime();
+    const diffDays = Math.max(1, Math.round(Math.abs(rawDiffMs) / (1000 * 3600 * 24)) || 1);
+    const rawGmd = gainKg / diffDays;
+    const gmdKg = Number.isFinite(rawGmd) ? rawGmd : 0;
 
     try {
       // 1. Atualiza no store e banco
@@ -262,9 +264,10 @@ export default function LoteDetail() {
 
       toast.success(`Animal #${animal.tag} pesado com sucesso: ${weighedWeight.toFixed(1)} kg!`);
 
-      // 5. Trava na tela por 5 segundos com contagem regressiva
+      // 5. Trava na tela por 5 segundos com contagem regressiva limpa (sem re-entrância de dispatch)
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
       }
 
       setFrozenWeighing({
@@ -277,17 +280,22 @@ export default function LoteDetail() {
         countdown: 5
       });
 
+      let remaining = 5;
       countdownTimerRef.current = setInterval(() => {
-        setFrozenWeighing(prev => {
-          if (!prev || prev.countdown <= 1) {
+        remaining -= 1;
+        if (remaining <= 0) {
+          if (countdownTimerRef.current) {
             clearInterval(countdownTimerRef.current);
             countdownTimerRef.current = null;
-            // Ao término dos 5 segundos, zera automaticamente e avança para o próximo boi
-            handleAdvanceNextBoi(updatedReportIds);
-            return null;
           }
-          return { ...prev, countdown: prev.countdown - 1 };
-        });
+          setFrozenWeighing(null);
+          // Executa avanço fora do ciclo de dispatch síncrono do React
+          setTimeout(() => {
+            handleAdvanceNextBoi(updatedReportIds);
+          }, 0);
+        } else {
+          setFrozenWeighing(prev => prev ? { ...prev, countdown: remaining } : null);
+        }
       }, 1000);
 
     } catch (err: any) {

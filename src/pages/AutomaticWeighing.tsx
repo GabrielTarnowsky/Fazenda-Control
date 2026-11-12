@@ -108,6 +108,8 @@ export default function AutomaticWeighing() {
   // Modais
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isMonitorModalOpen, setIsMonitorModalOpen] = useState<boolean>(false);
+  const isMonitorModalOpenRef = useRef<boolean>(false);
+  isMonitorModalOpenRef.current = isMonitorModalOpen;
   const [debugFrames, setDebugFrames] = useState<SerialDebugFrame[]>([]);
 
   // Instância do detector de estabilidade (usando ref para evitar reinicializações)
@@ -406,18 +408,27 @@ export default function AutomaticWeighing() {
       // Inicia travamento de 5 segundos na tela com contagem regressiva
       if (freezeCountdownTimerRef.current) {
         clearInterval(freezeCountdownTimerRef.current);
+        freezeCountdownTimerRef.current = null;
       }
+
+      let remaining = 5;
       setFreezeCountdown(5);
+
       freezeCountdownTimerRef.current = setInterval(() => {
-        setFreezeCountdown(prev => {
-          if (prev === null || prev <= 1) {
+        remaining -= 1;
+        if (remaining <= 0) {
+          if (freezeCountdownTimerRef.current) {
             clearInterval(freezeCountdownTimerRef.current);
             freezeCountdownTimerRef.current = null;
-            handleResetPlatformAndNext();
-            return null;
           }
-          return prev - 1;
-        });
+          setFreezeCountdown(null);
+          // Executa liberação do próximo boi fora do ciclo síncrono do React
+          setTimeout(() => {
+            handleResetPlatformAndNext();
+          }, 0);
+        } else {
+          setFreezeCountdown(remaining);
+        }
       }, 1000);
     } catch (err: any) {
       console.error("Erro ao salvar pesagem:", err);
@@ -464,6 +475,8 @@ export default function AutomaticWeighing() {
 
   // 5. PROCESSAMENTO DE LEITURAS SERIAIS DA BALANÇA
   const handleScaleReading = useCallback((reading: ScaleReading) => {
+    if (!reading || !Number.isFinite(reading.weight)) return;
+
     // Aplica tara de software se configurada
     const adjustedWeight = Math.max(0, Math.round((reading.weight - softwareTareOffset) * 10) / 10);
     const adjustedReading: ScaleReading = {
@@ -472,7 +485,9 @@ export default function AutomaticWeighing() {
     };
 
     setCurrentWeight(adjustedWeight);
-    setRawTelemetry(reading.raw.trim());
+    if (reading.raw) {
+      setRawTelemetry(reading.raw.trim());
+    }
 
     // Alimenta o detector de estabilidade
     if (detectorRef.current) {
@@ -502,7 +517,10 @@ export default function AutomaticWeighing() {
     });
 
     const unsubDebug = defaultWebSerialService.onDebugFrame((frame) => {
-      setDebugFrames(prev => [frame, ...prev.slice(0, 39)]);
+      // Só atualiza o estado se o modal do monitor estiver visível para o usuário
+      if (isMonitorModalOpenRef.current) {
+        setDebugFrames(prev => [frame, ...prev.slice(0, 39)]);
+      }
     });
 
     return () => {
@@ -850,7 +868,10 @@ export default function AutomaticWeighing() {
             type="button"
             variant="outline"
             size="icon"
-            onClick={() => setIsMonitorModalOpen(true)}
+            onClick={() => {
+              setDebugFrames(defaultWebSerialService.getDebugFrames().slice(0, 40));
+              setIsMonitorModalOpen(true);
+            }}
             className="h-10 w-10 text-muted-foreground hover:text-foreground"
             title="Abrir Monitor de Dados Seriais Brutos"
           >
@@ -1013,7 +1034,10 @@ export default function AutomaticWeighing() {
                 
                 <button
                   type="button"
-                  onClick={() => setIsMonitorModalOpen(true)}
+                  onClick={() => {
+                    setDebugFrames(defaultWebSerialService.getDebugFrames().slice(0, 40));
+                    setIsMonitorModalOpen(true);
+                  }}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-mono hover:border-primary/50 transition-colors group cursor-pointer"
                   title="Clique para abrir o Monitor de Dados Seriais Brutos"
                 >
